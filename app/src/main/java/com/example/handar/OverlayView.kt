@@ -2,8 +2,11 @@ package com.example.handar
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
@@ -23,24 +26,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?): View(context, attrs)
     private var offsetX = 0f
     private var offsetY = 0f
 
-    private val shieldPaint = Paint().apply {
-        color = "#FFA500".toColorInt()
-        style = Paint.Style.STROKE
-        strokeWidth = 10f
-        isAntiAlias = true
+    private val egg: Bitmap by lazy {
+        BitmapFactory.decodeResource(resources, R.drawable.egg)
     }
-
-    private val innerPaint = Paint().apply {
-        color = "#FFD700".toColorInt()
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-        isAntiAlias = true
-    }
-
-    private val fireballPaint = Paint().apply {
-        color = "#FF4500".toColorInt()
-        style = Paint.Style.FILL
-        isAntiAlias = true
+    private val eggCracked: Bitmap by lazy {
+        BitmapFactory.decodeResource(resources, R.drawable.egg_cracked)
     }
 
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int){
@@ -76,37 +66,20 @@ class OverlayView(context: Context?, attrs: AttributeSet?): View(context, attrs)
                 val dy = (wrist.y() - middleMcp.y()) * imgHeight * scaleFactor
 
                 val handSize = hypot(dx.toDouble(), dy.toDouble()).toFloat()
-                val r = handSize * 1.25f
-
                 val isPalmOpen = listOf(Pair(8, 6), Pair(12, 10), Pair(16, 14), Pair(20, 18)).count { (tip, pip) ->
                     hypot(landmark[tip].x() - wrist.x(), landmark[tip].y() - wrist.y()) > hypot(landmark[pip].x() - wrist.x(), landmark[pip].y() - wrist.y())
                 } >= 3
 
-                if(isPalmOpen) {
-                    canvas.withTranslation(cx, cy) {
-                        rotate(rotationAngle)
-                        drawCircle(0f, 0f, r * 0.75f, shieldPaint)
-                        drawCircle(0f, 0f, r * 0.5f, innerPaint)
-                        drawCircle(0f, 0f, r * 0.25f, innerPaint)
-                        drawRect(
-                            -r * 0.6f,
-                            -r * 0.6f,
-                            r * 0.6f,
-                            r * 0.6f,
-                            innerPaint
-                        )
-                        drawRect(
-                            -r * 0.3f,
-                            -r * 0.3f,
-                            r * 0.3f,
-                            r * 0.3f,
-                            innerPaint
-                        )
-                    }
-                } else {
-                    canvas.drawCircle(cx, cy, handSize, innerPaint)
-                    canvas.drawCircle(cx, cy, handSize * 0.6f, fireballPaint)
+                val bitmap = if(isPalmOpen) egg else eggCracked
+                val scale = (handSize * 1.5f) / bitmap.width
+
+                val matrix = Matrix().apply {
+                    postTranslate(-bitmap.width/2f, -bitmap.height/2f)
+                    postScale(scale, scale)
+                    postTranslate(cx, cy)
                 }
+
+                canvas.drawBitmap(bitmap, matrix, null)
             }
         }
 
