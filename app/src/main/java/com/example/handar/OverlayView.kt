@@ -6,45 +6,95 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.drawable.AnimatedImageDrawable
+import android.os.Build
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
+import androidx.annotation.RequiresApi
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import androidx.core.graphics.toColorInt
 import kotlin.math.hypot
 import androidx.core.graphics.withTranslation
 import kotlin.math.max
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.get
+import androidx.core.graphics.withSave
+import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import kotlin.math.min
 
-class OverlayView(context: Context?, attrs: AttributeSet?): View(context, attrs) {
+@RequiresApi(Build.VERSION_CODES.P)
+class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
+
+    companion object {
+        private const val GIF_BUFFER_SIZE = 256
+    }
+
     private var result: HandLandmarkerResult? = null
-    private var rotationAngle: Float = 0f
-
     private var imgWidth = 1
     private var imgHeight = 1
     private var scaleFactor = 1f
     private var offsetX = 0f
     private var offsetY = 0f
 
-    private val egg: Bitmap by lazy {
-        BitmapFactory.decodeResource(resources, R.drawable.egg)
-    }
-    private val eggCracked: Bitmap by lazy {
-        BitmapFactory.decodeResource(resources, R.drawable.egg_cracked)
+    private class GifLayer(context: Context, resId: Int) {
+        val drawable: AnimatedImageDrawable = (ImageDecoder.decodeDrawable(
+            ImageDecoder.createSource(context.resources, resId)
+        ) { decoder, _, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        } as AnimatedImageDrawable).apply {
+            repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+        }
+
+        val buffer: Bitmap = createBitmap(GIF_BUFFER_SIZE, GIF_BUFFER_SIZE)
+        val bufferCanvas = Canvas(buffer)
+
+        fun setActive(active: Boolean) {
+            if (active) { if (!drawable.isRunning) drawable.start() } else drawable.stop()
+        }
+
+        fun renderToBuffer() {
+            buffer.eraseColor(Color.TRANSPARENT)
+            drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
+
+            val uniformScale = min(
+                GIF_BUFFER_SIZE / drawable.intrinsicWidth.toFloat(),
+                GIF_BUFFER_SIZE / drawable.intrinsicHeight.toFloat()
+            )
+            val dx = (GIF_BUFFER_SIZE - drawable.intrinsicWidth * uniformScale) / 2f
+            val dy = (GIF_BUFFER_SIZE - drawable.intrinsicHeight * uniformScale) / 2f
+
+            bufferCanvas.withSave {
+                translate(dx, dy)
+                scale(uniformScale, uniformScale)
+                drawable.draw(this)
+            }
+        }
     }
 
-    fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int){
+    private val mooLayer by lazy { GifLayer(context!!, R.drawable.moo) }
+    private val rollingLayer by lazy { GifLayer(context!!, R.drawable.rolling) }
+
+    fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
         result = handResult
-
         this.imgWidth = imgWidth
         this.imgHeight = imgHeight
 
         scaleFactor = max(width * 1f / imgWidth, height * 1f / imgHeight)
-
         offsetX = (width - imgWidth * scaleFactor) / 2f
         offsetY = (height - imgHeight * scaleFactor) / 2f
 
         invalidate()
+    }
+
+    private fun isPalmOpen(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
+        return listOf(Pair(8, 6), Pair(12, 10), Pair(16, 14), Pair(20, 18)).count { (tip, pip) ->
+            hypot(landmark[tip].x() - wrist.x(), landmark[tip].y() - wrist.y()) >
+                    hypot(landmark[pip].x() - wrist.x(), landmark[pip].y() - wrist.y())
+        } >= 3
     }
 
     @SuppressLint("DrawAllocation")
@@ -52,38 +102,34 @@ class OverlayView(context: Context?, attrs: AttributeSet?): View(context, attrs)
         super.onDraw(canvas)
 
         result?.let { handResult ->
-            for(landmark in handResult.landmarks()) {
+            for (landmark in handResult.landmarks()) {
                 val wrist = landmark[0]
                 val middleMcp = landmark[9]
 
-                val normCenterX = 1f - middleMcp.x()
-                val normCenterY = middleMcp.y()
-
-                val cx = (normCenterX * imgWidth * scaleFactor) + offsetX
-                val cy = (normCenterY * imgHeight * scaleFactor) + offsetY
+                val cx = ((1f - middleMcp.x()) * imgWidth * scaleFactor) + offsetX
+                val cy = (middleMcp.y() * imgHeight * scaleFactor) + offsetY
 
                 val dx = (wrist.x() - middleMcp.x()) * imgWidth * scaleFactor
                 val dy = (wrist.y() - middleMcp.y()) * imgHeight * scaleFactor
+                val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
 
-                val handSize = hypot(dx.toDouble(), dy.toDouble()).toFloat()
-                val isPalmOpen = listOf(Pair(8, 6), Pair(12, 10), Pair(16, 14), Pair(20, 18)).count { (tip, pip) ->
-                    hypot(landmark[tip].x() - wrist.x(), landmark[tip].y() - wrist.y()) > hypot(landmark[pip].x() - wrist.x(), landmark[pip].y() - wrist.y())
-                } >= 3
+                val open = isPalmOpen(landmark, wrist)
+                mooLayer.setActive(open)
+                rollingLayer.setActive(!open)
 
-                val bitmap = if(isPalmOpen) egg else eggCracked
-                val scale = (handSize * 1.5f) / bitmap.width
+                val activeLayer = if (open) mooLayer else rollingLayer
+                activeLayer.renderToBuffer()
 
+                val drawScale = r / GIF_BUFFER_SIZE
                 val matrix = Matrix().apply {
-                    postTranslate(-bitmap.width/2f, -bitmap.height/2f)
-                    postScale(scale, scale)
+                    postTranslate(-GIF_BUFFER_SIZE / 2f, -GIF_BUFFER_SIZE / 2f)
+                    postScale(drawScale, drawScale)
                     postTranslate(cx, cy)
                 }
-
-                canvas.drawBitmap(bitmap, matrix, null)
+                canvas.drawBitmap(activeLayer.buffer, matrix, null)
             }
         }
 
-        rotationAngle = (rotationAngle + 3f) % 360f
         postInvalidateOnAnimation()
     }
 }
