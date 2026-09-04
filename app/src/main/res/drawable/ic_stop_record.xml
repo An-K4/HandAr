@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Lớp 1: Nền hình tròn màu trắng bên ngoài giữ nguyên -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#FFFFFF" />
+            <stroke
+                android:width="1dp"
+                android:color="#E0E0E0" />
+        </shape>
+    </item>
+
+    <!-- Lớp 2: Hình chữ nhật/vuông màu đen ở giữa (có bo góc nhẹ cho đẹp) -->
+    <item
+        android:bottom="20dp"
+        android:left="20dp"
+        android:right="20dp"
+        android:top="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#000000" />
+            <!-- Bo góc nhẹ 4dp để tạo hình vuông hiện đại, nếu muốn vuông hẳn thì xóa dòng corners dưới đây -->
+            <corners android:radius="4dp" />
+        </shape>
+    </item>
+</layer-list>

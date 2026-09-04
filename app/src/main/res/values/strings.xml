@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">HandAr</string>
+    <string name="record_button">Record Button</string>
 </resources>

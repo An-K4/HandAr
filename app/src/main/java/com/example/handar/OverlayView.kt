@@ -3,30 +3,21 @@ package com.example.handar
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
-import android.graphics.Paint
 import android.graphics.drawable.AnimatedImageDrawable
-import android.os.Build
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
-import androidx.annotation.RequiresApi
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
-import androidx.core.graphics.toColorInt
 import kotlin.math.hypot
-import androidx.core.graphics.withTranslation
 import kotlin.math.max
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.get
 import androidx.core.graphics.withSave
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import kotlin.math.min
 
-@RequiresApi(Build.VERSION_CODES.P)
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
 
     companion object {
@@ -97,37 +88,42 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         } >= 3
     }
 
+    fun drawHandEffects(canvas: Canvas, handResult: HandLandmarkerResult, mirrorX: Boolean) {
+        for (landmark in handResult.landmarks()) {
+            val wrist = landmark[0]
+            val middleMcp = landmark[9]
+
+            val normalizeX = if (mirrorX) 1f - middleMcp.x() else middleMcp.x()
+            val cx = (normalizeX * imgWidth * scaleFactor) + offsetX
+            val cy = (middleMcp.y() * imgHeight * scaleFactor) + offsetY
+
+            val dx = (wrist.x() - middleMcp.x()) * imgWidth * scaleFactor
+            val dy = (wrist.y() - middleMcp.y()) * imgHeight * scaleFactor
+            val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+
+            val open = isPalmOpen(landmark, wrist)
+            mooLayer.setActive(open)
+            rollingLayer.setActive(!open)
+
+            val activeLayer = if (open) mooLayer else rollingLayer
+            activeLayer.renderToBuffer()
+
+            val drawScale = r / GIF_BUFFER_SIZE
+            val matrix = Matrix().apply {
+                postTranslate(-GIF_BUFFER_SIZE / 2f, -GIF_BUFFER_SIZE / 2f)
+                postScale(drawScale, drawScale)
+                postTranslate(cx, cy)
+            }
+            canvas.drawBitmap(activeLayer.buffer, matrix, null)
+        }
+    }
+
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
         result?.let { handResult ->
-            for (landmark in handResult.landmarks()) {
-                val wrist = landmark[0]
-                val middleMcp = landmark[9]
-
-                val cx = ((1f - middleMcp.x()) * imgWidth * scaleFactor) + offsetX
-                val cy = (middleMcp.y() * imgHeight * scaleFactor) + offsetY
-
-                val dx = (wrist.x() - middleMcp.x()) * imgWidth * scaleFactor
-                val dy = (wrist.y() - middleMcp.y()) * imgHeight * scaleFactor
-                val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
-
-                val open = isPalmOpen(landmark, wrist)
-                mooLayer.setActive(open)
-                rollingLayer.setActive(!open)
-
-                val activeLayer = if (open) mooLayer else rollingLayer
-                activeLayer.renderToBuffer()
-
-                val drawScale = r / GIF_BUFFER_SIZE
-                val matrix = Matrix().apply {
-                    postTranslate(-GIF_BUFFER_SIZE / 2f, -GIF_BUFFER_SIZE / 2f)
-                    postScale(drawScale, drawScale)
-                    postTranslate(cx, cy)
-                }
-                canvas.drawBitmap(activeLayer.buffer, matrix, null)
-            }
+            drawHandEffects(canvas, handResult, true)
         }
 
         postInvalidateOnAnimation()

@@ -4,13 +4,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraProvider
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888
@@ -27,14 +29,20 @@ import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
+import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import java.util.concurrent.Executors
+import kotlin.math.max
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: OverlayView
+    private lateinit var btnRecord: ImageButton
     private var handLandmarker: HandLandmarker? = null
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
+
+    private var videoRecorder: VideoRecorder? = null
+    private var latestHandResult: HandLandmarkerResult? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -47,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -59,8 +68,23 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.preview)
         overlayView = findViewById(R.id.overlay)
+        btnRecord = findViewById(R.id.btn_toggle_record)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+        btnRecord.setOnClickListener { view ->
+            toggleRecording()
+
+            if (videoRecorder?.isRecording == true) {
+                view.setBackgroundResource(R.drawable.ic_stop_record)
+            } else {
+                view.setBackgroundResource(R.drawable.ic_record)
+            }
+        }
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
             setupMediaPipe()
             startCamera()
         } else {
@@ -86,6 +110,7 @@ class MainActivity : AppCompatActivity() {
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setResultListener { result, inputImage ->
                 runOnUiThread {
+                    latestHandResult = result
                     overlayView.setResult(result, inputImage.width, inputImage.height)
                 }
             }
@@ -114,13 +139,37 @@ class MainActivity : AppCompatActivity() {
 
                         val rotatedBitmap = if (rotationDegree != 0) {
                             val matrix = Matrix().apply { postRotate(rotationDegree.toFloat()) }
-                            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                            Bitmap.createBitmap(
+                                bitmap,
+                                0,
+                                0,
+                                bitmap.width,
+                                bitmap.height,
+                                matrix,
+                                true
+                            )
                         } else {
                             bitmap
                         }
 
                         val mpImage: MPImage = BitmapImageBuilder(rotatedBitmap).build()
                         val timestamp = SystemClock.uptimeMillis()
+
+                        videoRecorder?.pushFrame { canvas ->
+                            val recW = canvas.width.toFloat()
+                            val recH = canvas.height.toFloat()
+                            val bmpMatrix = Matrix().apply {
+                                val s = max(recW / rotatedBitmap.width, recH / rotatedBitmap.height)
+                                postScale(s, s)
+                                postTranslate(
+                                    (recW - rotatedBitmap.width * s) / 2f,
+                                    (recH - rotatedBitmap.height * s) / 2f
+                                )
+                            }
+
+                            canvas.drawBitmap(rotatedBitmap, bmpMatrix, null)
+                            latestHandResult?.let { overlayView.drawHandEffects(canvas, it, false) }
+                        }
 
                         handLandmarker?.detectAsync(mpImage, timestamp)
                         imageProxy.close()
@@ -136,5 +185,21 @@ class MainActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun toggleRecording() {
+        if (videoRecorder?.isRecording == true) {
+            videoRecorder?.stop()
+            videoRecorder = null
+            Toast.makeText(this, "Đã lưu video", Toast.LENGTH_SHORT).show()
+        } else {
+            videoRecorder = VideoRecorder(
+                this,
+                overlayView.width,
+                overlayView.height,
+                25
+            ).apply { start() }
+        }
     }
 }
