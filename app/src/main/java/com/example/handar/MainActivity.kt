@@ -23,6 +23,8 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.handar.utils.isPalmOpen
+import com.example.handar.utils.loadWavPcm
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -43,21 +45,48 @@ class MainActivity : AppCompatActivity() {
 
     private var videoRecorder: VideoRecorder? = null
     private var latestHandResult: HandLandmarkerResult? = null
+    private var lastPalmOpen: Boolean? = null
+    private var pendingState: Boolean? = null
+    private var pendingStateSince = 0L
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+    private data class ActiveEffect(val pcm: ShortArray, val startedAtMs: Long)
+
+    @Volatile
+    private var activeEffect: ActiveEffect? = null
+    private val DEBOUNCE_MS = 200L
+    private val happy3SoundPcm: ShortArray by lazy { loadWavPcm(this, R.raw.happy_happy_happy_cat) }
+    private val bananaCryingSoundPcm: ShortArray by lazy {
+        loadWavPcm(
+            this,
+            R.raw.banana_cat_crying
+        )
+    }
+    private lateinit var soundEffectPlayer: SoundEffectPlayer
+
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permission ->
+        val cameraGranted = permission[Manifest.permission.CAMERA] ?: false
+        val audioGranted = permission[Manifest.permission.RECORD_AUDIO] ?: false
+
+        if (cameraGranted) {
             setupMediaPipe()
             startCamera()
         } else {
-            Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Quyền truy cập camera bị từ chối.", Toast.LENGTH_SHORT).show()
         }
+
+        if (!audioGranted) Toast.makeText(
+            this,
+            "Quyền truy cập mic bị từ chối.",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        soundEffectPlayer = SoundEffectPlayer(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -80,15 +109,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+        checkAndRequestPermissions()
+    }
+
+    private fun checkAndRequestPermissions() {
+        val requiredPermissions = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+
+        val notGranted = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (notGranted.isEmpty()) {
             setupMediaPipe()
             startCamera()
         } else {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            requestPermissionsLauncher.launch(notGranted.toTypedArray())
         }
     }
 
@@ -96,6 +134,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         handLandmarker?.close()
         backgroundExecutor.shutdown()
+        soundEffectPlayer.release()
     }
 
     private fun setupMediaPipe() {
@@ -112,6 +151,32 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     latestHandResult = result
                     overlayView.setResult(result, inputImage.width, inputImage.height)
+
+                    val landmark = result.landmarks().firstOrNull()
+                    if (landmark == null) {
+                        soundEffectPlayer.stopEffect()
+                        videoRecorder?.audioMixer?.triggerEffect(null)
+                        activeEffect = null
+                        lastPalmOpen = null
+                        pendingState = null
+                        pendingStateSince = 0
+                        return@runOnUiThread
+                    }
+
+                    val wrist = landmark[0]
+                    val open = isPalmOpen(landmark, wrist)
+                    val now = SystemClock.uptimeMillis()
+
+                    if (open != pendingState) {
+                        pendingState = open
+                        pendingStateSince = now
+                    } else if (lastPalmOpen != open && now - pendingStateSince >= DEBOUNCE_MS) {
+                        val pcm = if (open) happy3SoundPcm else bananaCryingSoundPcm
+                        activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())
+                        videoRecorder?.audioMixer?.triggerEffect(pcm)
+                        soundEffectPlayer.playForGesture(open)
+                        lastPalmOpen = open
+                    }
                 }
             }
             .build()
@@ -158,17 +223,27 @@ class MainActivity : AppCompatActivity() {
                         videoRecorder?.pushFrame { canvas ->
                             val recW = canvas.width.toFloat()
                             val recH = canvas.height.toFloat()
+                            val w = rotatedBitmap.width.toFloat()
+                            val h = rotatedBitmap.height.toFloat()
+
+                            val s = max(recW / w, recH / h)
+                            val offsetX = (recW - w * s) / 2f
+                            val offsetY = (recH - h * s) / 2f
+
                             val bmpMatrix = Matrix().apply {
-                                val s = max(recW / rotatedBitmap.width, recH / rotatedBitmap.height)
-                                postScale(s, s)
-                                postTranslate(
-                                    (recW - rotatedBitmap.width * s) / 2f,
-                                    (recH - rotatedBitmap.height * s) / 2f
+                                setScale(-s, s)
+                                postTranslate(w * s + offsetX, offsetY)
+                            }
+                            canvas.drawBitmap(rotatedBitmap, bmpMatrix, null)
+
+                            latestHandResult?.let { latestHandResult ->
+                                overlayView.drawHandEffects(
+                                    canvas,
+                                    latestHandResult,
+                                    mirrorX = true,
+                                    forRecording = true
                                 )
                             }
-
-                            canvas.drawBitmap(rotatedBitmap, bmpMatrix, null)
-                            latestHandResult?.let { overlayView.drawHandEffects(canvas, it, false) }
                         }
 
                         handLandmarker?.detectAsync(mpImage, timestamp)
@@ -199,7 +274,14 @@ class MainActivity : AppCompatActivity() {
                 overlayView.width,
                 overlayView.height,
                 25
-            ).apply { start() }
+            ).apply {
+                start()
+                activeEffect?.let { effect ->
+                    val elapsedMs = SystemClock.elapsedRealtime() - effect.startedAtMs
+                    val elapsedSamples = (elapsedMs * 44_100L / 1000L).toInt()
+                    audioMixer.triggerEffect(effect.pcm, startPos = elapsedSamples)
+                }
+            }
         }
     }
 }

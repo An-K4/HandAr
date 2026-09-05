@@ -15,7 +15,7 @@ import kotlin.math.hypot
 import kotlin.math.max
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withSave
-import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import com.example.handar.utils.isPalmOpen
 import kotlin.math.min
 
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
@@ -66,8 +66,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         }
     }
 
-    private val mooLayer by lazy { GifLayer(context!!, R.drawable.moo) }
-    private val rollingLayer by lazy { GifLayer(context!!, R.drawable.rolling) }
+    private val happy3Layer by lazy { GifLayer(context!!, R.drawable.happy_happy_happy_cat) }
+    private val bananaCryingLayer by lazy { GifLayer(context!!, R.drawable.banana_cat_crying) }
+
+    private val happy3LayerForRecording by lazy { GifLayer(context!!, R.drawable.happy_happy_happy_cat) }
+    private val bananaCryingLayerForRecording by lazy { GifLayer(context!!, R.drawable.banana_cat_crying) }
 
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
         result = handResult
@@ -81,14 +84,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         invalidate()
     }
 
-    private fun isPalmOpen(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
-        return listOf(Pair(8, 6), Pair(12, 10), Pair(16, 14), Pair(20, 18)).count { (tip, pip) ->
-            hypot(landmark[tip].x() - wrist.x(), landmark[tip].y() - wrist.y()) >
-                    hypot(landmark[pip].x() - wrist.x(), landmark[pip].y() - wrist.y())
-        } >= 3
-    }
-
-    fun drawHandEffects(canvas: Canvas, handResult: HandLandmarkerResult, mirrorX: Boolean) {
+    fun drawHandEffects(canvas: Canvas, handResult: HandLandmarkerResult, mirrorX: Boolean, forRecording: Boolean) {
         for (landmark in handResult.landmarks()) {
             val wrist = landmark[0]
             val middleMcp = landmark[9]
@@ -102,10 +98,13 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
 
             val open = isPalmOpen(landmark, wrist)
-            mooLayer.setActive(open)
-            rollingLayer.setActive(!open)
+            val (happy3L, bananaCryingL) = if (forRecording) happy3LayerForRecording to bananaCryingLayerForRecording
+            else happy3Layer to bananaCryingLayer
 
-            val activeLayer = if (open) mooLayer else rollingLayer
+            happy3L.setActive(open)
+            bananaCryingL.setActive(!open)
+
+            val activeLayer = if (open) happy3L else bananaCryingL
             activeLayer.renderToBuffer()
 
             val drawScale = r / GIF_BUFFER_SIZE
@@ -123,7 +122,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         super.onDraw(canvas)
 
         result?.let { handResult ->
-            drawHandEffects(canvas, handResult, true)
+            drawHandEffects(canvas, handResult, true, forRecording = false)
         }
 
         postInvalidateOnAnimation()
