@@ -1,12 +1,12 @@
 package com.example.handar
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.media.MediaCodec
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
 import com.example.handar.wrapper.AudioEncoderWrapper
 import com.example.handar.wrapper.VideoEncoderWrapper
 import java.io.File
@@ -20,16 +20,17 @@ class VideoRecorder(
 ) {
     private val videoEncoder = VideoEncoderWrapper(width, height, fps)
     private val audioEncoder = AudioEncoderWrapper(sampleRate)
-    private val micReader = MicReader(sampleRate)
+    private val effectClock = EffectAudioClock(sampleRate)
 
     val audioMixer = AudioMixer()
 
     private var muxer: MuxerCoordinator? = null
     private var totalAudioSamples = 0L
     private var recordStartTimeNs = -1L
-    private var hasAudio = false
 
     var isRecording: Boolean = false
+        private set
+    var outputFile: File? = null
         private set
 
     private val lock = Any()
@@ -37,24 +38,12 @@ class VideoRecorder(
     fun start(): File {
         val outDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
         val outputFile = File(outDir, "hand_ar_record_${System.currentTimeMillis()}.mp4")
-        recordStartTimeNs = System.nanoTime()
-        hasAudio = ContextCompat.checkSelfPermission(
-            context, android.Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
+        this.outputFile = outputFile
 
         muxer = MuxerCoordinator(outputFile.absolutePath)
         videoEncoder.prepare()
-
-        if (hasAudio) {
-            audioEncoder.prepare()
-            totalAudioSamples = 0L
-            micReader.start { pcmChunk, len ->
-                val mixed = audioMixer.mix(pcmChunk, len)
-                val ptsUs = totalAudioSamples * 1_000_000L / sampleRate
-                totalAudioSamples += len
-                audioEncoder.encodeAndWrite(mixed, len, ptsUs, muxer)
-            }
-        }
+        audioEncoder.prepare()
+        totalAudioSamples = 0L
 
         isRecording = true
         return outputFile
@@ -63,6 +52,17 @@ class VideoRecorder(
     fun pushFrame(draw: (Canvas) -> Unit) {
         synchronized(lock) {
             if (!isRecording) return
+
+            if (recordStartTimeNs < 0) {
+                recordStartTimeNs = System.nanoTime()
+                effectClock.start { pcmChunk, len ->
+                    val mixed = audioMixer.mix(pcmChunk, len)
+                    val ptsUs = totalAudioSamples * 1_000_000 / sampleRate
+                    totalAudioSamples += len
+                    audioEncoder.encodeAndWrite(mixed, len, ptsUs, muxer)
+                }
+            }
+
             val surface = videoEncoder.inputSurface
             val canvas = try {
                 surface.lockHardwareCanvas()
@@ -93,6 +93,7 @@ class VideoRecorder(
                 outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                     muxer?.addVideoTrack(codec.outputFormat)
                 }
+
                 outIndex >= 0 -> {
                     val outBuf = codec.getOutputBuffer(outIndex)
                     if (outBuf != null && bufferInfo.size > 0) {
@@ -101,30 +102,43 @@ class VideoRecorder(
                     }
                     codec.releaseOutputBuffer(outIndex, false)
                 }
+
                 else -> break
             }
         }
     }
 
-    fun stop() {
+    fun stop(onStopped: (() -> Unit)? = null) {
         synchronized(lock) {
             if (!isRecording) return
             isRecording = false
         }
 
-        micReader.stop()
+        effectClock.stop()
 
-        try { videoEncoder.codec.signalEndOfInputStream() } catch (e: Exception) {
-            Log.e("VideoRecorder", "signalEndOfInputStream: ${e.message}")
-        }
-        drainVideoEncoder()
+        Thread {
+            synchronized(lock) {
+                try {
+                    videoEncoder.codec.signalEndOfInputStream()
+                } catch (e: Exception) {
+                    Log.e("VideoRecorder", "signalEndOfInputStream: ${e.message}")
+                }
+                drainVideoEncoder()
 
-        try { videoEncoder.release() } catch (e: Exception) {
-            Log.e("VideoRecorder", "release video error: ${e.message}")
-        }
-        if (hasAudio) audioEncoder.release()
+                try {
+                    videoEncoder.release()
+                } catch (e: Exception) {
+                    Log.e("VideoRecorder", "release video error: ${e.message}")
+                }
+                audioEncoder.release()
 
-        muxer?.release()
-        muxer = null
+                muxer?.release()
+                muxer = null
+            }
+
+            onStopped?.let { callback ->
+                Handler.createAsync(Looper.getMainLooper()).post(callback)
+            }
+        }.start()
     }
 }

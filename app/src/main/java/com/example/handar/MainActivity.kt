@@ -25,6 +25,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.handar.utils.isPalmOpen
 import com.example.handar.utils.loadWavPcm
+import com.example.handar.utils.logRecordingStats
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -36,6 +37,10 @@ import java.util.concurrent.Executors
 import kotlin.math.max
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val MIN_RECORD_DURATION_MS = 1000L
+        private const val DEBOUNCE_MS = 200L
+    }
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: OverlayView
@@ -45,15 +50,19 @@ class MainActivity : AppCompatActivity() {
 
     private var videoRecorder: VideoRecorder? = null
     private var latestHandResult: HandLandmarkerResult? = null
+
+    @Volatile
+    private var latestCameraBitmap: Bitmap? = null
+    private var recordingFrameThread: Thread? = null
     private var lastPalmOpen: Boolean? = null
     private var pendingState: Boolean? = null
     private var pendingStateSince = 0L
+    private var recordStartUiTimeMs = 0L
 
     private data class ActiveEffect(val pcm: ShortArray, val startedAtMs: Long)
 
     @Volatile
     private var activeEffect: ActiveEffect? = null
-    private val DEBOUNCE_MS = 200L
     private val happy3SoundPcm: ShortArray by lazy { loadWavPcm(this, R.raw.happy_happy_happy_cat) }
     private val bananaCryingSoundPcm: ShortArray by lazy {
         loadWavPcm(
@@ -67,7 +76,6 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permission ->
         val cameraGranted = permission[Manifest.permission.CAMERA] ?: false
-        val audioGranted = permission[Manifest.permission.RECORD_AUDIO] ?: false
 
         if (cameraGranted) {
             setupMediaPipe()
@@ -75,12 +83,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "Quyền truy cập camera bị từ chối.", Toast.LENGTH_SHORT).show()
         }
-
-        if (!audioGranted) Toast.makeText(
-            this,
-            "Quyền truy cập mic bị từ chối.",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -114,8 +116,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkAndRequestPermissions() {
         val requiredPermissions = arrayOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
+            Manifest.permission.CAMERA
         )
 
         val notGranted = requiredPermissions.filter {
@@ -217,36 +218,12 @@ class MainActivity : AppCompatActivity() {
                             bitmap
                         }
 
+                        latestCameraBitmap = rotatedBitmap
+
                         val mpImage: MPImage = BitmapImageBuilder(rotatedBitmap).build()
                         val timestamp = SystemClock.uptimeMillis()
-
-                        videoRecorder?.pushFrame { canvas ->
-                            val recW = canvas.width.toFloat()
-                            val recH = canvas.height.toFloat()
-                            val w = rotatedBitmap.width.toFloat()
-                            val h = rotatedBitmap.height.toFloat()
-
-                            val s = max(recW / w, recH / h)
-                            val offsetX = (recW - w * s) / 2f
-                            val offsetY = (recH - h * s) / 2f
-
-                            val bmpMatrix = Matrix().apply {
-                                setScale(-s, s)
-                                postTranslate(w * s + offsetX, offsetY)
-                            }
-                            canvas.drawBitmap(rotatedBitmap, bmpMatrix, null)
-
-                            latestHandResult?.let { latestHandResult ->
-                                overlayView.drawHandEffects(
-                                    canvas,
-                                    latestHandResult,
-                                    mirrorX = true,
-                                    forRecording = true
-                                )
-                            }
-                        }
-
                         handLandmarker?.detectAsync(mpImage, timestamp)
+
                         imageProxy.close()
                     }
                 }
@@ -265,14 +242,31 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun toggleRecording() {
         if (videoRecorder?.isRecording == true) {
-            videoRecorder?.stop()
+            val elapsed = SystemClock.elapsedRealtime() - recordStartUiTimeMs
+            if (elapsed < MIN_RECORD_DURATION_MS) {
+                Toast.makeText(this, "Không thể dừng ngay sau khi bắt đầu ghi", Toast.LENGTH_SHORT)
+                    .show()
+                return
+            }
+
+            val recorderToStop = videoRecorder
             videoRecorder = null
-            Toast.makeText(this, "Đã lưu video", Toast.LENGTH_SHORT).show()
+            btnRecord.isEnabled = false
+
+            recorderToStop?.stop {
+                btnRecord.isEnabled = true
+                Toast.makeText(this, "Đã lưu video", Toast.LENGTH_SHORT).show()
+                recorderToStop.outputFile?.let { file ->
+                    logRecordingStats(this, file)
+                }
+            }
         } else {
+            recordStartUiTimeMs = SystemClock.elapsedRealtime()
+            val (recW, recH) = computeRecordingSize(overlayView.width, overlayView.height)
             videoRecorder = VideoRecorder(
                 this,
-                overlayView.width,
-                overlayView.height,
+                recW,
+                recH,
                 25
             ).apply {
                 start()
@@ -282,6 +276,66 @@ class MainActivity : AppCompatActivity() {
                     audioMixer.triggerEffect(effect.pcm, startPos = elapsedSamples)
                 }
             }
+
+            startRecordingFrameLoop(25)
         }
+    }
+
+    private fun computeRecordingSize(
+        viewWidth: Int,
+        viewHeight: Int,
+        targetShortSide: Int = 720
+    ): Pair<Int, Int> {
+        if (viewWidth <= 0 || viewHeight <= 0) return viewWidth to viewHeight
+        val shortSide = minOf(viewWidth, viewHeight)
+        if (shortSide <= targetShortSide) return viewWidth to viewHeight
+
+        val scale = targetShortSide.toFloat() / shortSide
+        val newWidth = (viewWidth * scale).toInt().let { it - it % 2 }
+        val newHeight = (viewHeight * scale).toInt().let { it - it % 2 }
+        return newWidth to newHeight
+    }
+
+    private fun startRecordingFrameLoop(fps: Int) {
+        val intervalMs = 1000L / fps
+        recordingFrameThread = Thread {
+            while (videoRecorder?.isRecording == true) {
+                val frameStartNs = System.nanoTime()
+                val bitmap = latestCameraBitmap
+                val handResult = latestHandResult
+
+                if (bitmap != null) {
+                    videoRecorder?.pushFrame { canvas ->
+                        val recW = canvas.width.toFloat()
+                        val recH = canvas.height.toFloat()
+                        val w = bitmap.width.toFloat()
+                        val h = bitmap.height.toFloat()
+
+                        val s = max(recW / w, recH / h)
+                        val offsetX = (recW - w * s) / 2f
+                        val offsetY = (recH - h * s) / 2f
+
+                        val bmpMatrix = Matrix().apply {
+                            setScale(-s, s)
+                            postTranslate(w * s + offsetX, offsetY)
+                        }
+                        canvas.drawBitmap(bitmap, bmpMatrix, null)
+
+                        handResult?.let {
+                            overlayView.drawHandEffects(
+                                canvas,
+                                it,
+                                mirrorX = true,
+                                forRecording = true
+                            )
+                        }
+                    }
+                }
+
+                val elapsedMs = (System.nanoTime() - frameStartNs) / 1_000_000
+                val sleepMs = (intervalMs - elapsedMs).coerceAtLeast(0)
+                if (sleepMs > 0) Thread.sleep(sleepMs)
+            }
+        }.apply { start() }
     }
 }

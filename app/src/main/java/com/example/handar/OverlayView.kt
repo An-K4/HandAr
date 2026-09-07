@@ -27,9 +27,6 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var result: HandLandmarkerResult? = null
     private var imgWidth = 1
     private var imgHeight = 1
-    private var scaleFactor = 1f
-    private var offsetX = 0f
-    private var offsetY = 0f
 
     private class GifLayer(context: Context, resId: Int) {
         val drawable: AnimatedImageDrawable = (ImageDecoder.decodeDrawable(
@@ -44,7 +41,9 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         val bufferCanvas = Canvas(buffer)
 
         fun setActive(active: Boolean) {
-            if (active) { if (!drawable.isRunning) drawable.start() } else drawable.stop()
+            if (active) {
+                if (!drawable.isRunning) drawable.start()
+            } else drawable.stop()
         }
 
         fun renderToBuffer() {
@@ -69,32 +68,49 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private val happy3Layer by lazy { GifLayer(context!!, R.drawable.happy_happy_happy_cat) }
     private val bananaCryingLayer by lazy { GifLayer(context!!, R.drawable.banana_cat_crying) }
 
-    private val happy3LayerForRecording by lazy { GifLayer(context!!, R.drawable.happy_happy_happy_cat) }
-    private val bananaCryingLayerForRecording by lazy { GifLayer(context!!, R.drawable.banana_cat_crying) }
+    private val happy3LayerForRecording by lazy {
+        GifLayer(
+            context!!,
+            R.drawable.happy_happy_happy_cat
+        )
+    }
+    private val bananaCryingLayerForRecording by lazy {
+        GifLayer(
+            context!!,
+            R.drawable.banana_cat_crying
+        )
+    }
 
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
         result = handResult
         this.imgWidth = imgWidth
         this.imgHeight = imgHeight
-
-        scaleFactor = max(width * 1f / imgWidth, height * 1f / imgHeight)
-        offsetX = (width - imgWidth * scaleFactor) / 2f
-        offsetY = (height - imgHeight * scaleFactor) / 2f
-
         invalidate()
     }
 
-    fun drawHandEffects(canvas: Canvas, handResult: HandLandmarkerResult, mirrorX: Boolean, forRecording: Boolean) {
+    fun drawHandEffects(
+        canvas: Canvas,
+        handResult: HandLandmarkerResult,
+        mirrorX: Boolean,
+        forRecording: Boolean
+    ) {
+        val targetW = if (forRecording) canvas.width.toFloat() else width.toFloat()
+        val targetH = if (forRecording) canvas.height.toFloat() else height.toFloat()
+
+        val localScale = max(targetW / imgWidth, targetH / imgHeight)
+        val localOffsetX = (targetW - imgWidth * localScale) / 2f
+        val localOffsetY = (targetH - imgHeight * localScale) / 2f
+
         for (landmark in handResult.landmarks()) {
             val wrist = landmark[0]
             val middleMcp = landmark[9]
 
             val normalizeX = if (mirrorX) 1f - middleMcp.x() else middleMcp.x()
-            val cx = (normalizeX * imgWidth * scaleFactor) + offsetX
-            val cy = (middleMcp.y() * imgHeight * scaleFactor) + offsetY
+            val cx = (normalizeX * imgWidth * localScale) + localOffsetX
+            val cy = (middleMcp.y() * imgHeight * localScale) + localOffsetY
 
-            val dx = (wrist.x() - middleMcp.x()) * imgWidth * scaleFactor
-            val dy = (wrist.y() - middleMcp.y()) * imgHeight * scaleFactor
+            val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
+            val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
             val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
 
             val open = isPalmOpen(landmark, wrist)
