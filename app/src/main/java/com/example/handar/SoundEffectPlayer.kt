@@ -4,7 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 
-class SoundEffectPlayer(context: Context) {
+class SoundEffectPlayer(context: Context, soundResList: List<Int>) {
     private val soundPool: SoundPool = SoundPool.Builder()
         .setMaxStreams(1)
         .setAudioAttributes(
@@ -15,8 +15,9 @@ class SoundEffectPlayer(context: Context) {
         )
         .build()
 
-    private var happy3SoundId = 0
-    private var bananaCryingSoundId = 0
+    private val soundIds: Map<Int, Int> = soundResList.associateWith { resId ->
+        soundPool.load(context, resId, 1)
+    }
     private var isReady = false
     private var currentStreamId = 0
 
@@ -24,13 +25,11 @@ class SoundEffectPlayer(context: Context) {
         soundPool.setOnLoadCompleteListener { _, _, status ->
             if (status == 0) isReady = true
         }
-        happy3SoundId = soundPool.load(context, R.raw.happy_happy_happy_cat, 1)
-        bananaCryingSoundId = soundPool.load(context, R.raw.banana_cat_crying, 1)
     }
 
-    fun playForGesture(open: Boolean) {
+    fun playForSound(soundRes: Int) {
         if (!isReady) return
-        val soundId = if (open) happy3SoundId else bananaCryingSoundId
+        val soundId = soundIds[soundRes] ?: return
         currentStreamId = soundPool.play(soundId, 1f, 1f, 1, -1, 1f)
     }
 

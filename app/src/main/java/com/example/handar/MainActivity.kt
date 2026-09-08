@@ -23,16 +23,17 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.handar.utils.isPalmOpen
+import androidx.lifecycle.lifecycleScope
+import com.example.handar.effect.EffectDefinition
+import com.example.handar.effect.EffectRepository
+import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
-import com.google.mediapipe.tasks.core.BaseOptions
-import com.google.mediapipe.tasks.core.Delegate
-import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.max
 
@@ -51,11 +52,16 @@ class MainActivity : AppCompatActivity() {
     private var videoRecorder: VideoRecorder? = null
     private var latestHandResult: HandLandmarkerResult? = null
 
+    private val currentEffect: EffectDefinition = EffectRepository.all[0]
+    private val statePcmMap: Map<String, ShortArray> by lazy {
+        currentEffect.states.associate { it.id to loadWavPcm(this, it.soundRes) }
+    }
+
     @Volatile
     private var latestCameraBitmap: Bitmap? = null
     private var recordingFrameThread: Thread? = null
-    private var lastPalmOpen: Boolean? = null
-    private var pendingState: Boolean? = null
+    private var lastStateId: String? = null
+    private var pendingState: String? = null
     private var pendingStateSince = 0L
     private var recordStartUiTimeMs = 0L
 
@@ -63,13 +69,6 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile
     private var activeEffect: ActiveEffect? = null
-    private val happy3SoundPcm: ShortArray by lazy { loadWavPcm(this, R.raw.happy_happy_happy_cat) }
-    private val bananaCryingSoundPcm: ShortArray by lazy {
-        loadWavPcm(
-            this,
-            R.raw.banana_cat_crying
-        )
-    }
     private lateinit var soundEffectPlayer: SoundEffectPlayer
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -88,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        soundEffectPlayer = SoundEffectPlayer(this)
+        soundEffectPlayer = SoundEffectPlayer(this, currentEffect.states.map { it.soundRes })
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -100,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.preview)
         overlayView = findViewById(R.id.overlay)
         btnRecord = findViewById(R.id.btn_toggle_record)
+        overlayView.setEffect(currentEffect)
 
         btnRecord.setOnClickListener { view ->
             toggleRecording()
@@ -133,56 +133,49 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        handLandmarker?.close()
+        HandLandmarkerProvider.release()
         backgroundExecutor.shutdown()
         soundEffectPlayer.release()
     }
 
     private fun setupMediaPipe() {
-        val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("hand_landmarker.task")
-            .setDelegate(Delegate.CPU)
-            .build()
+        handLandmarker = HandLandmarkerProvider.getOrCreate(this, currentEffect.requiredNumHands)
 
-        val options = HandLandmarker.HandLandmarkerOptions.builder()
-            .setBaseOptions(baseOptions)
-            .setNumHands(1)
-            .setRunningMode(RunningMode.LIVE_STREAM)
-            .setResultListener { result, inputImage ->
-                runOnUiThread {
-                    latestHandResult = result
-                    overlayView.setResult(result, inputImage.width, inputImage.height)
-
-                    val landmark = result.landmarks().firstOrNull()
-                    if (landmark == null) {
-                        soundEffectPlayer.stopEffect()
-                        videoRecorder?.audioMixer?.triggerEffect(null)
-                        activeEffect = null
-                        lastPalmOpen = null
-                        pendingState = null
-                        pendingStateSince = 0
-                        return@runOnUiThread
-                    }
-
-                    val wrist = landmark[0]
-                    val open = isPalmOpen(landmark, wrist)
-                    val now = SystemClock.uptimeMillis()
-
-                    if (open != pendingState) {
-                        pendingState = open
-                        pendingStateSince = now
-                    } else if (lastPalmOpen != open && now - pendingStateSince >= DEBOUNCE_MS) {
-                        val pcm = if (open) happy3SoundPcm else bananaCryingSoundPcm
-                        activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())
-                        videoRecorder?.audioMixer?.triggerEffect(pcm)
-                        soundEffectPlayer.playForGesture(open)
-                        lastPalmOpen = open
-                    }
-                }
+        lifecycleScope.launch {
+            HandLandmarkerProvider.results.collect { (result, inputImage) ->
+                latestHandResult = result
+                overlayView.setResult(result, inputImage.width, inputImage.height)
+                handleGesture(result)
             }
-            .build()
+        }
+    }
 
-        handLandmarker = HandLandmarker.createFromOptions(this, options)
+    private fun handleGesture(result: HandLandmarkerResult) {
+        val landmark = result.landmarks().firstOrNull()
+        if (landmark == null) {
+            soundEffectPlayer.stopEffect()
+            videoRecorder?.audioMixer?.triggerEffect(null)
+            activeEffect = null
+            lastStateId = null
+            pendingState = null
+            pendingStateSince = 0
+            return
+        }
+
+        val matchedState =
+            currentEffect.states.firstOrNull { it.gesture.recognize(listOf(landmark)) } ?: return
+
+        val now = SystemClock.uptimeMillis()
+        if (matchedState.id != pendingState) {
+            pendingState = matchedState.id
+            pendingStateSince = now
+        } else if (lastStateId != matchedState.id && now - pendingStateSince >= DEBOUNCE_MS) {
+            val pcm = statePcmMap[matchedState.id] ?: return
+            activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())
+            videoRecorder?.audioMixer?.triggerEffect(pcm)
+            soundEffectPlayer.playForSound(matchedState.soundRes)
+            lastStateId = matchedState.id
+        }
     }
 
     private fun startCamera() {
