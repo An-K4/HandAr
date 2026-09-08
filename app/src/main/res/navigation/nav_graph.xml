@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/fragment_effect_list">
+
+    <fragment android:id="@+id/fragment_effect_list"
+        android:name="com.example.handar.ui.effectlist.EffectListFragment"
+        android:label="Chọn hiệu ứng"
+        tools:layout="@layout/fragment_effect_list">
+
+        <action android:id="@+id/action_effectList_to_cameraRecord"
+            app:destination="@id/fragment_camera_record"/>
+    </fragment>
+
+    <fragment android:id="@+id/fragment_camera_record"
+        android:name="com.example.handar.ui.camera.CameraRecordFragment"
+        android:label="Quay video"
+        tools:layout="@layout/fragment_camera_record">
+        <argument
+            android:name="effectId"
+            app:argType="string"/>
+    </fragment>
+</navigation>
