@@ -8,10 +8,10 @@ import com.example.handar.databinding.ItemVideoBinding
 import com.example.handar.utils.formatDate
 import com.example.handar.utils.formatDuration
 
-class VideoListAdapter(
+class VideoAdapter(
     private var items: List<VideoItem>,
     private val onClick: (VideoItem) -> Unit
-) : RecyclerView.Adapter<VideoListAdapter.VH>() {
+) : RecyclerView.Adapter<VideoAdapter.VH>() {
 
     inner class VH(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
 

@@ -22,7 +22,67 @@ object EffectRepository {
                     asset = EffectAsset.AnimatedGif(R.drawable.banana_cat_crying),
                     soundRes = R.raw.banana_cat_crying
                 )
-            ),
+            )
+        ),
+        EffectDefinition(
+            id = "egg",
+            displayName = "Trứng",
+            thumbnailRes = R.drawable.egg,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "egg",
+                    gesture = Gestures.singleHandPalmOpen,
+                    asset = EffectAsset.StaticImage(R.drawable.egg),
+                    soundRes = null
+                ),
+                EffectState(
+                    id = "egg_cracked",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.StaticImage(R.drawable.egg_cracked),
+                    soundRes = R.raw.egg_cracked
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "weather",
+            displayName = "Thời tiết",
+            thumbnailRes = R.drawable.sunny,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "sunny",
+                    gesture = Gestures.singleHandPalmOpen,
+                    asset = EffectAsset.AnimatedGif(R.drawable.sunny),
+                    soundRes = R.raw.sunny
+                ),
+                EffectState(
+                    id = "lightning",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.AnimatedGif(R.drawable.lightning),
+                    soundRes = R.raw.lightning
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "stranger_things",
+            displayName = "Stranger things",
+            thumbnailRes = R.drawable.stranger_things_monster,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "monster",
+                    gesture = Gestures.singleHandPalmOpen,
+                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
+                    soundRes = R.raw.stranger_things_monster
+                ),
+                EffectState(
+                    id = "monster_disappear",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.AnimatedGif(R.drawable.stranger_things_clock),
+                    soundRes = R.raw.stranger_things_clock
+                )
+            )
         )
     )
 

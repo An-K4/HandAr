@@ -9,7 +9,7 @@ interface EffectVisual {
 }
 
 fun createEffectVisual(context: Context, asset: EffectAsset): EffectVisual = when(asset) {
-    is EffectAsset.StaticImage -> TODO("Chưa làm")
+    is EffectAsset.StaticImage -> StaticImageVisual(context, asset.resId)
     is EffectAsset.AnimatedGif -> AnimatedGifVisual(context, asset.resId)
     is EffectAsset.SpriteSheet -> TODO("Chưa làm")
 }

@@ -1,13 +1,10 @@
 package com.example.handar.ui.videolist
 
 import android.os.Bundle
-import android.os.SystemClock
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -15,11 +12,8 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.handar.R
-import com.example.handar.databinding.FragmentEffectListBinding
 import com.example.handar.databinding.FragmentVideoListBinding
 import kotlinx.coroutines.launch
-import java.io.File
 
 class VideoListFragment : Fragment() {
     private var _binding: FragmentVideoListBinding? = null
@@ -45,7 +39,7 @@ class VideoListFragment : Fragment() {
             insets
         }
 
-        val adapter = VideoListAdapter(emptyList()) { videoItem ->
+        val adapter = VideoAdapter(emptyList()) { videoItem ->
             val action = VideoListFragmentDirections.actionVideoListToVideoPlayer(videoItem.file.absolutePath)
             findNavController().navigate(action)
         }
@@ -53,13 +47,11 @@ class VideoListFragment : Fragment() {
         binding.recyclerVideos.adapter = adapter
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val elapsed = SystemClock.elapsedRealtime()
             binding.progress.isVisible = true
             val items = VideoRepository.loadAll(requireContext())
             binding.progress.isVisible = false
             binding.textEmpty.isVisible = items.isEmpty()
             adapter.submit(items)
-            Log.i("VideoListFragment", "Loaded ${items.size} videos in ${SystemClock.elapsedRealtime() - elapsed}ms")
         }
     }
 

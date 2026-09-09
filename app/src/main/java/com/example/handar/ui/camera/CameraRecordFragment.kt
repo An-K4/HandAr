@@ -6,7 +6,10 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
+import android.text.format.DateUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -76,7 +79,17 @@ class CameraRecordFragment : Fragment() {
     private var lastStateId: String? = null
     private var pendingState: String? = null
     private var pendingStateSince = 0L
+
     private var recordStartUiTimeMs = 0L
+    private val timerHandler = Handler(Looper.getMainLooper())
+    private val timerRunnable = object : Runnable {
+        override fun run() {
+            val b = _binding ?: return
+            val elapsedSeconds = (SystemClock.elapsedRealtime() - recordStartUiTimeMs) / 1000
+            b.tvRecordingTimer.text = DateUtils.formatElapsedTime(elapsedSeconds)
+            timerHandler.postDelayed(this, 200)
+        }
+    }
 
     private data class ActiveEffect(val pcm: ShortArray, val startedAtMs: Long)
 
@@ -109,7 +122,6 @@ class CameraRecordFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("LC_Camera", "onCreate")
         currentEffect = EffectRepository.findById(args.effectId)
     }
 
@@ -117,14 +129,12 @@ class CameraRecordFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        Log.d("LC_Camera", "onCreateView")
         _binding = FragmentCameraRecordBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d("LC_Camera", "onViewCreated")
 
         val btn = binding.btnToggleRecord
         val baseMarginBottom = (btn.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
@@ -139,11 +149,13 @@ class CameraRecordFragment : Fragment() {
         }
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
-        soundEffectPlayer =
-            SoundEffectPlayer(requireContext(), currentEffect.states.map { it.soundRes })
-        statePcmMap = currentEffect.states.associate {
-            it.id to loadWavPcm(requireContext(), it.soundRes)
-        }
+        soundEffectPlayer = SoundEffectPlayer(
+            requireContext(),
+            currentEffect.states.mapNotNull { it.soundRes }
+        )
+        statePcmMap = currentEffect.states.mapNotNull { state ->
+            state.soundRes?.let { state.id to loadWavPcm(requireContext(), it) }
+        }.toMap()
 
         with(binding) {
             overlayView = overlay
@@ -164,7 +176,7 @@ class CameraRecordFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        Log.d("LC_Camera", "onDestroyView")
+        stopRecordingTimerUI()
         val recorder = videoRecorder
         videoRecorder = null
         recordingFrameThread?.join(500)
@@ -234,11 +246,20 @@ class CameraRecordFragment : Fragment() {
             pendingState = matchedState.id
             pendingStateSince = now
         } else if (lastStateId != matchedState.id && now - pendingStateSince >= DEBOUNCE_MS) {
+            lastStateId = matchedState.id
+
+            val soundRes = matchedState.soundRes
+            if (soundRes == null) {
+                soundEffectPlayer.stopEffect()
+                videoRecorder?.audioMixer?.triggerEffect(null)
+                activeEffect = null
+                return
+            }
+
             val pcm = statePcmMap[matchedState.id] ?: return
             activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())
             videoRecorder?.audioMixer?.triggerEffect(pcm)
-            soundEffectPlayer.playForSound(matchedState.soundRes)
-            lastStateId = matchedState.id
+            soundEffectPlayer.playForSound(soundRes)
         }
     }
 
@@ -310,6 +331,8 @@ class CameraRecordFragment : Fragment() {
                 return
             }
 
+            stopRecordingTimerUI()
+
             val recorderToStop = videoRecorder
             videoRecorder = null
             binding.btnToggleRecord.isEnabled = false
@@ -332,6 +355,7 @@ class CameraRecordFragment : Fragment() {
                 recH,
                 25
             ).apply {
+                onFirstFrame = { startRecordingTimerUI() }
                 start()
                 activeEffect?.let { effect ->
                     val elapsedMs = SystemClock.elapsedRealtime() - effect.startedAtMs
@@ -342,6 +366,18 @@ class CameraRecordFragment : Fragment() {
 
             startRecordingFrameLoop(25)
         }
+    }
+
+    private fun startRecordingTimerUI() {
+        val b = _binding ?: return
+        recordStartUiTimeMs = SystemClock.elapsedRealtime()
+        b.tvRecordingTimer.visibility = View.VISIBLE
+        timerHandler.post(timerRunnable)
+    }
+
+    private fun stopRecordingTimerUI() {
+        timerHandler.removeCallbacks(timerRunnable)
+        _binding?.tvRecordingTimer?.visibility = View.GONE
     }
 
     private fun computeRecordingSize(
@@ -402,40 +438,5 @@ class CameraRecordFragment : Fragment() {
                 if (sleepMs > 0) Thread.sleep(sleepMs)
             }
         }.apply { start() }
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        Log.d("LC_Camera", "onAttach")
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d("LC_Camera", "onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("LC_Camera", "onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("LC_Camera", "onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("LC_Camera", "onStop")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("LC_Camera", "onDestroy")
-    }
-
-    override fun onDetach() {
-        super.onDetach()
-        Log.d("LC_Camera", "onDetach")
     }
 }

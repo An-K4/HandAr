@@ -18,4 +18,6 @@
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="no_video">Chưa có video nào.</string>
+    <string name="gallery">Thư viện</string>
+    <string name="effect_thumbnail">ảnh xem trước hiệu ứng</string>
 </resources>

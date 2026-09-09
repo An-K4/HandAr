@@ -1,14 +1,14 @@
 package com.example.handar.ui.effectlist
 
-import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.handar.databinding.FragmentEffectListBinding
+import com.example.handar.effect.EffectRepository
 
 class EffectListFragment : Fragment() {
     private var _binding: FragmentEffectListBinding? = null
@@ -18,68 +18,22 @@ class EffectListFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        Log.d("LC_EffectList", "onCreateView")
         _binding = FragmentEffectListBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d("LC_EffectList", "onViewCreated")
-        binding.btnEffectList.setOnClickListener {
-            val action = EffectListFragmentDirections.actionEffectListToCameraRecord("happy_cat")
+        val adapter = EffectAdapter(EffectRepository.all) { effect ->
+            val action = EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)
             findNavController().navigate(action)
         }
+        binding.recyclerEffect.layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerEffect.adapter = adapter
 
         binding.btnVideoList.setOnClickListener {
             val action = EffectListFragmentDirections.actionEffectListToVideoList()
             findNavController().navigate(action)
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        Log.d("LC_EffectList", "onDestroyView")
-        _binding = null
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        Log.d("LC_EffectList", "onAttach")
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        Log.d("LC_EffectList", "onCreate")
-    }
-    
-    override fun onStart() {
-        super.onStart()
-        Log.d("LC_EffectList", "onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("LC_EffectList", "onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("LC_EffectList", "onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("LC_EffectList", "onStop")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("LC_EffectList", "onDestroy")
-    }
-
-    override fun onDetach() {
-        super.onDetach()
-        Log.d("LC_EffectList", "onDetach")
     }
 }

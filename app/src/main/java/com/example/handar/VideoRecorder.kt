@@ -28,6 +28,7 @@ class VideoRecorder(
     private var totalAudioSamples = 0L
     private var recordStartTimeNs = -1L
 
+    var onFirstFrame: (() -> Unit)? = null
     var isRecording: Boolean = false
         private set
     var outputFile: File? = null
@@ -60,6 +61,9 @@ class VideoRecorder(
                     val ptsUs = totalAudioSamples * 1_000_000 / sampleRate
                     totalAudioSamples += len
                     audioEncoder.encodeAndWrite(mixed, len, ptsUs, muxer)
+                }
+                onFirstFrame?.let { callback ->
+                    Handler.createAsync(Looper.getMainLooper()).post(callback)
                 }
             }
 
