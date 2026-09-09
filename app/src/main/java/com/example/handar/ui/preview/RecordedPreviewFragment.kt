@@ -61,7 +61,7 @@ class RecordedPreviewFragment : Fragment() {
                 override fun onPlayerError(error: PlaybackException) {
                     Log.e("Preview", "Lỗi phát video: ${error.errorCodeName}", error)
                     val ctx = context ?: return
-                    Toast.makeText(ctx, "Không phát được video", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, getString(R.string.can_not_play_video), Toast.LENGTH_SHORT).show()
                 }
             })
             binding.playerView.player = p
@@ -70,7 +70,7 @@ class RecordedPreviewFragment : Fragment() {
             p.playWhenReady = true
         }
 
-        binding.btnDone.setOnClickListener { v ->
+        binding.btnDone.setOnClickListener {
             findNavController().popBackStack()
         }
 
@@ -101,14 +101,14 @@ class RecordedPreviewFragment : Fragment() {
     }
 
     private fun deleteVideo() {
-        player?.stop()
         val isDeleted = File(videoPath).delete()
-        if (isDeleted) {
-            findNavController().popBackStack()
-        } else {
+        if (!isDeleted) {
             val ctx = context ?: return
-            Toast.makeText(ctx, "Không thể xóa video", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, getString(R.string.can_not_delete_video), Toast.LENGTH_SHORT).show()
+            return
         }
+        player?.stop()
+        findNavController().popBackStack()
     }
 
     override fun onDestroyView() {

@@ -51,7 +51,7 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| E1 | Quay 3 clip: ~5s, ~20s, ~60s trên máy tốt | Resolution luôn `720×1400` (hoặc theo tỉ lệ máy đó), Bitrate quanh **~2.5-3 Mbps**, Avg FPS **≥ 23-24** ở cả 3 độ dài |
+| E1 | Quay 3 clip: ~5s, ~20s, ~60s trên máy tốt | Resolution theo tỉ lệ **toàn màn hình** của máy đó (short side 720; ví dụ máy 1080×2340 → `720×1560`), Bitrate quanh **~2.5-3 Mbps**, Avg FPS **≥ 23-24** ở cả 3 độ dài |
 | E2 | Lặp lại E1 trên máy cũ/yếu | Resolution/Bitrate tương tự, Avg FPS có thể thấp hơn 25 — chấp nhận được nếu do giới hạn phần cứng thật (không kèm hiện tượng D5/D3) |
 | E3 | So sánh dung lượng file giữa clip cùng độ dài trước và sau toàn bộ refactor | Dung lượng phải **giảm đáng kể** so với bản đầu tiên (baseline ban đầu: ~34MB cho 71s ở FullHD+/4Mbps) |
 
@@ -79,7 +79,22 @@ git checkout main && git stash pop
 - Bản cũ cũng thấp tương đương → **không phải regression**, là trần phần cứng của máy đó. Ghi ⚠️ kèm model máy vào E2, đi tiếp.
 - Bản cũ cao hơn rõ rệt → có regression, lúc đó mới đào: log trung bình `elapsedMs` mỗi 25 frame để tách "vẽ + encode chậm" khỏi "bị tranh CPU".
 
-> **Số liệu tham chiếu đã đo** (2026-09-09, sau Phase C): `720×1560`, bitrate ~2.92 Mbps, 16.2MB/46.5s → Bitrate ✅ và E3 ✅; Avg FPS 20.9-22.3 ⚠️ (dưới ngưỡng 23-24, **chưa đối chiếu baseline**).
+> **Số liệu tham chiếu đã đo** (2026-09-09, sau Phase C) — Bitrate ✅, E3 ✅, FPS ⚠️ ở biên nhưng **không phải regression**:
+>
+> | Bản | Resolution | Avg FPS (2 clip) | Bitrate |
+> |---|---|---|---|
+> | `main` (Phase C) | 720×1560 | 23.97 / 22.74 → **23.4** | ~2.92 Mbps |
+> | `41fda0a` (Phase A) | 720×1400 | 22.96 / 24.04 → **23.5** | ~2.64 Mbps |
+>
+> Chênh 0.1 fps, nằm trong dao động nội bộ mỗi nhóm (~1.1 fps) → **Phase B/C không làm chậm pipeline**. Đáng chú ý: `main` giữ nguyên FPS trong khi mỗi frame vẽ nhiều hơn 11% điểm ảnh.
+>
+> Hai clip đo trước đó cho 20.9 / 22.3 fps là clip **dài hơn** (46.5s và 55.8s, quay liên tục) → nhiều khả năng do throttling nhiệt. Khi so sánh hiệu năng, luôn để máy nguội giữa các lần đo.
+>
+> ⚠️ **Mẹo quan trọng khi so hai bản:** đừng tin thứ tự mình nhớ, hãy tìm một trường trong log dùng làm **nhãn phân biệt tự động**. Ở đây `Resolution` làm việc đó: 720×1400 = bản còn insets padding (Phase A), 720×1560 = bản edge-to-edge (từ Phase B).
+>
+> **Ghi nhận thay đổi hành vi:** bỏ `setOnApplyWindowInsetsListener` ở Phase B khiến `OverlayView` tràn hết màn hình, kéo theo `computeRecordingSize()` cho ra khung cao hơn (2100 → 2340px thật, tức +240px = chiều cao thanh trạng thái + thanh điều hướng). Video ghi ra vì vậy khớp với preview tràn viền, đổi lại file nặng thêm ~11%. Đây là hệ quả ngoài dự kiến của một thay đổi tưởng chỉ thuộc về giao diện — nếu sau này muốn quay đúng khung "an toàn", phải chỉnh `computeRecordingSize` chứ không phải chỉnh insets.
+>
+> Nếu muốn FPS cao hơn ngưỡng, đòn bẩy nằm ở **khối lượng vẽ mỗi frame** (hạ độ phân giải ghi, giảm chi phí vẽ hiệu ứng, hoặc `Delegate.GPU` cho MediaPipe) — không nằm ở kiến trúc màn hình.
 
 ## F. Edge case & độ bền
 

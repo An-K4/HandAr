@@ -94,6 +94,7 @@ class CameraRecordFragment : Fragment() {
             if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
                 val ctx = context ?: return@registerForActivityResult
                 Toast.makeText(ctx, "Quyền truy cập camera bị từ chối", Toast.LENGTH_SHORT).show()
+                findNavController().popBackStack()
             } else {
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(getString(R.string.permission_denied))

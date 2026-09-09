@@ -12,4 +12,6 @@
         Vui lòng truy cập Cài đặt -> HandAr -> Cho phép quyền Máy ảnh để tiếp tục sử dụng.
     </string>
     <string name="ok">OK</string>
+    <string name="can_not_play_video">Không phát được video</string>
+    <string name="can_not_delete_video">Không thể xóa video</string>
 </resources>
