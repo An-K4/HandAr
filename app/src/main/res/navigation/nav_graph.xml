@@ -3,23 +3,37 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/fragment_effect_list">
+    app:startDestination="@id/effectListFragment">
 
-    <fragment android:id="@+id/fragment_effect_list"
+    <fragment android:id="@+id/effectListFragment"
         android:name="com.example.handar.ui.effectlist.EffectListFragment"
         android:label="Chọn hiệu ứng"
         tools:layout="@layout/fragment_effect_list">
 
         <action android:id="@+id/action_effectList_to_cameraRecord"
-            app:destination="@id/fragment_camera_record"/>
+            app:destination="@id/cameraRecordFragment"/>
     </fragment>
 
-    <fragment android:id="@+id/fragment_camera_record"
+    <fragment android:id="@+id/cameraRecordFragment"
         android:name="com.example.handar.ui.camera.CameraRecordFragment"
         android:label="Quay video"
         tools:layout="@layout/fragment_camera_record">
         <argument
             android:name="effectId"
+            app:argType="string"/>
+
+        <action android:id="@+id/action_cameraRecord_to_recordedPreview"
+            app:destination="@id/recordedPreviewFragment"
+            app:popUpTo="@id/cameraRecordFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+    <fragment android:id="@+id/recordedPreviewFragment"
+        android:name="com.example.handar.ui.preview.RecordedPreviewFragment"
+        android:label="Xem lại"
+        tools:layout="@layout/fragment_recorded_preview">
+        <argument
+            android:name="videoPath"
             app:argType="string"/>
     </fragment>
 </navigation>

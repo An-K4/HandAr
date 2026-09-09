@@ -50,6 +50,9 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.recyclerview)
 
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     val cameraxVersion = "1.3.4"

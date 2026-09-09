@@ -12,6 +12,8 @@
 | Điều hướng giữa màn hình | **Fragments + Navigation Component** | Giữ nguyên View/XML hiện có, không cần viết lại UI bằng Compose, tận dụng toàn bộ code `OverlayView`/`PreviewView` đang chạy tốt |
 | Phát video trong app | **ExoPlayer (Media3)** | Chuẩn hiện tại của Google, xử lý tốt các định dạng/edge-case mà `VideoView` (cũ, ít được bảo trì) hay gặp lỗi |
 | Kiến trúc mic/audio | **Giữ nguyên phương án B** (đã chốt ở Refactor Plan trước — không mic, chỉ `EffectAudioClock` + `AudioMixer`) | Không đổi gì, đã ổn định |
+| Truyền tham số giữa màn hình | **Bundle thủ công** (`bundleOf(...)` + `requireArguments()`), **KHÔNG dùng Safe Args** | Plugin `androidx.navigation.safeargs.kotlin` yêu cầu plugin `org.jetbrains.kotlin.android` được apply tường minh; dự án dùng AGP 9 với Kotlin built-in nên không có plugin đó. Vẫn khai `<argument>` trong nav graph để Navigation kiểm tra lúc runtime. Cân nhắc thêm Safe Args ở Phase F nếu số tham số tăng |
+| View | **View Binding** (`viewBinding = true`) | Thay `findViewById`, giảm lỗi id sai. Lưu ý: binding chỉ dùng trên main thread trong khoảng `onViewCreated` → `onDestroyView` |
 
 ---
 
@@ -26,6 +28,8 @@
 ---
 
 ## 2. Cấu trúc package mục tiêu
+
+> **Trạng thái thực tế sau Phase B** (commit `c65a4d3`): cấu trúc bên dưới đã được áp dụng, với 2 điều chỉnh — `EffectListFragment`/`EffectListAdapter` chưa làm RecyclerView (hiện là 1 nút bấm tạm, hardcode `effectId = "happy_cat"`, sẽ hoàn thiện ở Phase F), và `HandLandmarkerProvider` được giải phóng ở `MainActivity.onDestroy` chứ không theo Fragment (cố ý — tránh tạo lại detector mỗi lần ra vào màn camera).
 
 ```
 com.example.handar/
@@ -253,7 +257,29 @@ videoListFragment
 videoPlayerFragment
 ```
 
-**Lưu ý khi cấu hình `nav_graph.xml`:** dùng `popUpTo` đúng cách ở action `cameraRecordFragment → recordedPreviewFragment` để nếu người dùng back từ Preview, **không quay lại giữa lúc camera đang mở** (tránh mở lại camera/MediaPipe không cần thiết) — nên back thẳng về `effectListFragment`.
+**Quy ước đặt tên trong `nav_graph.xml`** (đã áp dụng từ Phase B):
+
+| Loại | Quy ước | Ví dụ |
+|---|---|---|
+| Destination | camelCase, khớp tên class, giữ hậu tố `Fragment` | `cameraRecordFragment` |
+| Action | `action_<từ>_to_<đến>`, bỏ hậu tố `Fragment` | `action_cameraRecord_to_recordedPreview` |
+| Id của View trong layout | snake_case | `btn_toggle_record` |
+| `app:argType` | **luôn viết thường** | `string`, không phải `String` |
+
+> ⚠️ `argType` viết hoa (`String`) không bị compiler bắt: Navigation sẽ hiểu đó là **tên class đầy đủ**, đi tìm class không tồn tại và ném exception lúc parse graph.
+
+**Cấu hình `popUpTo` cho action `cameraRecordFragment → recordedPreviewFragment`:**
+
+```xml
+app:popUpTo="@id/cameraRecordFragment"
+app:popUpToInclusive="true"
+```
+
+Mục đích: back từ Preview về thẳng `effectListFragment`, **không** rơi lại vào màn camera (tránh mở lại camera/MediaPipe không cần thiết), và giải phóng camera ngay lúc navigate.
+
+**Vì sao trỏ `popUpTo` vào chính `cameraRecordFragment` chứ không vào `effectListFragment`:** nếu destination được trỏ tới **không có trong back stack**, `popUpTo` im lặng không làm gì cả — không lỗi, không cảnh báo. Ở Phase F sẽ có đường vào camera không đi qua màn List (từ `videoListFragment`), lúc đó cách trỏ vào `effectListFragment` sẽ hoặc gỡ nhầm màn khác, hoặc không gỡ gì. Quy tắc: **`popUpTo` nên nói về màn mình đang rời, không nói về màn mình đoán là đang nằm dưới.**
+
+> `popUpTo` cũng là thứ quyết định vòng đời: với `popUpToInclusive="true"`, `CameraRecordFragment` bị huỷ hẳn (`onDestroyView → onDestroy → onDetach`) lúc navigate, không nằm lại back stack. Xem `Fragment_Review_Checklist.md` mục 0.
 
 ---
 
@@ -287,22 +313,61 @@ Phase F → Polish, liên kết điều hướng, test toàn diện
 - **Chưa cần làm `SpriteSheetVisual`/`StaticImageVisual` đầy đủ ngay** ở Phase này nếu chưa có asset thực tế loại đó — có thể chỉ viết `AnimatedGifVisual` trước (đủ dùng cho effect hiện có, chỉ có 2 trạng thái GIF), thêm 2 lớp còn lại khi thực sự có hiệu ứng dùng đúng loại asset đó — đúng tinh thần đơn giản trước, phức tạp hoá khi có nhu cầu thật.
 - **Test bằng cách:** chạy lại đúng bộ Checklist B (Live preview) + D (kịch bản đặc biệt) hiện có — đảm bảo hành vi không đổi dù đã refactor cách nạp effect và cách tạo `HandLandmarker`.
 
-### Phase B — Navigation skeleton
-- Thêm dependency: `androidx.navigation:navigation-fragment-ktx`, `navigation-ui-ktx`, cộng plugin Safe Args.
-- Tạo `nav_graph.xml`, `MainActivity` đổi `setContentView` thành layout chỉ chứa `NavHostFragment`.
-- Tạo `CameraRecordFragment`: **di chuyển gần như nguyên trạng** toàn bộ nội dung `MainActivity` cũ vào đây (đổi `this` → `requireContext()`, đổi `findViewById` → `binding`/`view.findViewById` theo `onViewCreated`).
-- Nhận `effectId` qua Safe Args (`arguments`), gọi `EffectRepository.findById(effectId)` để lấy đúng effect, truyền vào `overlayView.setEffect(...)`.
-- Tạo `EffectListFragment` tạm thời (UI đơn giản 1 cột `RecyclerView`, mỗi item hiện `thumbnailRes` + `displayName`) — bấm vào 1 item thì `navigate` sang `cameraRecordFragment` kèm `effectId`.
-- **Lưu ý lifecycle quan trọng:** các biến `@Volatile private var latestCameraBitmap`, `backgroundExecutor`, `handLandmarker` cần khởi tạo/dọn dẹp đúng theo `onViewCreated`/`onDestroyView` của Fragment (không phải `onCreate`/`onDestroy` như Activity) — nếu không cẩn thận, camera có thể không dừng đúng lúc khi rời Fragment, gây leak hoặc camera bị chiếm giữ khi quay lại màn List.
-- **Khuyến nghị: KHÔNG giới thiệu `ViewModel` ngay ở Phase này** — cứ giữ logic y hệt Activity cũ, đặt trong Fragment, chạy đúng trước đã. Tách `ViewModel` để sống sót qua xoay màn hình là việc có thể làm sau, khi thực sự thấy cần (đúng tinh thần "làm đơn giản trước, phức tạp hoá khi có nhu cầu thật" bạn đã áp dụng ở phần đo FPS/audio trước đây).
+### Phase B — Navigation skeleton ✅ ĐÃ HOÀN THÀNH (commit `c65a4d3`)
+
+**Đã làm:**
+- Dependency: `navigation-fragment-ktx` + `navigation-ui-ktx` (2.9.3) + `recyclerview`, bật `viewBinding = true`. **Không** dùng plugin Safe Args (lý do ở Mục 0).
+- `activity_main.xml` chỉ còn `FragmentContainerView` (`android:name` = `NavHostFragment`, `app:defaultNavHost="true"`, `app:navGraph`). `MainActivity` rút gọn còn `enableEdgeToEdge` + `setContentView` + `HandLandmarkerProvider.release()` ở `onDestroy`.
+- `CameraRecordFragment` (`ui/camera/`): di chuyển nguyên trạng logic `MainActivity` cũ, không đụng pipeline recording.
+- `EffectListFragment` (`ui/effectlist/`): **tạm thời chỉ là 1 nút** navigate kèm `effectId = "happy_cat"` hardcode. RecyclerView + Adapter dời sang Phase F.
+- `effectId` truyền qua `bundleOf("effectId" to id)`, nhận bằng `requireArguments().getString("effectId")!!` trong `onCreate`.
+
+**Lệch so với kế hoạch ban đầu:**
+1. Không dùng Safe Args → dùng Bundle thủ công (Mục 0).
+2. `EffectListFragment` chưa có RecyclerView → dời Phase F.
+3. Bỏ `ViewCompat.setOnApplyWindowInsetsListener` khỏi `MainActivity` — nó set padding systembar cho toàn NavHost, làm camera preview có viền đen. Insets cho nút record để lại Phase F.
+
+**Bài học lifecycle rút ra** (chi tiết đầy đủ trong `Fragment_Review_Checklist.md`):
+- Tài nguyên (`backgroundExecutor`, `SoundEffectPlayer`, `statePcmMap`) tạo ở `onViewCreated`, huỷ ở `onDestroyView` — **nơi tạo và nơi huỷ phải đối xứng**.
+- Dùng `viewLifecycleOwner` cho cả `lifecycleScope` lẫn `bindToLifecycle`, không dùng `this`.
+- Thread nền (`recordingFrameThread`) không được chạm `binding`; capture `OverlayView` ra biến local trước khi tạo thread.
+- Mọi callback đến muộn (`stop {}`, `cameraProviderFuture.addListener`) phải chốt cửa bằng `_binding ?: return@...` / `context ?: return@...`.
+- `onDestroyView` theo thứ tự: cắt `videoRecorder` → `join` thread → `stop()` recorder → shutdown executor/release player → null hoá **mọi** tham chiếu View.
+- Không giới thiệu `ViewModel` ở phase này (giữ nguyên khuyến nghị ban đầu — làm đơn giản trước).
 
 ### Phase C — Recorded Preview screen
-- Sau khi `VideoRecorder.stop()` gọi callback `onStopped` (hiện tại chỉ hiện Toast), đổi thành `findNavController().navigate(...)` sang `RecordedPreviewFragment`, truyền đường dẫn file (`outputFile.absolutePath`) qua Safe Args.
-- `RecordedPreviewFragment`: dùng `ExoPlayer` phát ngay video vừa quay (không cần thumbnail, phát trực tiếp).
-- 3 hành động cần có:
-  - **Lưu:** video vốn đã lưu sẵn trong `getExternalFilesDir(MOVIES)` từ lúc `VideoRecorder.start()` — nút này chỉ cần `popBackStack` về `effectListFragment` (hoặc `videoListFragment` nếu muốn xem ngay).
-  - **Xoá:** `file.delete()` rồi `popBackStack`.
-  - **Chia sẻ:** `Intent.ACTION_SEND` kèm `FileProvider.getUriForFile(...)` (cần khai báo `<provider>` FileProvider trong `AndroidManifest.xml` nếu chưa có).
+
+**Thứ tự làm: C1 → C2 → C3 → C4 → C5**, mỗi bước build + chạy được rồi mới đi tiếp (đừng gộp C2 với C3 — nếu Preview vừa không hiện vừa không phát được sẽ không biết lỗi ở navigation hay ExoPlayer).
+
+**C1 — Dependency Media3**
+- `libs.versions.toml`: `media3 = "1.8.0"` + 2 library `media3-exoplayer` (engine) và `media3-ui` (`PlayerView`, có sẵn play/pause/seek).
+- **Và** khai `implementation(libs.androidx.media3.exoplayer)` / `implementation(libs.androidx.media3.ui)` trong `app/build.gradle.kts` — toml chỉ là danh mục, không tự thêm dependency vào module.
+- Nếu resolve lỗi phiên bản: hạ về `1.4.1`.
+
+**C2 — Nav graph + điều hướng khi Stop xong**
+- Thêm destination `recordedPreviewFragment` với `<argument android:name="videoPath" app:argType="string"/>` (viết thường!).
+- Thêm action `action_cameraRecord_to_recordedPreview` kèm `popUpTo` + `popUpToInclusive` (xem Mục 4).
+- Đổi callback `VideoRecorder.stop { }` từ hiện Toast thành `navigate(...)` kèm `bundleOf("videoPath" to outputFile.absolutePath)`, với **2 lớp bảo vệ bắt buộc**:
+  1. `if (!isAdded) return@stop` — callback về sau 1-2s với clip dài (ca D2), người dùng có thể đã back; `findNavController()` trên fragment đã detach sẽ ném `IllegalStateException`.
+  2. `if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop` — `navigate(actionId)` yêu cầu action tồn tại ở destination hiện tại; gọi lần hai (double-tap, callback về 2 lần) sẽ ném `IllegalArgumentException: navigation destination ... is unknown`.
+- Làm stub `RecordedPreviewFragment` chỉ in `videoPath` ra TextView để nghiệm thu riêng phần điều hướng trước.
+
+**C3 — Phát video bằng ExoPlayer**
+- Layout: `androidx.media3.ui.PlayerView` + hàng 3 nút.
+- `onViewCreated`: `ExoPlayer.Builder(requireContext()).build()` → gán `playerView.player`, `setMediaItem(MediaItem.fromUri(...))`, `prepare()`, `playWhenReady = true`.
+- `onDestroyView`: `playerView.player = null` **trước**, rồi `player?.release()`, rồi `player = null`. Release ở `onDestroyView` chứ không phải `onDestroy` — ExoPlayer giữ codec phần cứng, quên release là chiếm codec, lần sau không phát được (cùng bản chất với vấn đề camera).
+
+**C4 — Ba hành động**
+- **Xong** (thay tên "Lưu" cho thành thật): video đã nằm sẵn trong `getExternalFilesDir(MOVIES)` từ lúc `VideoRecorder.start()`, nút này chỉ `popBackStack()`.
+- **Xoá:** release player **trước**, rồi `File(videoPath).delete()`, rồi `popBackStack()`. Nên có dialog xác nhận — hành động không hoàn tác được.
+- **Chia sẻ:** xem C5.
+
+**C5 — FileProvider cho nút Chia sẻ**
+- `res/xml/file_paths.xml`: `<external-files-path name="movies" path="Movies/" />` — thẻ `external-files-path` ứng với `getExternalFilesDir(...)`, `path` khớp `Environment.DIRECTORY_MOVIES` mà `VideoRecorder.start()` đang dùng. Sai thẻ/sai path → `IllegalArgumentException: Failed to find configured root`.
+- `AndroidManifest.xml`: `<provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">` + `<meta-data name="android.support.FILE_PROVIDER_PATHS" resource="@xml/file_paths"/>`.
+- Intent: `ACTION_SEND` + `type = "video/mp4"` + `EXTRA_STREAM` = `FileProvider.getUriForFile(...)` + **`addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)`**. Thiếu flag này thì share sheet vẫn mở nhưng app nhận không đọc được file.
+
+**Nghiệm thu Phase C:** chạy A-F như thường lệ, cộng thêm mục G-H trong `Test_Checklist.md` (đặc biệt H9, H11, H12), cộng 3 ca riêng của phase này: xoá xong file biến mất thật (`adb shell ls /sdcard/Android/data/com.example.handar/files/Movies`); chia sẻ sang app khác mở được; bấm Stop rồi bấm lia lịa vào nút → chỉ điều hướng đúng 1 lần.
 
 ### Phase D — Video List (thư viện)
 - `VideoRepository`: quét `context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)`, liệt kê file `.mp4`, map thành `data class VideoItem(val file: File, val durationMs: Long, val createdAt: Long)`.
@@ -316,6 +381,8 @@ Phase F → Polish, liên kết điều hướng, test toàn diện
 - **Bắt buộc xử lý đúng lifecycle** để tránh leak: khởi tạo `ExoPlayer` ở `onViewCreated`, `player.release()` ở `onDestroyView` (không phải `onDestroy` — Fragment view có thể bị destroy/recreate nhiều lần trong khi Fragment instance còn sống).
 
 ### Phase F — Polish & liên kết
+- **Hoàn thiện `EffectListFragment`** (dời từ Phase B): thay nút bấm tạm bằng `RecyclerView` + `EffectListAdapter`, mỗi item hiện `thumbnailRes` + `displayName`, bấm vào thì navigate kèm `effectId` thật. Nhớ `layoutManager` — thiếu nó list hiện trắng và **không có lỗi nào trong logcat**.
+- **Xử lý window insets**: `MainActivity` đã bỏ listener insets (nó làm camera preview có viền đen). Cần apply insets riêng cho nút record trong `CameraRecordFragment` để nút không bị navigation bar che.
 - Thêm nút/icon "Thư viện" (ví dụ icon góc trên `EffectListFragment` hoặc `CameraRecordFragment`) điều hướng sang `VideoListFragment`.
 - Rà lại toàn bộ hành vi nút Back ở từng màn — đặc biệt đảm bảo **không thể back vào giữa lúc đang quay dở** (camera vẫn mở, `VideoRecorder.isRecording == true`) mà không có cảnh báo, tránh mất video đang quay dở hoặc leak tài nguyên camera.
 - Chạy lại **toàn bộ** `HandAr_Manual_Test_Checklist.md` hiện có (mục A-F) sau khi refactor xong Phase B, vì đây là bộ test duy nhất xác nhận hành vi ghi hình không bị phá vỡ trong quá trình chuyển từ Activity sang Fragment.

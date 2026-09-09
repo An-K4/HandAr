@@ -1,11 +1,13 @@
 package com.example.handar.ui.camera
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,8 +20,13 @@ import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.SoundEffectPlayer
@@ -30,11 +37,13 @@ import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.max
@@ -82,13 +91,22 @@ class CameraRecordFragment : Fragment() {
             setupMediaPipe()
             startCamera()
         } else {
-            val ctx = context ?: return@registerForActivityResult
-            Toast.makeText(ctx, "Quyền truy cập camera bị từ chối", Toast.LENGTH_SHORT).show()
+            if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+                val ctx = context ?: return@registerForActivityResult
+                Toast.makeText(ctx, "Quyền truy cập camera bị từ chối", Toast.LENGTH_SHORT).show()
+            } else {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(getString(R.string.permission_denied))
+                    .setMessage(getString(R.string.denied_permission_message))
+                    .setPositiveButton(getString(R.string.ok)) { _, _ -> findNavController().popBackStack()}
+                    .show()
+            }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("LC_Camera", "onCreate")
         currentEffect = EffectRepository.findById(requireArguments().getString("effectId")!!)
     }
 
@@ -96,12 +114,26 @@ class CameraRecordFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        Log.d("LC_Camera", "onCreateView")
         _binding = FragmentCameraRecordBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        Log.d("LC_Camera", "onViewCreated")
+
+        val btn = binding.btnToggleRecord
+        val baseMarginBottom = (btn.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
+        ViewCompat.setOnApplyWindowInsetsListener(btn) { v, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars()
+            )
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = baseMarginBottom + bars.bottom
+            }
+            insets
+        }
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
         soundEffectPlayer =
@@ -129,6 +161,7 @@ class CameraRecordFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        Log.d("LC_Camera", "onDestroyView")
         val recorder = videoRecorder
         videoRecorder = null
         recordingFrameThread?.join(500)
@@ -279,12 +312,15 @@ class CameraRecordFragment : Fragment() {
             binding.btnToggleRecord.isEnabled = false
 
             recorderToStop?.stop {
-                _binding?.btnToggleRecord?.isEnabled = true
-                val ctx = context ?: return@stop
-                Toast.makeText(ctx, "Đã lưu video", Toast.LENGTH_SHORT).show()
-                recorderToStop.outputFile?.let { file ->
-                    logRecordingStats(ctx, file)
-                }
+                if (!isAdded) return@stop
+                val nav = findNavController()
+                if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop
+                val path = recorderToStop.outputFile?.absolutePath ?: return@stop
+                context?.let { logRecordingStats(it, File(path)) }
+                nav.navigate(
+                    R.id.action_cameraRecord_to_recordedPreview,
+                    bundleOf("videoPath" to path)
+                )
             }
         } else {
             recordStartUiTimeMs = SystemClock.elapsedRealtime()
@@ -365,5 +401,40 @@ class CameraRecordFragment : Fragment() {
                 if (sleepMs > 0) Thread.sleep(sleepMs)
             }
         }.apply { start() }
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        Log.d("LC_Camera", "onAttach")
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("LC_Camera", "onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("LC_Camera", "onResume")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("LC_Camera", "onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("LC_Camera", "onStop")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("LC_Camera", "onDestroy")
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        Log.d("LC_Camera", "onDetach")
     }
 }
