@@ -20,13 +20,13 @@ import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
-import androidx.core.os.bundleOf
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.SoundEffectPlayer
@@ -53,6 +53,8 @@ class CameraRecordFragment : Fragment() {
         private const val MIN_RECORD_DURATION_MS = 1000L
         private const val DEBOUNCE_MS = 200L
     }
+
+    private val args: CameraRecordFragmentArgs by navArgs()
 
     private var _binding: FragmentCameraRecordBinding? = null
     private val binding get() = _binding!!
@@ -99,7 +101,7 @@ class CameraRecordFragment : Fragment() {
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle(getString(R.string.permission_denied))
                     .setMessage(getString(R.string.denied_permission_message))
-                    .setPositiveButton(getString(R.string.ok)) { _, _ -> findNavController().popBackStack()}
+                    .setPositiveButton(getString(R.string.ok)) { _, _ -> findNavController().popBackStack() }
                     .show()
             }
         }
@@ -108,7 +110,7 @@ class CameraRecordFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("LC_Camera", "onCreate")
-        currentEffect = EffectRepository.findById(requireArguments().getString("effectId")!!)
+        currentEffect = EffectRepository.findById(args.effectId)
     }
 
     override fun onCreateView(
@@ -318,10 +320,8 @@ class CameraRecordFragment : Fragment() {
                 if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop
                 val path = recorderToStop.outputFile?.absolutePath ?: return@stop
                 context?.let { logRecordingStats(it, File(path)) }
-                nav.navigate(
-                    R.id.action_cameraRecord_to_recordedPreview,
-                    bundleOf("videoPath" to path)
-                )
+                val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path)
+                nav.navigate(action)
             }
         } else {
             recordStartUiTimeMs = SystemClock.elapsedRealtime()

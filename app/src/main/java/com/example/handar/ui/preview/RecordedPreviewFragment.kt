@@ -18,6 +18,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.example.handar.R
 import com.example.handar.databinding.FragmentRecordedPreviewBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -29,12 +30,8 @@ class RecordedPreviewFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var player: ExoPlayer? = null
-    private lateinit var videoPath: String
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        videoPath = requireArguments().getString("videoPath")!!
-    }
+    private val args: RecordedPreviewFragmentArgs by navArgs()
+    private val videoPath: String get() = args.videoPath
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,

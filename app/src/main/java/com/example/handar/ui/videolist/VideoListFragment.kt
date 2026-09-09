@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.handar.R
 import com.example.handar.databinding.FragmentEffectListBinding
@@ -45,7 +46,8 @@ class VideoListFragment : Fragment() {
         }
 
         val adapter = VideoListAdapter(emptyList()) { videoItem ->
-            context?.let { Toast.makeText(it, "Clicked: ${videoItem.file}", Toast.LENGTH_SHORT).show() }
+            val action = VideoListFragmentDirections.actionVideoListToVideoPlayer(videoItem.file.absolutePath)
+            findNavController().navigate(action)
         }
         binding.recyclerVideos.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerVideos.adapter = adapter

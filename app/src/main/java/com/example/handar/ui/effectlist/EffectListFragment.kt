@@ -6,14 +6,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.example.handar.R
 import com.example.handar.databinding.FragmentEffectListBinding
-import com.example.handar.ui.videolist.VideoRepository
-import kotlinx.coroutines.launch
 
 class EffectListFragment : Fragment() {
     private var _binding: FragmentEffectListBinding? = null
@@ -32,16 +27,13 @@ class EffectListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         Log.d("LC_EffectList", "onViewCreated")
         binding.btnEffectList.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_effectList_to_cameraRecord,
-                bundleOf("effectId" to "happy_cat")
-            )
+            val action = EffectListFragmentDirections.actionEffectListToCameraRecord("happy_cat")
+            findNavController().navigate(action)
         }
 
         binding.btnVideoList.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_effectList_to_videoList
-            )
+            val action = EffectListFragmentDirections.actionEffectListToVideoList()
+            findNavController().navigate(action)
         }
     }
 

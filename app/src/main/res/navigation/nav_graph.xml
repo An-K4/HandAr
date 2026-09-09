@@ -44,5 +44,17 @@
         android:name="com.example.handar.ui.videolist.VideoListFragment"
         android:label="Danh sách video"
         tools:layout="@layout/fragment_video_list">
+
+        <action android:id="@+id/action_videoList_to_videoPlayer"
+            app:destination="@id/videoPlayerFragment"/>
+    </fragment>
+
+    <fragment android:id="@+id/videoPlayerFragment"
+        android:name="com.example.handar.ui.player.VideoPlayerFragment"
+        android:label="Phát video"
+        tools:layout="@layout/fragment_video_player">
+        <argument
+            android:name="videoPath"
+            app:argType="string"/>
     </fragment>
 </navigation>
