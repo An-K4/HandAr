@@ -12,6 +12,9 @@
 
         <action android:id="@+id/action_effectList_to_cameraRecord"
             app:destination="@id/cameraRecordFragment"/>
+
+        <action android:id="@+id/action_effectList_to_videoList"
+            app:destination="@id/videoListFragment"/>
     </fragment>
 
     <fragment android:id="@+id/cameraRecordFragment"
@@ -35,5 +38,11 @@
         <argument
             android:name="videoPath"
             app:argType="string"/>
+    </fragment>
+
+    <fragment android:id="@+id/videoListFragment"
+        android:name="com.example.handar.ui.videolist.VideoListFragment"
+        android:label="Danh sách video"
+        tools:layout="@layout/fragment_video_list">
     </fragment>
 </navigation>

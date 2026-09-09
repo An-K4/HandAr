@@ -8,9 +8,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.handar.R
 import com.example.handar.databinding.FragmentEffectListBinding
+import com.example.handar.ui.videolist.VideoRepository
+import kotlinx.coroutines.launch
 
 class EffectListFragment : Fragment() {
     private var _binding: FragmentEffectListBinding? = null
@@ -32,6 +35,12 @@ class EffectListFragment : Fragment() {
             findNavController().navigate(
                 R.id.action_effectList_to_cameraRecord,
                 bundleOf("effectId" to "happy_cat")
+            )
+        }
+
+        binding.btnVideoList.setOnClickListener {
+            findNavController().navigate(
+                R.id.action_effectList_to_videoList
             )
         }
     }
