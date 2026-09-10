@@ -38,6 +38,7 @@ import com.example.handar.databinding.FragmentCameraRecordBinding
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
+import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -75,6 +76,11 @@ class CameraRecordFragment : Fragment() {
 
     @Volatile
     private var latestCameraBitmap: Bitmap? = null
+
+    // TẠM: đếm frame camera để đo hiệu năng, gỡ cùng RecordingPerfLogger
+    @Volatile
+    private var analyzerFrames = 0
+
     private var recordingFrameThread: Thread? = null
     private var lastStateId: String? = null
     private var pendingState: String? = null
@@ -300,6 +306,16 @@ class CameraRecordFragment : Fragment() {
 
                         latestCameraBitmap = rotatedBitmap
 
+                        // TẠM: đo hiệu năng
+                        if (analyzerFrames == 0) {
+                            Log.i(
+                                "RecPerf",
+                                "bitmap analyzer = ${rotatedBitmap.width}x${rotatedBitmap.height}, " +
+                                    "${rotatedBitmap.byteCount / 1024} KB/frame"
+                            )
+                        }
+                        analyzerFrames++
+
                         val mpImage: MPImage = BitmapImageBuilder(rotatedBitmap).build()
                         val timestamp = SystemClock.uptimeMillis()
                         handLandmarker?.detectAsync(mpImage, timestamp)
@@ -399,7 +415,13 @@ class CameraRecordFragment : Fragment() {
     private fun startRecordingFrameLoop(fps: Int) {
         val overlay = overlayView ?: return
         val intervalMs = 1000L / fps
+
+        // TẠM: đo hiệu năng ghi hình, gỡ cùng RecordingPerfLogger
+        val perf = RecordingPerfLogger(requireContext().applicationContext, { analyzerFrames })
+        val budgetNs = intervalMs * 1_000_000L
+
         recordingFrameThread = Thread {
+            perf.start()
             while (videoRecorder?.isRecording == true) {
                 val frameStartNs = System.nanoTime()
                 val bitmap = latestCameraBitmap
@@ -433,10 +455,14 @@ class CameraRecordFragment : Fragment() {
                     }
                 }
 
-                val elapsedMs = (System.nanoTime() - frameStartNs) / 1_000_000
+                val workNs = System.nanoTime() - frameStartNs
+                perf.onFrame(workNs, budgetNs)   // TẠM: đo hiệu năng
+
+                val elapsedMs = workNs / 1_000_000
                 val sleepMs = (intervalMs - elapsedMs).coerceAtLeast(0)
                 if (sleepMs > 0) Thread.sleep(sleepMs)
             }
+            perf.finish()   // TẠM: đo hiệu năng
         }.apply { start() }
     }
 }
