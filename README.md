@@ -36,7 +36,7 @@
 |---|---|
 | Ngôn ngữ | Kotlin |
 | UI | View/XML + View Binding (không dùng Compose) |
-| Điều hướng | Fragments + Navigation Component (`nav_graph.xml`) |
+| Điều hướng | Fragments + Navigation Component (`nav_graph.xml`) + **Safe Args** (`androidx.navigation.safeargs.kotlin`) |
 | Camera | CameraX 1.4.2 (`Preview` + `ImageAnalysis`) |
 | Nhận diện tay | MediaPipe Tasks Vision 0.10.26 (`hand_landmarker.task`, `Delegate.CPU`, `LIVE_STREAM`) |
 | Vẽ hiệu ứng | Android Canvas 2D (`OverlayView`) |
@@ -125,6 +125,15 @@ videoListFragment ──chọn video──> videoPlayerFragment
 
 Action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"`
 để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
+
+Tham số giữa các màn (`effectId`, `videoPath`) được truyền bằng **Safe Args**, ví dụ:
+
+```kotlin
+val action = EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)
+findNavController().navigate(action)
+```
+
+Mọi tham số phải được khai `<argument>` trong `nav_graph.xml` thì các class `*Directions` / `*Args` mới được sinh ra.
 
 ## Cấu trúc thư mục
 
