@@ -50,25 +50,29 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         val localOffsetX = (targetW - imgWidth * localScale) / 2f
         val localOffsetY = (targetH - imgHeight * localScale) / 2f
 
-        for (landmark in handResult.landmarks()) {
+        val hands = handResult.landmarks()
+        if (hands.isEmpty()) return
+
+        val matchedIndex = currentEffect.states.indexOfFirst { it.gesture.recognize(hands) }
+        if (matchedIndex == -1) return
+
+        val normMidX = hands.map { it[9].x() }.average().toFloat()
+        val normMidY = hands.map { it[9].y() }.average().toFloat()
+
+        val normalizeX = if (mirrorX) 1f - normMidX else normMidX
+        val cx = (normalizeX * imgWidth * localScale) + localOffsetX
+        val cy = (normMidY * imgHeight * localScale) + localOffsetY
+
+        val r = hands.map { landmark ->
             val wrist = landmark[0]
             val middleMcp = landmark[9]
-
-            val normalizeX = if (mirrorX) 1f - middleMcp.x() else middleMcp.x()
-            val cx = (normalizeX * imgWidth * localScale) + localOffsetX
-            val cy = (middleMcp.y() * imgHeight * localScale) + localOffsetY
-
             val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
             val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
-            val r = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        }.average().toFloat()
 
-            val matchedIndex =
-                currentEffect.states.indexOfFirst { it.gesture.recognize(listOf(landmark)) }
-            if (matchedIndex == -1) continue
-
-            visuals.forEachIndexed { index, visual -> visual.setActive(index == matchedIndex) }
-            visuals[matchedIndex].draw(canvas, cx, cy, r)
-        }
+        visuals.forEachIndexed { index, visual -> visual.setActive(index == matchedIndex) }
+        visuals[matchedIndex].draw(canvas, cx, cy, r)
     }
 
     @SuppressLint("DrawAllocation")

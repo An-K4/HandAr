@@ -1,7 +1,6 @@
 package com.example.handar.ui.camera
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
@@ -232,20 +231,17 @@ class CameraRecordFragment : Fragment() {
     }
 
     private fun handleGesture(result: HandLandmarkerResult) {
-        val landmark = result.landmarks().firstOrNull()
-        if (landmark == null) {
-            soundEffectPlayer.stopEffect()
-            videoRecorder?.audioMixer?.triggerEffect(null)
-            activeEffect = null
-            lastStateId = null
-            pendingState = null
-            pendingStateSince = 0
+        val hands = result.landmarks()
+        if (hands.isEmpty()) {
+            clearActiveEffect()
             return
         }
 
-        val matchedState = currentEffect.states.firstOrNull {
-            it.gesture.recognize(listOf(landmark))
-        } ?: return
+        val matchedState = currentEffect.states.firstOrNull { it.gesture.recognize(hands) }
+        if (matchedState == null) {
+            clearActiveEffect()
+            return
+        }
 
         val now = SystemClock.uptimeMillis()
         if (matchedState.id != pendingState) {
@@ -256,9 +252,7 @@ class CameraRecordFragment : Fragment() {
 
             val soundRes = matchedState.soundRes
             if (soundRes == null) {
-                soundEffectPlayer.stopEffect()
-                videoRecorder?.audioMixer?.triggerEffect(null)
-                activeEffect = null
+                clearActiveEffect(keepPendingState = true)
                 return
             }
 
@@ -269,13 +263,24 @@ class CameraRecordFragment : Fragment() {
         }
     }
 
+    private fun clearActiveEffect(keepPendingState: Boolean = false) {
+        soundEffectPlayer.stopEffect()
+        videoRecorder?.audioMixer?.triggerEffect(null)
+        activeEffect = null
+        lastStateId = null
+        if (!keepPendingState) {
+            pendingState = null
+            pendingStateSince = 0
+        }
+    }
+
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener({
             val b = _binding ?: return@addListener
             val cameraProvider = cameraProviderFuture.get()
             val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(b.preview.surfaceProvider)
+                it.surfaceProvider = b.preview.surfaceProvider
             }
             val analyze = ImageAnalysis.Builder()
                 .setBackpressureStrategy(STRATEGY_KEEP_ONLY_LATEST)

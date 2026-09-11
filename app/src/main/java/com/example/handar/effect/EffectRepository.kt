@@ -5,19 +5,19 @@ import com.example.handar.R
 object EffectRepository {
     val all = listOf(
         EffectDefinition(
-            id = "happy_cat",
-            displayName = "Mèo vui / Chuối khóc",
+            id = "cat_meme_1",
+            displayName = "Meme mèo 1",
             thumbnailRes = R.drawable.happy_happy_happy_cat,
             requiredNumHands = 1,
             states = listOf(
                 EffectState(
-                    id = "open",
+                    id = "happy_happy_happy_cat",
                     gesture = Gestures.singleHandPalmOpen,
                     asset = EffectAsset.AnimatedGif(R.drawable.happy_happy_happy_cat),
                     soundRes = R.raw.happy_happy_happy_cat
                 ),
                 EffectState(
-                    id = "closed",
+                    id = "banana_cat_crying",
                     gesture = Gestures.singleHandFist,
                     asset = EffectAsset.AnimatedGif(R.drawable.banana_cat_crying),
                     soundRes = R.raw.banana_cat_crying
@@ -81,6 +81,162 @@ object EffectRepository {
                     gesture = Gestures.singleHandFist,
                     asset = EffectAsset.AnimatedGif(R.drawable.stranger_things_clock),
                     soundRes = R.raw.stranger_things_clock
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "rock_on_ily",
+            displayName = "Rock on / I love you",
+            thumbnailRes = R.drawable.rock_on,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "rock_on",
+                    gesture = Gestures.singleHandRockOn,
+                    asset = EffectAsset.AnimatedGif(R.drawable.rock_on),
+                    soundRes = R.raw.rock_on
+                ),
+                EffectState(
+                    id = "ily",
+                    gesture = Gestures.singleHandILoveYou,
+                    asset = EffectAsset.AnimatedGif(R.drawable.i_love_you),
+                    soundRes = R.raw.i_love_you
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "camera_shutter",
+            displayName = "Chụp ảnh",
+            thumbnailRes = R.drawable.camera_shutter,
+            requiredNumHands = 2,
+            states = listOf(
+                EffectState(
+                    id = "shutter_camera",
+                    gesture = Gestures.twoHandsFrame,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                ),
+                EffectState(
+                    id = "shutter_ok",
+                    gesture = Gestures.singleHandOkSign,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                ),
+                EffectState(
+                    id = "shutter_hi",
+                    gesture = Gestures.singleHandPeaceSign,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                ),
+                EffectState(
+                    id = "shutter_like",
+                    gesture = Gestures.singleHandThumbsUp,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                ),
+                EffectState(
+                    id = "shutter_rock_on",
+                    gesture = Gestures.singleHandRockOn,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                ),
+                EffectState(
+                    id = "shutter_call",
+                    gesture = Gestures.singleHandCall,
+                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
+                    soundRes = R.raw.camera_shutter
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "cat_meme_2",
+            displayName = "Meme mèo 2",
+            thumbnailRes = R.drawable.hello,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "hello_cat",
+                    gesture = Gestures.singleHandPeaceSign,
+                    asset = EffectAsset.AnimatedGif(R.drawable.hello),
+                    soundRes = R.raw.hello
+                ),
+                EffectState(
+                    id = "point_cat",
+                    gesture = Gestures.singleHandPointing,
+                    asset = EffectAsset.AnimatedGif(R.drawable.you),
+                    soundRes = R.raw.you
+                ),
+                EffectState(
+                    id = "call_cat",
+                    gesture = Gestures.singleHandCall,
+                    asset = EffectAsset.AnimatedGif(R.drawable.call),
+                    soundRes = R.raw.call
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "mood_meter",
+            displayName = "Đo tâm trạng",
+            thumbnailRes = R.drawable.like_meme_emoji,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "like",
+                    gesture = Gestures.singleHandThumbsUp,
+                    asset = EffectAsset.AnimatedGif(R.drawable.like_meme_emoji),
+                    soundRes = R.raw.like_meme_emoji
+                ),
+                EffectState(
+                    id = "dislike",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.AnimatedGif(R.drawable.sad_meme_emoji),
+                    soundRes = R.raw.sad_meme_emoji
+                ),
+                EffectState(
+                    id = "neutral",
+                    gesture = Gestures.singleHandPalmOpen,
+                    asset = EffectAsset.AnimatedGif(R.drawable.neutral_meme_emoji),
+                    soundRes = null
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "absolute_cinema_two_hand",
+            displayName = "Absolute cinema",
+            thumbnailRes = R.drawable.absolute_cinema,
+            requiredNumHands = 2,
+            states = listOf(
+                EffectState(
+                    id = "absolute_cinema",
+                    gesture = Gestures.bothHandsPalmOpen,
+                    asset = EffectAsset.StaticImage(R.drawable.absolute_cinema),
+                    soundRes = R.raw.absolute_cinema
+                ),
+                EffectState(
+                    id = "absolute_garbage",
+                    gesture = Gestures.bothHandsFist,
+                    asset = EffectAsset.StaticImage(R.drawable.absolute_garbage),
+                    soundRes = R.raw.absolute_garbage
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "heart_or_cross",
+            displayName = "Trái tim và dấu X",
+            thumbnailRes = R.drawable.heart,
+            requiredNumHands = 2,
+            states = listOf(
+                EffectState(
+                    id = "heart",
+                    gesture = Gestures.twoHandsHeart,
+                    asset = EffectAsset.StaticImage(R.drawable.heart),
+                    soundRes = null
+                ),
+                EffectState(
+                    id = "cross",
+                    gesture = Gestures.twoHandsCrossedFingers,
+                    asset = EffectAsset.StaticImage(R.drawable.cross),
+                    soundRes = null
                 )
             )
         )
