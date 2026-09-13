@@ -1,9 +1,8 @@
-package com.example.handar.wrapper
+package com.example.handar.recording
 
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
-import com.example.handar.MuxerCoordinator
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 

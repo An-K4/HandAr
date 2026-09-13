@@ -1,4 +1,4 @@
-package com.example.handar
+package com.example.handar.recording
 
 import android.content.Context
 import android.graphics.Canvas
@@ -7,8 +7,6 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.example.handar.wrapper.AudioEncoderWrapper
-import com.example.handar.wrapper.VideoEncoderWrapper
 import java.io.File
 
 class VideoRecorder(

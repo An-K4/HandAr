@@ -147,18 +147,20 @@ app/src/main/java/com/example/handar/
 │   ├── GestureRecognizer.kt     fun interface + object Gestures (các công thức cử chỉ)
 │   ├── EffectState.kt · EffectDefinition.kt · EffectRepository.kt
 │   └── HandLandmarkerProvider.kt
+├── recording/                    toàn bộ pipeline ghi hình, không đụng vào nếu không bắt buộc (xem cuối file)
+│   ├── VideoRecorder.kt         điều phối ghi hình (nhạc trưởng)
+│   ├── MuxerCoordinator.kt      chờ đủ 2 track mới muxer.start()
+│   ├── AudioMixer.kt · EffectAudioClock.kt
+│   └── VideoEncoderWrapper.kt · AudioEncoderWrapper.kt   bọc MediaCodec
 ├── ui/
 │   ├── effectlist/   EffectListFragment, EffectAdapter
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
 │   ├── preview/      RecordedPreviewFragment       (xem lại ngay sau khi quay)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository
 │   └── player/       VideoPlayerFragment           (ExoPlayer)
-├── OverlayView.kt               canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình
-├── VideoRecorder.kt             điều phối ghi hình
-├── MuxerCoordinator.kt          chờ đủ 2 track mới muxer.start()
-├── AudioMixer.kt · EffectAudioClock.kt · SoundEffectPlayer.kt
-├── wrapper/                     VideoEncoderWrapper, AudioEncoderWrapper (bọc MediaCodec)
-└── utils/                       AudioUtils, FormatUtils, GestureUtils,
+├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình
+├── SoundEffectPlayer.kt          phát trực tiếp ra loa — TÁCH RIÊNG khỏi recording/ (xem kiến trúc)
+└── utils/                        AudioUtils, FormatUtils, GestureUtils,
                                  RecordingPerfLogger, VideoStatsLogger
 
 app/src/main/res/
@@ -258,7 +260,7 @@ Unit test hiện chỉ có `FormatTest.kt`; khuyến nghị bật LeakCanary ở
 
 ## Quy ước & bài học quan trọng
 
-- **Không đụng vào logic bên trong pipeline ghi hình** (`VideoRecorder`, `AudioMixer`, `EffectAudioClock`, `MuxerCoordinator`, `wrapper/`) — đã ổn định qua nhiều vòng debug. Nếu buộc phải sửa, đối chiếu `HandAr_Refactor_Plan.md` + `Camera_X_Hand_Landmarker.md` trước.
+- **Không đụng vào logic bên trong pipeline ghi hình** (toàn bộ package `recording/`: `VideoRecorder`, `AudioMixer`, `EffectAudioClock`, `MuxerCoordinator`, `VideoEncoderWrapper`, `AudioEncoderWrapper`) — đã ổn định qua nhiều vòng debug. Nếu buộc phải sửa, đối chiếu `HandAr_Refactor_Plan.md` + `Camera_X_Hand_Landmarker.md` trước.
 - **Đo trước khi kết luận.** Số `KEY_FRAME_RATE` / `KEY_BIT_RATE` khai cho `MediaCodec` chỉ là mục tiêu, không phải cam kết. Biết ngưỡng nhiễu của phép đo (đo 2 lần cùng cấu hình) trước khi so hai cấu hình.
 - **Fragment có hai vòng đời.** Nơi tạo và nơi huỷ tài nguyên phải đối xứng; dùng `viewLifecycleOwner` chứ không dùng `this`/`lifecycleScope`; mọi callback đến muộn phải chốt cửa `_binding ?: return`.
 - **Nav graph quyết định vòng đời**, không phải bản thân code Fragment — xem `popUpTo` trước khi suy luận.

@@ -1,4 +1,4 @@
-package com.example.handar
+package com.example.handar.recording
 
 class EffectAudioClock(private val sampleRate: Int) {
     @Volatile private var running = false

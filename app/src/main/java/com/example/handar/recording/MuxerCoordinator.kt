@@ -1,4 +1,4 @@
-package com.example.handar
+package com.example.handar.recording
 
 import android.media.MediaCodec
 import android.media.MediaFormat

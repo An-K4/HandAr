@@ -32,7 +32,7 @@ import androidx.navigation.fragment.navArgs
 import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.SoundEffectPlayer
-import com.example.handar.VideoRecorder
+import com.example.handar.recording.VideoRecorder
 import com.example.handar.databinding.FragmentCameraRecordBinding
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectRepository
