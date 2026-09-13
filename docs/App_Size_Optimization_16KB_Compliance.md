@@ -9,6 +9,8 @@
 1. [Bối cảnh: vì sao phải điều tra dung lượng](#1-bối-cảnh-vì-sao-phải-điều-tra-dung-lượng)
 2. [Bước 1 — Kiểm kê resource để loại trừ nghi ngờ ban đầu](#2-bước-1--kiểm-kê-resource-để-loại-trừ-nghi-ngờ-ban-đầu)
 3. [Bước 2 — Thủ phạm chính: `optimization { enable = false }`](#3-bước-2--thủ-phạm-chính-optimization--enable--false-)
+   - 3.1. Kiến thức nền: R8 là gì, hoạt động ra sao
+   - 3.2. Áp dụng vào HandAr: phát hiện & fix
 4. [Bước 3 — Nén lại asset nặng (GIF/WAV)](#4-bước-3--nén-lại-asset-nặng-gifwav)
 5. [Bước 4 — Yêu cầu bắt buộc: 16 KB Page Size Compliance](#5-bước-4--yêu-cầu-bắt-buộc-16-kb-page-size-compliance)
 6. [Bước 5 — Thủ phạm 16 KB #1: MediaPipe `tasks-vision`](#6-bước-5--thủ-phạm-16-kb-1-mediapipe-tasks-vision)
@@ -17,6 +19,7 @@
 9. [Bảng tổng kết tiến trình](#9-bảng-tổng-kết-tiến-trình)
 10. [Các hướng tối ưu còn lại (lợi ích giảm dần)](#10-các-hướng-tối-ưu-còn-lại-lợi-ích-giảm-dần)
 11. [Checklist rút gọn cho lần audit dung lượng tiếp theo](#11-checklist-rút-gọn-cho-lần-audit-dung-lượng-tiếp-theo)
+12. [Bổ sung: WebP, Sprite Sheet, và quy tắc "mỗi asset < 1MB"](#12-bổ-sung-webp-sprite-sheet-và-quy-tắc-mỗi-asset--1mb)
 
 ---
 
@@ -46,6 +49,28 @@ Liệt kê trực tiếp kích thước từng nhóm resource trong project:
 ---
 
 ## 3. Bước 2 — Thủ phạm chính: `optimization { enable = false }`
+
+### 3.1. Kiến thức nền: R8 là gì, hoạt động ra sao
+
+**R8** là bộ công cụ rút gọn + tối ưu code Java/Kotlin chính thức của Android (thay thế ProGuard từ AGP 3.4+, hiện là mặc định duy nhất). R8 chỉ xử lý **code đã biên dịch thành `.dex`** và **resource** (`res/`) — **không đụng tới native lib (`.so`)**. Đây là điểm cần đính chính so với cách diễn đạt ban đầu: việc `lib/` giảm sau này thực chất đến từ định dạng `.aab` (xem Mục 8), **không phải từ R8**.
+
+R8 chạy qua 3 giai đoạn chính:
+
+| Giai đoạn | Làm gì | Ví dụ tác động |
+|---|---|---|
+| **Shrinking (rút gọn)** | Duyệt từ các "điểm vào" đã biết chắc chắn được dùng (Activity/Fragment/Service khai báo trong `AndroidManifest.xml`, các hàm đánh dấu `-keep`...), lần theo mọi lời gọi hàm để xác định class/method/field nào **thực sự có thể được gọi tới** — phần còn lại (không lần tới được) bị xoá khỏi `.dex` | Nếu app chỉ dùng 5% API của Media3/ExoPlayer, 95% class không dùng tới của thư viện đó bị loại bỏ hoàn toàn |
+| **Obfuscation (làm rối mã)** | Đổi tên class/method/field còn lại thành tên ngắn vô nghĩa (`a`, `b`, `c`...) | Giảm thêm dung lượng chuỗi tên trong `.dex`, đồng thời gây khó dịch ngược app |
+| **Optimization (tối ưu bytecode)** | Gộp hàm nhỏ vào chỗ gọi (inlining), loại nhánh code không bao giờ chạy tới, viết lại bytecode ngắn gọn hơn | Giảm thêm kích thước và cải thiện tốc độ runtime |
+
+**Vì sao có `consumer-rules.pro` và vì sao bật R8 luôn kèm rủi ro:** thuật toán "duyệt từ điểm vào" ở bước Shrinking chỉ nhìn thấy được các lời gọi hàm **tường minh trong bytecode** — nó **không** biết được các cách truy cập gián tiếp như: reflection (`Class.forName(...)`), thư viện parse JSON ánh xạ ngược vào tên field của data class, hoặc quan trọng nhất với dự án này — **code native (JNI) gọi ngược vào đúng tên class/method Java cụ thể** (chính là cách MediaPipe hoạt động, native `.so` gọi lại vào Java layer bằng tên cố định). Nếu R8 xoá nhầm 1 class tưởng "không ai gọi tới" nhưng thực chất được gọi từ những đường vòng này, app **build thành công bình thường** nhưng **crash lúc chạy thật** (`ClassNotFoundException`, `NoSuchMethodError`) — đây chính là lý do mọi cảnh báo trong tài liệu này đều nhấn mạnh "phải test kỹ sau khi bật R8", không chỉ tin vào việc build pass.
+
+Để tránh đúng rủi ro đó, các thư viện hiện đại (CameraX, MediaPipe, Media3...) đóng gói sẵn 1 file `consumer-rules.pro` **bên trong chính AAR của họ**, khai báo trước các quy tắc `-keep` cần thiết — Gradle tự động gộp các file này vào cấu hình R8 của app khi build, nên trong đa số trường hợp bạn **không cần tự viết thêm gì** trong `proguard-rules.pro` của riêng app. Rủi ro chỉ thực sự xuất hiện khi: (1) thư viện quá mới, consumer rules chưa đầy đủ/còn bug, hoặc (2) chính code của app dùng reflection mà quên khai báo `-keep` cho phần đó.
+
+**Phân biệt 2 nửa của `optimization { enable = true }`:**
+- **Minify (shrink + obfuscate code)** — xử lý ở trên, tác động lên `.dex`.
+- **`shrinkResources`** — bước **riêng, chạy sau minify** — quét toàn bộ resource (`drawable`, `layout`, `string`...) xem còn được tham chiếu từ code **đã rút gọn** hay không, cái nào không còn ai gọi tới thì loại khỏi `res/`. Đây là lý do 2 cờ này luôn đi cùng nhau trong 1 flag `enable` ở DSL mới của AGP 9.
+
+### 3.2. Áp dụng vào HandAr: phát hiện & fix
 
 Trong `app/build.gradle.kts`, block `release` đang có:
 ```kotlin
@@ -223,3 +248,38 @@ Khi dung lượng app bất thường trở lại (thêm thư viện mới, thê
 4. [ ] Nếu `lib/` lớn bất thường → kiểm tra có native lib nào bị cảnh báo 16 KB không (luôn tiện thể kiểm tra, không tốn thêm công).
 5. [ ] Nếu asset (`res/raw`, `res/drawable`) lớn → nén lại bằng công cụ phù hợp từng loại (ezgif cho GIF, tương tự cho ảnh/âm thanh).
 6. [ ] Sau mọi thay đổi cấu hình build (R8, version thư viện) → **luôn chạy lại bộ test hiện có** trước khi coi là xong, vì lỗi loại này thường chỉ lộ ra lúc chạy thật.
+
+---
+
+## 12. Bổ sung: WebP, Sprite Sheet, và quy tắc "mỗi asset < 1MB"
+
+> Phần này ghi lại hướng được mentor gợi ý thêm sau khi đã đạt kết quả ở Mục 9, và **kết quả thực tế** khác với hướng ban đầu định làm — quan trọng để tránh nhầm tưởng sau này rằng dung lượng giảm là nhờ WebP/Sprite Sheet trong khi thực chất không phải.
+
+### 12.1. Đề xuất của mentor: convert GIF/PNG sang WebP
+
+WebP là định dạng nén hiện đại hơn, thường nhẹ hơn 25-35% so với GIF/PNG cùng chất lượng nhìn. Điểm quan trọng xác nhận được khi tra cứu: **`ImageDecoder`/`AnimatedImageDrawable` (API 28+, đang dùng cho GIF) hỗ trợ animated WebP qua **cùng 1 API**, trả về cùng kiểu `AnimatedImageDrawable`** — về lý thuyết, chuyển GIF sang WebP **không cần đổi gì** trong `AnimatedGifVisual.kt`, chỉ cần đổi file resource.
+
+### 12.2. Ý tưởng mở rộng: Sprite Sheet rồi mới WebP
+
+Đã phân tích: animated WebP dùng **nén liên khung** (chỉ lưu phần khác biệt giữa các frame), trong khi sprite sheet là **1 ảnh tĩnh** chứa toàn bộ frame độc lập — nén WebP tĩnh lên sprite sheet **không chắc nhẹ hơn** animated WebP trực tiếp, vì không khai thác được dư thừa theo thời gian giữa các frame. Lợi ích thật của sprite sheet không phải dung lượng, mà là **loại bỏ hoàn toàn nhóm cạm bẫy của `AnimatedImageDrawable`** đã ghi ở Mục 7 (buffer trung gian, `ALLOCATOR_SOFTWARE`, race condition giữa live/recording...) — vì sprite sheet chỉ là `Bitmap` tĩnh, không có trạng thái nội bộ.
+
+### 12.3. Kết quả thực tế đã triển khai — khác hướng ban đầu
+
+Sau khi cân nhắc, hướng thực sự được áp dụng **không phải** convert WebP hay chuyển sang sprite sheet cho asset hiện có, mà là:
+
+1. **Thay hẳn bằng asset gốc nhẹ hơn ngay từ nguồn** — mỗi file GIF/PNG/JPG mới đều giữ dưới **1 MB**, thay vì nén lại asset cũ. Kết quả: `res/drawable/` từ **15.1 MB → 3.74 MB**, dù **số lượng hiệu ứng tăng từ 2 lên 10** (thêm `call`, `rock_on`, `i_love_you`, `hello`, `you`, `camera_shutter`, `like/neutral/sad_meme_emoji`, `absolute_cinema`, `absolute_garbage`, `heart`, `cross`).
+2. **Xây sẵn `SpriteSheetVisual.kt`** (implement đầy đủ `EffectVisual`, xem code trong `effect/SpriteSheetVisual.kt`) — nhưng **chưa áp dụng cho effect nào** trong `EffectRepository` hiện tại (toàn bộ 10 effect vẫn dùng `AnimatedGif`/`StaticImage`). Đây là năng lực đã sẵn sàng, chờ dùng khi cần (ví dụ khi cần hiệu ứng phức tạp/animation dài muốn tránh hẳn cạm bẫy Animated GIF).
+
+> ⚠️ **Bài học quan trọng:** khi tra cứu/thiết kế 1 giải pháp kỹ thuật (WebP, sprite sheet), kết quả thực tế áp dụng có thể **khác hoàn toàn** hướng ban đầu được bàn — ở đây, giải pháp đơn giản nhất (tìm/tạo asset nhẹ hơn ngay từ đầu, thay vì xử lý hậu kỳ asset cũ) lại hiệu quả hơn cả 2 hướng kỹ thuật phức tạp hơn đã phân tích. Tài liệu này cố tình ghi lại cả hướng đã bàn nhưng không dùng, để tránh sau này suy nghĩ lại từ đầu nếu cần đến.
+
+### 12.4. `SpriteSheetVisual.kt` — 3 điểm cải tiến so với thiết kế ban đầu đã bàn
+
+Khi viết thật, class này được bổ sung thêm 3 điểm so với phiên bản phác thảo ban đầu:
+
+1. **`require()` kiểm tra sheet chia hết cho lưới + `frameCount` không vượt số ô** ngay trong `init {}` — bắt lỗi cấu hình sai asset (ví dụ khai `columns`/`rows` sai tỷ lệ thật của sheet) ngay lúc load, kèm message rõ tên resource, thay vì để nó âm thầm vẽ lệch ô không ai biết tại sao.
+2. **`setActive()` reset `activatedAtMs = 0L` khi tắt** — animation luôn bắt đầu lại từ frame 0 mỗi lần cử chỉ được kích hoạt lại (thay vì chạy liên tục từ lúc app mở như bản phác thảo ban đầu) — phù hợp hơn cho hiệu ứng kiểu hành động 1 lần (ví dụ `camera_shutter`).
+3. Dùng `SystemClock.elapsedRealtime()` thay vì `System.currentTimeMillis()` — nhất quán với cách tính timestamp đã dùng ở `VideoRecorder`/`MicReader`, tránh ảnh hưởng nếu đồng hồ hệ thống bị chỉnh giữa chừng (không như `currentTimeMillis()` gắn với wall-clock).
+
+### 12.5. Phát hiện phụ: `requiredNumHands = 2` lần đầu được dùng thật
+
+2 effect mới (`absolute_cinema_two_hand`, `heart_or_cross`) là lần đầu tiên `requiredNumHands` khác `1` trong toàn bộ dự án — nhánh "tạo lại `HandLandmarker` khi đổi số tay" trong `HandLandmarkerProvider` (Mục 3.5 của `HandAr_App_Expansion_Plan.md`) giờ đã được kiểm chứng bằng dữ liệu thật, không còn là code chưa từng chạy qua nhánh đó.

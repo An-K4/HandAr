@@ -5,8 +5,9 @@
 >
 > **Mục A-F**: kiểm tra pipeline ghi hình (có từ Phase 0-5, không được phép hỏng sau mỗi lần refactor).
 > **Mục G-H**: thêm từ Phase B — điều hướng giữa màn hình và vòng đời/leak của Fragment. Đây là lớp bug mới xuất hiện kể từ khi app có nhiều màn; chúng **không** biểu hiện ở lần chạy đầu tiên mà chỉ lộ ra sau nhiều lần vào/ra màn, nên phải test riêng.
+> **Mục I**: thêm từ đợt mở rộng `Gestures` (1 tay + 2 tay) — xem chi tiết công thức/lý do tại `Camera_X_Hand_Landmarker.md` Mục 11. Chạy mục này sau bất kỳ lần nào sửa `GestureRecognizer.kt`/`GestureUtils.kt`/`EffectRepository.kt`.
 >
-> Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi.
+> Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi. Chạy Mục I sau mỗi lần thêm/sửa cử chỉ.
 
 ---
 
@@ -165,8 +166,70 @@ git checkout main && git stash pop
 
 ---
 
+## I. Cử chỉ tĩnh 1 & 2 tay (từ đợt mở rộng `Gestures`)
+
+> Dùng bảng gán `EffectDefinition` hiện có để test — không cần effect riêng cho từng mục. Nếu ID effect/state đã đổi tên so với lúc viết bảng này, cứ ánh xạ theo đúng cử chỉ, không cần khớp chính xác tên.
+
+### I.1. Hồi quy 1 tay — xác nhận kiến trúc mới (Mục 11.1) không làm hỏng cử chỉ cũ
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I1 | Chọn effect có nhiều state dùng **asset khác nhau rõ rệt** (ví dụ `mood_meter`: like/dislike/neutral), lần lượt làm đúng từng cử chỉ tương ứng | Đúng gif/tiếng tương ứng hiện ra, không lẫn sang state khác — xác nhận `indexOfFirst`/`firstOrNull` vẫn chọn đúng sau khi đổi sang gọi `recognize(hands)` 1 lần |
+| I2 | Chọn `camera_shutter` (effect nhiều state 1 tay dùng chung 1 asset), thử đủ cả 5-6 cử chỉ gắn vào đó | Mỗi cử chỉ đều kích hoạt được hiệu ứng, không có cử chỉ nào "im lặng" |
+| I3 | Với 1 effect 1 tay bất kỳ, đưa **2 tay** vào khung hình cùng lúc, chỉ 1 tay làm đúng cử chỉ | Hiệu ứng vẫn kích hoạt bình thường (state 1 tay chỉ cần `hands.firstOrNull()` khớp, không bị tay thứ 2 cản) |
+
+### I.2. Mirror & neo vị trí (Mục 11.2–11.3 — chống regression bug `normMidY`)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I4 | 1 tay, kéo tay chậm từ **mép trái sang mép phải** khung hình, giữ nguyên độ cao | Hiệu ứng bám theo tay **mượt suốt toàn bộ chiều ngang**, không dính lại ở 1 vùng cố định (triệu chứng bug gốc: chỉ đúng khi tay phía trái) |
+| I5 | 2 tay cùng lúc (bất kỳ cử chỉ 2 tay nào đang có), kéo cả 2 tay ra xa nhau rồi lại gần nhau | Điểm neo (trung điểm) và bán kính (trung bình) di chuyển mượt theo đúng giữa 2 tay, không giật cục |
+| I6 | Lặp lại I4 **trong lúc đang ghi hình** (`forRecording = true`), xem lại video sau khi quay | Video ghi ra cũng bám mượt toàn bộ chiều ngang giống hệt live preview — không chỉ test live mà bỏ qua nhánh recording |
+
+### I.3. Cử chỉ 2 tay tĩnh — trạng thái đối xứng (dễ nhất)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I7 | Cả 2 tay cùng xoè (`bothHandsPalmOpen`) | Hiệu ứng 2-tay-xoè kích hoạt |
+| I8 | Cả 2 tay cùng nắm (`bothHandsFist`) | Hiệu ứng 2-tay-nắm kích hoạt |
+| I9 | Chỉ 1 tay xoè, tay kia nắm hoặc không có trong khung hình | **Không** hiệu ứng 2 tay nào kích hoạt — xác nhận guard `hands.size >= 2` chặn đúng, không lỡ khớp khi chỉ 1 tay |
+
+### I.4. 🫶 Trái tim 2 tay (Mục 11.7a — nhiều giới hạn đã biết)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I10 | Làm dấu tim đúng chuẩn, 2 tay hướng tương đối đối diện camera | Hiệu ứng tim kích hoạt ổn định, không chập chờn |
+| I11 | Giữ nguyên dấu tim, nghiêng dần 2 tay ra khỏi hướng đối diện camera | Hiệu ứng có thể **mất dần** ở góc nghiêng lớn — đây là **giới hạn đã biết** (đo trên hình chiếu 2D), không phải bug, không cần báo Fail nếu đúng hiện tượng này |
+| I12 | Làm hình tam giác bằng ngón trỏ+cái duỗi thẳng (không phải dấu tim) | **Không** kích hoạt hiệu ứng tim — xác nhận `fingerCurlRatio`/curl check vẫn chặn đúng hình giả |
+
+### I.5. ❌ Dấu X — 2 ngón bắt chéo (Mục 11.7b)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I13 | Bắt chéo 2 ngón trỏ | Hiệu ứng X kích hoạt |
+| I14 | Bắt chéo 2 ngón út (thay vì trỏ) | Hiệu ứng X **vẫn** kích hoạt — xác nhận tổng quát hoá sang "1 trong 4 loại ngón" hoạt động đúng |
+| I15 | 2 ngón trỏ chỉ **gần nhau**, chưa thực sự bắt chéo qua | **Không** kích hoạt — xác nhận `segmentsCross` phân biệt đúng "cắt qua" với "ở gần" |
+
+### I.6. 📷 Khung máy ảnh — 2 hình L ghép chữ nhật (Mục 11.7c)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I16 | Ghép đúng 2 hình L thành khung chữ nhật trước ngực | Hiệu ứng khung máy ảnh kích hoạt |
+| I17 | Chỉ 1 tay tạo hình L, tay kia không tạo | **Không** kích hoạt |
+| I18 | Kiểm tra effect gắn gesture này khai đúng `requiredNumHands = 2` trong `EffectRepository.kt` | Đọc code xác nhận, **không** để sót lại `requiredNumHands = 1` — đây đúng là lỗi thật đã gặp (Mục 11.7c), triệu chứng là im lặng hoàn toàn kể cả log debug |
+
+### I.7. Log dọn dẹp
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I19 | Grep `Log.d` trong `GestureRecognizer.kt`/`GestureUtils.kt` sau khi hoàn tất debug 1 cử chỉ mới | Không còn dòng nào sót lại — log chạy mỗi frame (25-30 lần/giây) không gây lỗi chức năng nhưng ảnh hưởng hiệu năng nếu để sót trong bản release |
+
+---
+
 ## Cách ghi kết quả
 
 Với mỗi dòng test, đánh dấu: ✅ Pass / ❌ Fail / ⚠️ Pass có lưu ý. Nếu Fail, ghi lại: model máy, số liệu `VideoStatsLogger` (nếu có), và mô tả hiện tượng — quay lại đúng phase liên quan trong `HandAr_Refactor_Plan.md` (mục A-F) hoặc `HandAr_App_Expansion_Plan.md` (mục G-H) để xử lý tiếp.
 
 Riêng mục **G-H**, khi Fail hãy đối chiếu với `Fragment_Review_Checklist.md` trước khi sửa — mỗi kiểu hỏng ở hai mục này đều ứng với đúng một mục trong checklist đó.
+
+Riêng mục **I**, khi Fail hãy đối chiếu với `Camera_X_Hand_Landmarker.md` Mục 11 (nhất là Mục 11.9 — Quy trình chẩn đoán cử chỉ 2 tay) trước khi sửa — phần lớn các lỗi đã gặp khi làm cử chỉ mới đều phù hợp với 1 trong 7 bước chuẩn đoán đã đúc kết ở đó.

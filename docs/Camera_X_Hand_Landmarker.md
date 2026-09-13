@@ -74,6 +74,16 @@
     - 10.10. `VideoStatsLogger` — công cụ đo thật, đừng tin số fps khai báo
     - 10.11. Cạm bẫy phụ: `BuildConfig` trùng tên từ nhiều thư viện
     - 10.12. Quy trình chẩn đoán mở rộng (Debug Checklist)
+11. [Nhận diện cử chỉ 2 tay](#11-nhận-diện-cử-chỉ-2-tay)
+    - 11.1. Vì sao phải đổi kiến trúc: từ "mỗi tay tự xét" sang "xét đồng thời tất cả các tay"
+    - 11.2. Công thức 8: Tâm & bán kính khi có nhiều tay (trung điểm, và vì sao mirror áp sau vẫn đúng)
+    - 11.3. Cạm bẫy: gõ nhầm biến khi mở rộng công thức — `normMidY` thay vì `normMidX`
+    - 11.4. Công thức 9: Độ cong ngón tay không phụ thuộc hướng cong (Finger Curl Ratio)
+    - 11.5. Công thức 10: Giao cắt 2 đoạn thẳng (Segment Intersection / Orientation Test)
+    - 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product (kiểm tra vuông góc)
+    - 11.7. Ba cử chỉ tĩnh 2 tay cụ thể: trái tim, dấu X, khung máy ảnh
+    - 11.8. Giới hạn đã biết & hướng mở rộng tiếp theo (cử chỉ động)
+    - 11.9. Quy trình chẩn đoán cử chỉ 2 tay (Debug Checklist)
 
 ---
 
@@ -1189,3 +1199,98 @@ Bổ sung nối tiếp Debug Checklist ở Mục 8.9:
 4. **Nếu vừa tách 1 pipeline tuần tự thành nhiều thread mà xuất hiện "chồng hình"/"tụt tốc độ"** → soát lại từng đoạn code hình học/timing bị copy sang thread mới có bị đổi/mất dấu không (Mục 10.6).
 5. **Nếu file media thỉnh thoảng đọc lỗi "invalid argument"/`-EINVAL`** → nghi ngờ race condition giữa các track được add vào muxer từ nhiều thread, đặc biệt khi Start/Stop rất nhanh (Mục 10.8) — cân nhắc chặn ở tầng UX (Mục 10.9) nếu vá tầng encoder không triệt để.
 6. **Nếu 1 dòng code dùng class tên chung chung compile được nhưng sai logic hoàn toàn** → kiểm tra lại chính xác package của import (Mục 10.11).
+
+---
+
+## 11. NHẬN DIỆN CỪ CHỈ 2 TAY
+
+> Mục này đúc kết từ đợt mở rộng `Gestures` từ chỉ hỗ trợ 1 tay sang hỗ trợ cả 2 tay đồng thời.
+
+### 11.1. Vì sao phải đổi kiến trúc
+
+Trước đợt mở rộng, `OverlayView.drawHandEffects()` lặp qua từng phần tử của `handResult.landmarks()`, mỗi tay lại gọi riêng `gesture.recognize(listOf(landmark))` — luôn đóng gói thành danh sách chỉ 1 phần tử, dù `GestureRecognizer.recognize()` được thiết kế sẵn để nhận `List<List<NormalizedLandmark>>` (nhiều tay) ngay từ đầu. Tương tự, `CameraRecordFragment.handleGesture()` chỉ lấy `result.landmarks().firstOrNull()` — tay thứ 2 bị bỏ hoàn toàn khỏi đường âm thanh/debounce.
+
+Fix: sửa 2 điểm gọi này để gọi `recognize()` đúng 1 lần, truyền toàn bộ danh sách tay. Phần debounce/audio phía sau không cần đổi gì vì chỉ quan tâm `matchedState.id`. Vì `GestureRecognizer` vẫn giữ tính vô trạng thái, dùng chung 1 `object Gestures` vẫn an toàn dù gọi từ nhiều luồng.
+
+Quan trọng: `EffectDefinition.requiredNumHands` phải khớp với số tay lớn nhất mà các gesture trong `states` cần. Nếu 1 state dùng gesture 2 tay nhưng `requiredNumHands = 1`, `hands.size < 2` sẽ luôn đúng, gesture đó không bao giờ chạy qua khỏi dòng guard đầu tiên — kể cả log debug thêm vào cũng không in được dòng nào vì hàm return trước khi tới `Log.d`.
+
+### 11.2. Công thức 8: Tâm & bán kính khi có nhiều tay
+
+Dùng trung bình cộng toạ độ `middleMcp` (landmark 9) của mọi tay đang có để tính điểm neo — với 1 tay, trung bình của 1 giá trị chính là giá trị đó, tự động tương thích ngược. Bán kính cũng lấy trung bình cộng bán kính từng tay theo công thức cũ. Vì phép lật gương `1 - x` là tuyến tính, áp mirror sau khi lấy trung bình cho kết quả giống hệt áp trước rồi mới trung bình.
+
+### 11.3. Cạm bẫy: gõ nhầm biến khi mở rộng công thức
+
+Sau khi viết lại công thức neo, xuất hiện triệu chứng: hiệu ứng chỉ neo đúng khi tay ở bên trái màn hình, không bao giờ bám sang phải dù tay di chuyển thật. Nguyên nhân: gõ nhầm `normMidY` thay vì `normMidX` trong dòng tính mirror — khiến `cx` phụ thuộc vào vị trí tay theo chiều cao thay vì chiều ngang. Quy tắc chung: khi 2 biến tên gần giống nhau (X/Y) cùng xuất hiện trong 1 biểu thức sau khi vừa refactor, triệu chứng "chỉ đúng ở 1 vùng cố định, không phản ứng theo trục di chuyển" là dấu hiệu đặc trưng của việc dùng nhầm trục.
+
+### 11.4. Công thức 9: Độ cong ngón tay không phụ thuộc hướng cong (Finger Curl Ratio)
+
+Công thức 4 gốc (so khoảng cách tip/pip tới cổ tay) chỉ đúng khi ngón cong theo trục gần trùng hướng cổ tay. Khi ngón cong theo hướng khác (vào trong như OK sign, hoặc sang ngang như trái tim 2 tay), công thức đó báo sai. Giải pháp: so khoảng cách thẳng từ gốc tới đầu ngón (mcp→tip) với tổng độ dài các đốt ngón (mcp→pip→dip→tip) — cả 2 đại lượng chỉ dùng điểm trên chính ngón đó, không phụ thuộc điểm neo ngoài nên không bị sai theo hướng cong.
+
+```kotlin
+fun fingerCurlRatio(landmark: List<NormalizedLandmark>, mcp: Int, pip: Int, dip: Int, tip: Int): Double {
+    val straight = distance(landmark[mcp], landmark[tip])
+    val boneLength = distance(landmark[mcp], landmark[pip]) +
+            distance(landmark[pip], landmark[dip]) +
+            distance(landmark[dip], landmark[tip])
+    if (boneLength == 0.0) return 1.0
+    return straight / boneLength
+}
+```
+
+Ngón thẳng → tỉ lệ gần 1.0. Ngón cong (dù hướng nào) → tỉ lệ tụt rõ dưới 1.0. Ngưỡng thực tế đo được: khởi điểm đoán `0.8` gây chập chờn vì trùng đúng dải nhiễu tự nhiên (`0.72–0.82`) đo được qua log thật; nâng lên `0.88` giải quyết được. Bài học lặp lại: ngưỡng đoán trước luôn cần xác nhận bằng log thật, không tin trực giác.
+
+### 11.5. Công thức 10: Giao cắt 2 đoạn thẳng (Segment Intersection)
+
+Dùng cho cử chỉ bắt chéo (dấu X) — khác các công thức khác ở chỗ hỏi "2 đoạn có thực sự cắt qua nhau" thay vì "2 điểm có đủ gần", có công thức chính xác tuyệt đối không cần dò ngưỡng, dựa trên orientation test (tích có hướng):
+
+```kotlin
+fun segmentsCross(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark, d: NormalizedLandmark): Boolean {
+    val d1 = crossSign(c, d, a); val d2 = crossSign(c, d, b)
+    val d3 = crossSign(a, b, c); val d4 = crossSign(a, b, d)
+    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+}
+```
+
+Đây là hiếm hoi trường hợp bỏ trục z không phải đánh đổi mà đúng bản chất cần đo: "bắt chéo hiển thị" là kiểu dáng nhìn từ camera, không phải sự thật vật lý 3D cần 2 ngón thực sự chạm nhau.
+
+### 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product
+
+Dùng cho cử chỉ khung máy ảnh (hình L: cái + trỏ vuông góc) — công thức duy nhất phải đo góc thật vì độ vuông góc là thuộc tính góc thuần tuý, không có đại lượng khoảng cách nào thay thế được:
+
+```kotlin
+fun vectorAngleCos(o1: NormalizedLandmark, tip1: NormalizedLandmark, o2: NormalizedLandmark, tip2: NormalizedLandmark): Double {
+    val v1x = tip1.x() - o1.x(); val v1y = tip1.y() - o1.y()
+    val v2x = tip2.x() - o2.x(); val v2y = tip2.y() - o2.y()
+    val dot = v1x * v2x + v1y * v2y
+    val mag1 = hypot(v1x.toDouble(), v1y.toDouble())
+    val mag2 = hypot(v2x.toDouble(), v2y.toDouble())
+    if (mag1 == 0.0 || mag2 == 0.0) return 1.0
+    return dot / (mag1 * mag2)
+}
+```
+
+Vuông góc thật → cos = 0. Ngưỡng thực tế chấp nhận: `|cos| < 0.5`, tương đương chấp nhận góc lệch 60°–120° quanh vuông góc.
+
+### 11.7. Ba cử chỉ tĩnh 2 tay cụ thể
+
+**🫶 Trái tim 2 tay:** 2 đầu ngón trỏ chạm nhau ở đỉnh, 2 đầu ngón cái chạm nhau ở dưới, đỉnh trỏ nằm cao hơn (y nhỏ hơn) điểm chạm cái. Chuẩn hoá khoảng cách bằng trung bình cộng `palmLength` 2 tay (không dùng khoảng cách 2 cổ tay vì nó tự thay đổi theo đúng chuyển động cần đo, gây nhiễu vòng lặp). Ban đầu dùng `!isIndexExtended` để chặn hình tam giác giả — nhưng log thật cho thấy công thức đó luôn sai vì ngón trỏ cong sang ngang (đúng giới hạn Mục 11.4). Đổi sang `fingerCurlRatio` thì lộ ra vấn đề khác: ngón trỏ trong tư thế tim vươn ra để chạm tay kia (không co sâu), trong khi 3 ngón giữa/áp út/út co hẳn vào lòng bàn tay — ngón út là tín hiệu "co" đáng tin hơn chính ngón trỏ. Giải pháp cuối: chấp nhận cùng 1 loại ngón bất kỳ (trỏ hoặc út) co ở cả 2 tay đồng thời — phản ánh đúng tính đối xứng qua gương vốn có của cử chỉ 2 tay, chặt hơn hẳn cách chấp nhận 1-trong-4-ngón độc lập từng tay. Giới hạn chấp nhận không sửa: cần giơ tay ở góc tương đối đối diện camera mới ổn định, vì đo trên hình chiếu 2D.
+
+**❌ Dấu X:** tổng quát hoá thành "1 trong 4 loại ngón bất kỳ, miễn cùng loại ở cả 2 tay và tự nó thoả cả 2 điều kiện riêng (thẳng và cắt nhau)" — khác trái tim ở chỗ không nới lỏng OR giữa các loại ngón vì `segmentsCross` đã tự đảm bảo tính nhất quán hình học.
+
+**📷 Khung máy ảnh:** Tầng 1 mỗi tay tự kiểm hình L (cái+trỏ vuông góc, 3 ngón kia co). Tầng 2 dựa trên định lý: tứ giác có 2 cặp cạnh đối bằng nhau là hình bình hành; hình bình hành có 1 góc vuông là hình chữ nhật — Tầng 1 đã xác nhận góc vuông, chỉ cần thêm điều kiện "chạm chéo" (`indexA` chạm `thumbB` và ngược lại) để khép kín tứ giác. Lưu ý suy luận: khoảng cách nhỏ không tự nó chứng minh góc vuông — nó chỉ đóng vai trò khép kín hình dạng để định lý có đất dùng, đúng vì góc vuông đã xác nhận trước ở Tầng 1. Bài học debug: log không in được dòng nào (kể cả nhánh dừng sớm) hoá ra do quên đổi `requiredNumHands` từ 1 lên 2 cho effect gắn gesture này — không phải lỗi logic bên trong.
+
+### 11.8. Giới hạn đã biết & hướng mở rộng (cử chỉ động)
+
+Cả 3 cử chỉ trên đều là cử chỉ tĩnh — chỉ cần 1 frame để quyết định, không cần nhớ frame trước. Đây là lý do toàn bộ `object Gestures` dùng chung 1 instance vô trạng thái an toàn từ nhiều luồng. Cử chỉ động (ví dụ vỗ tay — cần biết khoảng cách 2 tay đang giảm dần rồi chạm) sẽ phá vỡ tính vô trạng thái đó, cần buffer riêng theo từng instance và áp lại bài học race condition ở Mục 8.3 — quyết định hoãn lại có chủ ý, chỉ làm khi có nhu cầu thật.
+
+Về việc tìm "công thức chuẩn" cho cử chỉ hình dạng phức tạp: khảo sát thực tế cho thấy không có giải pháp thuần công thức hình học nào được cộng đồng dùng phổ biến cho loại bài toán này. Thư viện `fingerpose` chỉ định nghĩa gesture 1 tay độc lập. Bộ dữ liệu HaGRID có sẵn lớp `hand_heart` nhưng giải bằng huấn luyện classifier trên hàng nghìn ảnh gán nhãn, không viết công thức hình học tay. Với quy mô app giải trí, chấp nhận giới hạn heuristic đã ghi chú rõ là quyết định hợp lý hơn đầu tư huấn luyện model chỉ cho 1 cử chỉ.
+
+### 11.9. Quy trình chẩn đoán cử chỉ 2 tay
+
+1. Log không in được dòng nào cả (kể cả nhánh guard sớm nhất) → kiểm tra `requiredNumHands` trước khi nghi logic bên trong.
+2. Hiệu ứng chỉ đúng ở 1 vùng cố định, không phản ứng theo chuyển động → nghi dùng nhầm biến X/Y.
+3. 1 điều kiện con luôn `false` dù tay đúng tư thế theo mắt thường → xét lại công thức có giả định sai hướng cong/trục không.
+4. Ngưỡng đoán trước chập chờn dù tay đứng yên → log giá trị thật qua nhiều frame, xác nhận ngưỡng có rơi giữa dải nhiễu không, rồi nới ra xa dải đó — không đoán số khác mà không có số liệu.
+5. Muốn phân biệt nhiều biến thể hình dạng gần giống nhau → tự hỏi có đang vá vô hạn không, nếu có thì dừng ở mức heuristic đủ dùng, ghi chú giới hạn.
+6. Log debug nhiều điều kiện con → luôn log từng biến con trước khi kết hợp bằng `&&`/`||`, không chỉ log kết quả cuối.
+7. Debug xong → luôn xoá sạch `Log.d`, nhất là gesture gọi mỗi frame (25-30 lần/giây).

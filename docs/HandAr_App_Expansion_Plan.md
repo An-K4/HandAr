@@ -12,7 +12,7 @@
 | Điều hướng giữa màn hình | **Fragments + Navigation Component** | Giữ nguyên View/XML hiện có, không cần viết lại UI bằng Compose, tận dụng toàn bộ code `OverlayView`/`PreviewView` đang chạy tốt |
 | Phát video trong app | **ExoPlayer (Media3)** | Chuẩn hiện tại của Google, xử lý tốt các định dạng/edge-case mà `VideoView` (cũ, ít được bảo trì) hay gặp lỗi |
 | Kiến trúc mic/audio | **Giữ nguyên phương án B** (đã chốt ở Refactor Plan trước — không mic, chỉ `EffectAudioClock` + `AudioMixer`) | Không đổi gì, đã ổn định |
-| Truyền tham số giữa màn hình | **Bundle thủ công** (`bundleOf(...)` + `requireArguments()`), **KHÔNG dùng Safe Args** | Plugin `androidx.navigation.safeargs.kotlin` yêu cầu plugin `org.jetbrains.kotlin.android` được apply tường minh; dự án dùng AGP 9 với Kotlin built-in nên không có plugin đó. Vẫn khai `<argument>` trong nav graph để Navigation kiểm tra lúc runtime. Cân nhắc thêm Safe Args ở Phase F nếu số tham số tăng |
+| Truyền tham số giữa màn hình | **Safe Args** (plugin `androidx.navigation.safeargs.kotlin`, dùng các class `*Directions` / `*Args` được sinh ra) | ⚠️ **Đã đổi so với quyết định ban đầu.** Ban đầu chốt dùng Bundle thủ công (`bundleOf(...)` + `requireArguments()`) vì tưởng plugin safeargs bắt buộc phải apply tường minh `org.jetbrains.kotlin.android`, trong khi dự án dùng AGP 9 với Kotlin built-in. Thực tế plugin apply được bình thường, nên dự án đã chuyển sang Safe Args. Mọi tham số phải khai `<argument>` trong nav graph (nhớ `app:argType` viết thường: `string`) thì class Directions/Args mới sinh đúng |
 | View | **View Binding** (`viewBinding = true`) | Thay `findViewById`, giảm lỗi id sai. Lưu ý: binding chỉ dùng trên main thread trong khoảng `onViewCreated` → `onDestroyView` |
 
 ---
@@ -316,14 +316,14 @@ Phase F → Polish, liên kết điều hướng, test toàn diện
 ### Phase B — Navigation skeleton ✅ ĐÃ HOÀN THÀNH (commit `c65a4d3`)
 
 **Đã làm:**
-- Dependency: `navigation-fragment-ktx` + `navigation-ui-ktx` (2.9.3) + `recyclerview`, bật `viewBinding = true`. **Không** dùng plugin Safe Args (lý do ở Mục 0).
+- Dependency: `navigation-fragment-ktx` + `navigation-ui-ktx` + `recyclerview`, bật `viewBinding = true`. (Lúc Phase B chưa dùng plugin Safe Args; hiện tại dự án **đã** apply `androidx.navigation.safeargs.kotlin` — xem Mục 0.)
 - `activity_main.xml` chỉ còn `FragmentContainerView` (`android:name` = `NavHostFragment`, `app:defaultNavHost="true"`, `app:navGraph`). `MainActivity` rút gọn còn `enableEdgeToEdge` + `setContentView` + `HandLandmarkerProvider.release()` ở `onDestroy`.
 - `CameraRecordFragment` (`ui/camera/`): di chuyển nguyên trạng logic `MainActivity` cũ, không đụng pipeline recording.
 - `EffectListFragment` (`ui/effectlist/`): **tạm thời chỉ là 1 nút** navigate kèm `effectId = "happy_cat"` hardcode. RecyclerView + Adapter dời sang Phase F.
-- `effectId` truyền qua `bundleOf("effectId" to id)`, nhận bằng `requireArguments().getString("effectId")!!` trong `onCreate`.
+- `effectId` lúc Phase B truyền qua `bundleOf("effectId" to id)`, nhận bằng `requireArguments().getString("effectId")!!` trong `onCreate`. **Hiện đã thay bằng Safe Args**: `EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)`.
 
 **Lệch so với kế hoạch ban đầu:**
-1. Không dùng Safe Args → dùng Bundle thủ công (Mục 0).
+1. ~~Không dùng Safe Args → dùng Bundle thủ công (Mục 0).~~ **Không còn đúng**: dự án đã chuyển sang Safe Args, xem Mục 0.
 2. `EffectListFragment` chưa có RecyclerView → dời Phase F.
 3. Bỏ `ViewCompat.setOnApplyWindowInsetsListener` khỏi `MainActivity` — nó set padding systembar cho toàn NavHost, làm camera preview có viền đen. Insets cho nút record để lại Phase F.
 
