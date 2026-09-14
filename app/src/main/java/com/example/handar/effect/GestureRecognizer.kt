@@ -2,7 +2,6 @@ package com.example.handar.effect
 
 import com.example.handar.utils.isIndexCurled
 import com.example.handar.utils.isIndexExtended
-import com.example.handar.utils.isLShape
 import com.example.handar.utils.isMiddleExtended
 import com.example.handar.utils.isPalmOpen
 import com.example.handar.utils.isPinkyCurled
@@ -152,24 +151,5 @@ object Gestures {
         val pinkyCross = crossedWith(17, 20, isPinkyExtended(handA, wristA), isPinkyExtended(handB, wristB))
 
         indexCross || middleCross || ringCross || pinkyCross
-    }
-
-    /** ký hiệu máy ảnh - hình chữ nhật được tạo bởi ngón cái và ngón trỏ của cả 2 tay */
-    val twoHandsFrame = GestureRecognizer { hands ->
-        if (hands.size < 2) return@GestureRecognizer false
-        val handA = hands[0]
-        val handB = hands[1]
-        val wristA = handA[0]
-        val wristB = handB[0]
-
-        if (!isLShape(handA, wristA) || !isLShape(handB, wristB)) return@GestureRecognizer false
-
-        val scale = (palmLength(handA, wristA) + palmLength(handB, wristB)) / 2.0
-        if (scale == 0.0) return@GestureRecognizer false
-
-        val corner1Touch = pointDistance(handA[8], handB[4]) / scale < 0.5
-        val corner2Touch = pointDistance(handB[8], handA[4]) / scale < 0.5
-
-        corner1Touch && corner2Touch
     }
 }

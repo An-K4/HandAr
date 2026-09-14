@@ -1,7 +1,6 @@
 package com.example.handar.utils
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
-import kotlin.math.abs
 import kotlin.math.hypot
 
 private fun distance(a: NormalizedLandmark, b: NormalizedLandmark): Double =
@@ -96,25 +95,4 @@ fun segmentsCross(
     val d3 = crossSign(a, b, c)
     val d4 = crossSign(a, b, d)
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-}
-
-/** cos của góc giữa 2 vector */
-fun vectorAngleCos(o1: NormalizedLandmark, tip1: NormalizedLandmark, o2: NormalizedLandmark, tip2: NormalizedLandmark): Double {
-    val v1x = tip1.x() - o1.x()
-    val v1y = tip1.y() - o1.y()
-    val v2x = tip2.x() - o2.x()
-    val v2y = tip2.y() - o2.y()
-
-    val dot = v1x * v2x + v1y * v2y
-    val mag1 = hypot(v1x.toDouble(), v1y.toDouble())
-    val mag2 = hypot(v2x.toDouble(), v2y.toDouble())
-    if (mag1 == 0.0 || mag2 == 0.0) return 1.0
-    return dot / (mag1 * mag2)
-}
-
-fun isLShape(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
-    val thumbIndexCos = vectorAngleCos(landmark[2], landmark[4], landmark[5], landmark[8])
-    return isThumbExtended(landmark, wrist) && isIndexExtended(landmark, wrist) &&
-            isMiddleCurled(landmark) && isRingCurled(landmark) && isPinkyCurled(landmark) &&
-            abs(thumbIndexCos) < 0.5
 }

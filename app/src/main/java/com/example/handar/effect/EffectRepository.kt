@@ -111,12 +111,6 @@ object EffectRepository {
             requiredNumHands = 2,
             states = listOf(
                 EffectState(
-                    id = "shutter_camera",
-                    gesture = Gestures.twoHandsFrame,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                ),
-                EffectState(
                     id = "shutter_ok",
                     gesture = Gestures.singleHandOkSign,
                     asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
