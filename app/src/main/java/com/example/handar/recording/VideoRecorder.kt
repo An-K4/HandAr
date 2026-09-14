@@ -34,6 +34,14 @@ class VideoRecorder(
 
     private val lock = Any()
 
+    @Volatile
+    private var lastStopHadValidOutput = false
+    fun hadValidOutput(): Boolean = lastStopHadValidOutput
+
+    @Volatile
+    var writeFailed: Boolean = false
+        private set
+
     fun start(): File {
         val outDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
         val outputFile = File(outDir, "hand_ar_record_${System.currentTimeMillis()}.mp4")
@@ -58,7 +66,9 @@ class VideoRecorder(
                     val mixed = audioMixer.mix(pcmChunk, len)
                     val ptsUs = totalAudioSamples * 1_000_000 / sampleRate
                     totalAudioSamples += len
-                    audioEncoder.encodeAndWrite(mixed, len, ptsUs, muxer)
+                    if (!audioEncoder.encodeAndWrite(mixed, len, ptsUs, muxer)) {
+                        writeFailed = true
+                    }
                 }
                 onFirstFrame?.let { callback ->
                     Handler.createAsync(Looper.getMainLooper()).post(callback)
@@ -100,7 +110,9 @@ class VideoRecorder(
                     val outBuf = codec.getOutputBuffer(outIndex)
                     if (outBuf != null && bufferInfo.size > 0) {
                         bufferInfo.presentationTimeUs -= (recordStartTimeNs / 1000L)
-                        muxer?.writeVideo(outBuf, bufferInfo)
+                        if (muxer?.writeVideo(outBuf, bufferInfo) == false) {
+                            writeFailed = true
+                        }
                     }
                     codec.releaseOutputBuffer(outIndex, false)
                 }
@@ -127,6 +139,7 @@ class VideoRecorder(
                 }
                 drainVideoEncoder()
 
+                lastStopHadValidOutput = muxer?.hasStarted == true
                 try {
                     videoEncoder.release()
                 } catch (e: Exception) {

@@ -20,7 +20,7 @@ class AudioEncoderWrapper(private val sampleRate: Int = 44_100) {
         codec.start()
     }
 
-    fun encodeAndWrite(pcm: ShortArray, len: Int, presentationTimeUs: Long, muxer: MuxerCoordinator?) {
+    fun encodeAndWrite(pcm: ShortArray, len: Int, presentationTimeUs: Long, muxer: MuxerCoordinator?): Boolean {
         val byteBuf = ByteBuffer.allocate(len * 2).order(ByteOrder.LITTLE_ENDIAN)
         byteBuf.asShortBuffer().put(pcm, 0, len)
         val pcmBytes = byteBuf.array()
@@ -41,6 +41,7 @@ class AudioEncoderWrapper(private val sampleRate: Int = 44_100) {
             offset += chunkSize
         }
 
+        var success = true
         val bufferInfo = MediaCodec.BufferInfo()
         while (true) {
             val outIndex = codec.dequeueOutputBuffer(bufferInfo, 0)
@@ -52,13 +53,14 @@ class AudioEncoderWrapper(private val sampleRate: Int = 44_100) {
                 outIndex >= 0 -> {
                     val outBuf = codec.getOutputBuffer(outIndex)
                     if (outBuf != null && bufferInfo.size > 0) {
-                        muxer?.writeAudio(outBuf, bufferInfo)
+                        if (muxer?.writeAudio(outBuf, bufferInfo) == false) success = false
                     }
                     codec.releaseOutputBuffer(outIndex, false)
                 }
                 else -> break
             }
         }
+        return success
     }
 
     fun release() {

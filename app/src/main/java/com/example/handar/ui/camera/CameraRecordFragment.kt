@@ -14,6 +14,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -32,11 +33,11 @@ import androidx.navigation.fragment.navArgs
 import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.SoundEffectPlayer
-import com.example.handar.recording.VideoRecorder
 import com.example.handar.databinding.FragmentCameraRecordBinding
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
+import com.example.handar.recording.VideoRecorder
 import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
@@ -61,6 +62,8 @@ class CameraRecordFragment : Fragment() {
 
     private var _binding: FragmentCameraRecordBinding? = null
     private val binding get() = _binding!!
+
+    private var backCallback: OnBackPressedCallback? = null
 
     private var overlayView: OverlayView? = null
 
@@ -141,6 +144,13 @@ class CameraRecordFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
+
         val btn = binding.btnToggleRecord
         val baseMarginBottom = (btn.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
         ViewCompat.setOnApplyWindowInsetsListener(btn) { v, insets ->
@@ -168,11 +178,11 @@ class CameraRecordFragment : Fragment() {
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()
 
-                if (videoRecorder?.isRecording == true) {
-                    view.setBackgroundResource(R.drawable.ic_stop_record)
-                } else {
-                    view.setBackgroundResource(R.drawable.ic_record)
-                }
+                val isRecording = videoRecorder?.isRecording == true
+                view.setBackgroundResource(
+                    if (isRecording) R.drawable.ic_stop_record else R.drawable.ic_record
+                )
+                backCallback?.isEnabled = isRecording
             }
         }
 
@@ -316,7 +326,7 @@ class CameraRecordFragment : Fragment() {
                             Log.i(
                                 "RecPerf",
                                 "bitmap analyzer = ${rotatedBitmap.width}x${rotatedBitmap.height}, " +
-                                    "${rotatedBitmap.byteCount / 1024} KB/frame"
+                                        "${rotatedBitmap.byteCount / 1024} KB/frame"
                             )
                         }
                         analyzerFrames++
@@ -342,41 +352,20 @@ class CameraRecordFragment : Fragment() {
 
     private fun toggleRecording() {
         if (videoRecorder?.isRecording == true) {
-            val elapsed = SystemClock.elapsedRealtime() - recordStartUiTimeMs
-            if (elapsed < MIN_RECORD_DURATION_MS) {
-                Toast.makeText(
-                    requireContext(),
-                    "Không thể dừng ngay sau khi bắt đầu ghi",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return
-            }
-
-            stopRecordingTimerUI()
-
-            val recorderToStop = videoRecorder
-            videoRecorder = null
-            binding.btnToggleRecord.isEnabled = false
-
-            recorderToStop?.stop {
-                if (!isAdded) return@stop
-                val nav = findNavController()
-                if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop
-                val path = recorderToStop.outputFile?.absolutePath ?: return@stop
-                context?.let { logRecordingStats(it, File(path)) }
-                val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path)
-                nav.navigate(action)
-            }
+            stopRecordingAndGoToPreview(ignoreMinDuration = false)
         } else {
             recordStartUiTimeMs = SystemClock.elapsedRealtime()
             val (recW, recH) = computeRecordingSize(binding.overlay.width, binding.overlay.height)
+
             videoRecorder = VideoRecorder(
                 requireContext(),
                 recW,
                 recH,
                 25
             ).apply {
-                onFirstFrame = { startRecordingTimerUI() }
+                onFirstFrame = {
+                    startRecordingTimerUI()
+                }
                 start()
                 activeEffect?.let { effect ->
                     val elapsedMs = SystemClock.elapsedRealtime() - effect.startedAtMs
@@ -460,6 +449,11 @@ class CameraRecordFragment : Fragment() {
                     }
                 }
 
+                if (videoRecorder?.writeFailed == true) {
+                    timerHandler.post { onLowStorageDuringRecording() }
+                    break
+                }
+
                 val workNs = System.nanoTime() - frameStartNs
                 perf.onFrame(workNs, budgetNs)   // TẠM: đo hiệu năng
 
@@ -469,5 +463,56 @@ class CameraRecordFragment : Fragment() {
             }
             perf.finish()   // TẠM: đo hiệu năng
         }.apply { start() }
+    }
+
+    private fun onLowStorageDuringRecording() {
+        _binding ?: return
+        Toast.makeText(requireContext(), "Đã tự động lưu do sắp hết dung lượng", Toast.LENGTH_LONG)
+            .show()
+        stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = false)
+    }
+
+    private fun stopRecordingAndGoToPreview(
+        ignoreMinDuration: Boolean,
+        showSavedToast: Boolean = false
+    ) {
+        if (!ignoreMinDuration) {
+            val elapsed = SystemClock.elapsedRealtime() - recordStartUiTimeMs
+            if (elapsed < MIN_RECORD_DURATION_MS) {
+                Toast.makeText(
+                    requireContext(),
+                    "Không thể dừng ngay sau khi bắt đầu ghi",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+        }
+
+        stopRecordingTimerUI()
+        backCallback?.isEnabled = false
+
+        val recorderToStop = videoRecorder
+        videoRecorder = null
+        binding.btnToggleRecord.isEnabled = false
+
+        recorderToStop?.stop {
+            if (!isAdded) return@stop
+            val nav = findNavController()
+            if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop
+
+            if (!recorderToStop.hadValidOutput()) {
+                recorderToStop.outputFile?.delete()
+                nav.popBackStack()
+                return@stop
+            }
+
+            val path = recorderToStop.outputFile?.absolutePath ?: return@stop
+            context?.let { logRecordingStats(it, File(path)) }
+            if (showSavedToast) {
+                Toast.makeText(requireContext(), "Đã lưu video", Toast.LENGTH_SHORT).show()
+            }
+            val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path)
+            nav.navigate(action)
+        }
     }
 }

@@ -19,7 +19,6 @@ class VideoEncoderWrapper(
         }
     }
 
-
     lateinit var codec: MediaCodec
         private set
     lateinit var inputSurface: Surface
