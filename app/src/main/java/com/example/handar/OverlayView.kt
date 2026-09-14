@@ -18,13 +18,13 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var imgHeight = 1
 
     private var effect: EffectDefinition? = null
-    private var liveVisuals: List<EffectVisual> = emptyList()
-    private var recordingVisuals: List<EffectVisual> = emptyList()
+    private var liveVisuals: List<EffectVisual?> = emptyList()
+    private var recordingVisuals: List<EffectVisual?> = emptyList()
 
     fun setEffect(effect: EffectDefinition) {
         this.effect = effect
-        liveVisuals = effect.states.map { createEffectVisual(context!!, it.asset) }
-        recordingVisuals = effect.states.map { createEffectVisual(context!!, it.asset) }
+        liveVisuals = effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) }}
+        recordingVisuals = effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) }}
     }
 
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
@@ -71,8 +71,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             hypot(dx.toDouble(), dy.toDouble()).toFloat()
         }.average().toFloat()
 
-        visuals.forEachIndexed { index, visual -> visual.setActive(index == matchedIndex) }
-        visuals[matchedIndex].draw(canvas, cx, cy, r)
+        visuals.forEachIndexed { index, visual -> visual?.setActive(index == matchedIndex) }
+        visuals[matchedIndex]?.draw(canvas, cx, cy, r)
     }
 
     @SuppressLint("DrawAllocation")
