@@ -243,7 +243,7 @@ App được kiểm thử chủ yếu bằng **checklist thủ công** — `docs
 | H | **Vòng đời Fragment & rò rỉ tài nguyên** — nhóm bug chỉ lộ ra sau nhiều lần vào/ra màn |
 
 Chạy đầy đủ A–H sau mỗi phase, trên ít nhất 2 máy (1 máy mới + 1 máy yếu).
-Unit test hiện chỉ có `FormatTest.kt`; khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
+Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 
 ## Tài liệu trong `docs/`
 
