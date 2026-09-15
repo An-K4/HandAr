@@ -9,9 +9,11 @@ import android.graphics.Matrix
 import android.graphics.PorterDuff
 import kotlin.math.max
 
-class ImageBackgroundRenderer(context: Context, resId: Int): BackgroundRenderer {
+class ImageBackgroundRenderer(context: Context, resId: Int) : BackgroundRenderer {
     private val bitmap: Bitmap = requireNotNull(
-        BitmapFactory.decodeResource(context.resources, resId)
+        BitmapFactory.decodeResource(context.resources, resId, BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.RGB_565
+        })
     ) {
         "Không decode được ảnh nền ${context.resources.getResourceEntryName(resId)}"
     }

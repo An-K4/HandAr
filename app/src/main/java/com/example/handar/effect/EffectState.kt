@@ -4,7 +4,8 @@ data class EffectState(
     val id: String,
     val gesture: GestureRecognizer,
     val asset: EffectAsset?,
-    val soundRes: Int?
+    val soundRes: Int?,
+    val background: EffectBackground? = null
 ) {
     init {
         require(asset != null || soundRes != null) {

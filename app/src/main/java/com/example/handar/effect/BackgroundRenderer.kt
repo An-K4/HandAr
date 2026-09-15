@@ -5,6 +5,7 @@ import android.graphics.Canvas
 
 interface BackgroundRenderer {
     fun draw(canvas: Canvas)
+    fun setActive(active: Boolean) {}
     fun release()
 }
 

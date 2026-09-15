@@ -55,6 +55,15 @@ object Gestures {
         ) && !isThumbExtended(landmark, wrist)
     }
 
+    /** ký hiệu số 3: trỏ + giữa + áp út duỗi thẳng, cái và út gập */
+    val singleHandThreeFingers = GestureRecognizer { hands ->
+        val landmark = hands.firstOrNull() ?: return@GestureRecognizer false
+        val wrist = landmark[0]
+        isIndexExtended(landmark, wrist) && isMiddleExtended(landmark, wrist) &&
+                isRingExtended(landmark, wrist) && !isPinkyExtended(landmark, wrist) &&
+                !isThumbExtended(landmark, wrist)
+    }
+
     /** 👍 ký hiệu like - đồng ý - tán thành */
     val singleHandThumbsUp = GestureRecognizer { hands ->
         val landmark = hands.firstOrNull() ?: return@GestureRecognizer false

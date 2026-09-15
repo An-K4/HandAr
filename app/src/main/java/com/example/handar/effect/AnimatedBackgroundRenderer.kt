@@ -46,6 +46,10 @@ class AnimatedBackgroundRenderer(context: Context, resId: Int) : BackgroundRende
         canvas.drawBitmap(buffer, matrix, null)
     }
 
+    override fun setActive(active: Boolean) {
+        if (active) drawable.start() else drawable.stop()
+    }
+
     override fun release() {
         drawable.stop()
     }

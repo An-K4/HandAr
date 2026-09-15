@@ -38,6 +38,7 @@ import com.example.handar.databinding.FragmentCameraRecordBinding
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
+import com.example.handar.effect.StateMode
 import com.example.handar.recording.VideoRecorder
 import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.loadWavPcm
@@ -268,13 +269,13 @@ class CameraRecordFragment : Fragment() {
     private fun handleGesture(result: HandLandmarkerResult) {
         val hands = result.landmarks()
         if (hands.isEmpty()) {
-            clearActiveEffect()
+            if (currentEffect.stateMode == StateMode.Momentary) clearActiveEffect()
             return
         }
 
         val matchedState = currentEffect.states.firstOrNull { it.gesture.recognize(hands) }
         if (matchedState == null) {
-            clearActiveEffect()
+            if (currentEffect.stateMode == StateMode.Momentary) clearActiveEffect()
             return
         }
 
@@ -449,12 +450,10 @@ class CameraRecordFragment : Fragment() {
                 val bitmap = latestCameraBitmap
                 val handResult = latestHandResult
 
-                val hasBackground = overlay.hasBackground()
-                if (hasBackground || bitmap != null) {
+                val effectHasBackground = currentEffect.background != null || currentEffect.states.any { it.background != null }
+                if (effectHasBackground || bitmap != null) {
                     videoRecorder?.pushFrame { canvas ->
-                        if (hasBackground) {
-                            overlay.drawRecordingBackground(canvas)
-                        } else {
+                        if (!effectHasBackground) {
                             val recW = canvas.width.toFloat()
                             val recH = canvas.height.toFloat()
                             val w = bitmap!!.width.toFloat()
@@ -470,15 +469,7 @@ class CameraRecordFragment : Fragment() {
                             }
                             canvas.drawBitmap(bitmap, bmpMatrix, null)
                         }
-
-                        handResult?.let {
-                            overlay.drawHandEffects(
-                                canvas,
-                                it,
-                                mirrorX = true,
-                                forRecording = true
-                            )
-                        }
+                        overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording = true)
                     }
                 }
 
