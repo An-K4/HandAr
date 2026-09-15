@@ -2,8 +2,8 @@
     <string name="app_name">HandAr</string>
     <string name="record_button">Record Button</string>
     <string name="delete">Xóa</string>
-    <string name="done">xong</string>
-    <string name="share">chia sẻ</string>
+    <string name="done">Xong</string>
+    <string name="share">Chia sẻ</string>
     <string name="delete_confirm">Xác nhận xóa?</string>
     <string name="delete_warning">Video này sẽ bị xóa vĩnh viễn.</string>
     <string name="cancel">Hủy</string>
@@ -15,9 +15,12 @@
     <string name="can_not_play_video">Không phát được video</string>
     <string name="can_not_delete_video">Không thể xóa video</string>
     <string name="video_thumbnail">video thumbnail</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="no_video">Chưa có video nào.</string>
     <string name="gallery">Thư viện</string>
     <string name="effect_thumbnail">ảnh xem trước hiệu ứng</string>
+    <string name="recording_timer_default">0:00</string>
+    <string name="camera_permission_denied">Quyền truy cập camera bị từ chối</string>
+    <string name="recording_too_short">Không thể dừng ngay sau khi bắt đầu ghi</string>
+    <string name="recording_saved_on_back">Đã lưu video</string>
+    <string name="stopped_low_storage">Đã tự động lưu do sắp hết dung lượng</string>
 </resources>

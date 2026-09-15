@@ -120,7 +120,7 @@ class CameraRecordFragment : Fragment() {
         } else {
             if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
                 val ctx = context ?: return@registerForActivityResult
-                Toast.makeText(ctx, "Quyền truy cập camera bị từ chối", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, getString(R.string.camera_permission_denied), Toast.LENGTH_SHORT).show()
                 findNavController().popBackStack()
             } else {
                 MaterialAlertDialogBuilder(requireContext())
@@ -500,7 +500,7 @@ class CameraRecordFragment : Fragment() {
 
     private fun onLowStorageDuringRecording() {
         _binding ?: return
-        Toast.makeText(requireContext(), "Đã tự động lưu do sắp hết dung lượng", Toast.LENGTH_LONG)
+        Toast.makeText(requireContext(), getString(R.string.stopped_low_storage), Toast.LENGTH_LONG)
             .show()
         stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = false)
     }
@@ -514,7 +514,7 @@ class CameraRecordFragment : Fragment() {
             if (elapsed < MIN_RECORD_DURATION_MS) {
                 Toast.makeText(
                     requireContext(),
-                    "Không thể dừng ngay sau khi bắt đầu ghi",
+                    getString(R.string.recording_too_short),
                     Toast.LENGTH_SHORT
                 ).show()
                 return
@@ -542,7 +542,7 @@ class CameraRecordFragment : Fragment() {
             val path = recorderToStop.outputFile?.absolutePath ?: return@stop
             context?.let { logRecordingStats(it, File(path)) }
             if (showSavedToast) {
-                Toast.makeText(requireContext(), "Đã lưu video", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.recording_saved_on_back), Toast.LENGTH_SHORT).show()
             }
             val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path)
             nav.navigate(action)
