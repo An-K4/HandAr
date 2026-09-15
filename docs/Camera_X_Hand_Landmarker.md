@@ -80,10 +80,17 @@
     - 11.3. Cạm bẫy: gõ nhầm biến khi mở rộng công thức — `normMidY` thay vì `normMidX`
     - 11.4. Công thức 9: Độ cong ngón tay không phụ thuộc hướng cong (Finger Curl Ratio)
     - 11.5. Công thức 10: Giao cắt 2 đoạn thẳng (Segment Intersection / Orientation Test)
-    - 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product (kiểm tra vuông góc)
-    - 11.7. Ba cử chỉ tĩnh 2 tay cụ thể: trái tim, dấu X, khung máy ảnh
+    - 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product — đã gỡ khỏi app, giữ làm tài liệu tham khảo
+    - 11.7. Hai cử chỉ tĩnh 2 tay cụ thể: trái tim, dấu X
     - 11.8. Giới hạn đã biết & hướng mở rộng tiếp theo (cử chỉ động)
     - 11.9. Quy trình chẩn đoán cử chỉ 2 tay (Debug Checklist)
+12. [Vẽ lớp Nền (Background) thay thế Camera](#12-vẽ-lớp-nền-background-thay-thế-camera)
+    - 12.1. Kiến trúc: `OverlayView` đảm nhiệm 2 trách nhiệm độc lập, không chia sẻ trạng thái
+    - 12.2. Cạm bẫy 1: Quên bước B — tính `Matrix` xong nhưng không gọi `drawBitmap`
+    - 12.3. Cạm bẫy 2: Tái phạm lỗi `AnimatedImageDrawable` không tự scale theo `setBounds()` (biến thể của Mục 7.4)
+    - 12.4. Cạm bẫy 3: Lớp nền phải phủ kín tuyệt đối — vì sao `drawBitmap` phủ kín kích thước vẫn chưa đủ
+    - 12.5. Quy tắc asset: không dùng chung file giữa `EffectAsset` và `EffectBackground`
+    - 12.6. Quy trình chẩn đoán lớp Nền (Debug Checklist)
 
 ---
 
@@ -1253,9 +1260,22 @@ fun segmentsCross(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLan
 
 Đây là hiếm hoi trường hợp bỏ trục z không phải đánh đổi mà đúng bản chất cần đo: "bắt chéo hiển thị" là kiểu dáng nhìn từ camera, không phải sự thật vật lý 3D cần 2 ngón thực sự chạm nhau.
 
-### 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product
+### 11.6. Công thức 11: Góc giữa 2 vector qua Dot Product — ĐÃ GỠ KHỎI APP
 
-Dùng cho cử chỉ khung máy ảnh (hình L: cái + trỏ vuông góc) — công thức duy nhất phải đo góc thật vì độ vuông góc là thuộc tính góc thuần tuý, không có đại lượng khoảng cách nào thay thế được:
+> **Cập nhật:** cử chỉ khung máy ảnh (và công thức `vectorAngleCos` riêng cho nó) đã bị xoá
+> hoàn toàn khỏi `Gestures.kt`/`GestureUtils.kt` — không còn trong danh sách hiệu ứng thực tế.
+> Lý do (quan sát thực tế, chưa đo bằng số liệu cụ thể): công thức đúng về toán, nhưng tay người
+> **rất khó tự nhiên giữ đúng góc vuông hoàn hảo** giữa ngón cái và ngón trỏ — muốn ép đúng hình
+> chữ nhật thường phải cố gập/cong ngón theo cách không tự nhiên, làm chính góc đang đo bị lệch đi.
+> Cộng thêm hiện tượng **che khuất đầu ngón** (đầu ngón này nằm trước/sau đầu ngón kia theo
+> hướng nhìn camera) — landmark 2D của MediaPipe lấy từ hình chiếu phẳng, nên khi bị che khước
+> như vậy, toạ độ đo được không còn phản ánh đúng góc thật giữa 2 ngón nữa. Cộng dồn 2 yếu tố này
+> với đòi hỏi phải đúng **đồng thời** cả 2 tầng điều kiện (Mục 11.7) khiến cử chỉ này khó giữ đúng
+> để được nhận diện hơn hẳn trái tim/dấu X trong thực tế sử dụng, dù công thức tự nó không sai.
+> Giữ lại công thức dưới đây làm tài liệu tham khảo — toán đúng, chỉ là bài toán ứng dụng nó không
+> đáng công duy trì.
+
+Dùng cho cử chỉ khung máy ảnh cũ (hình L: cái + trỏ vuông góc) — công thức duy nhất phải đo góc thật vì độ vuông góc là thuộc tính góc thuần tuý, không có đại lượng khoảng cách nào thay thế được:
 
 ```kotlin
 fun vectorAngleCos(o1: NormalizedLandmark, tip1: NormalizedLandmark, o2: NormalizedLandmark, tip2: NormalizedLandmark): Double {
@@ -1271,17 +1291,19 @@ fun vectorAngleCos(o1: NormalizedLandmark, tip1: NormalizedLandmark, o2: Normali
 
 Vuông góc thật → cos = 0. Ngưỡng thực tế chấp nhận: `|cos| < 0.5`, tương đương chấp nhận góc lệch 60°–120° quanh vuông góc.
 
-### 11.7. Ba cử chỉ tĩnh 2 tay cụ thể
+### 11.7. Hai cử chỉ tĩnh 2 tay cụ thể
 
 **🫶 Trái tim 2 tay:** 2 đầu ngón trỏ chạm nhau ở đỉnh, 2 đầu ngón cái chạm nhau ở dưới, đỉnh trỏ nằm cao hơn (y nhỏ hơn) điểm chạm cái. Chuẩn hoá khoảng cách bằng trung bình cộng `palmLength` 2 tay (không dùng khoảng cách 2 cổ tay vì nó tự thay đổi theo đúng chuyển động cần đo, gây nhiễu vòng lặp). Ban đầu dùng `!isIndexExtended` để chặn hình tam giác giả — nhưng log thật cho thấy công thức đó luôn sai vì ngón trỏ cong sang ngang (đúng giới hạn Mục 11.4). Đổi sang `fingerCurlRatio` thì lộ ra vấn đề khác: ngón trỏ trong tư thế tim vươn ra để chạm tay kia (không co sâu), trong khi 3 ngón giữa/áp út/út co hẳn vào lòng bàn tay — ngón út là tín hiệu "co" đáng tin hơn chính ngón trỏ. Giải pháp cuối: chấp nhận cùng 1 loại ngón bất kỳ (trỏ hoặc út) co ở cả 2 tay đồng thời — phản ánh đúng tính đối xứng qua gương vốn có của cử chỉ 2 tay, chặt hơn hẳn cách chấp nhận 1-trong-4-ngón độc lập từng tay. Giới hạn chấp nhận không sửa: cần giơ tay ở góc tương đối đối diện camera mới ổn định, vì đo trên hình chiếu 2D.
 
 **❌ Dấu X:** tổng quát hoá thành "1 trong 4 loại ngón bất kỳ, miễn cùng loại ở cả 2 tay và tự nó thoả cả 2 điều kiện riêng (thẳng và cắt nhau)" — khác trái tim ở chỗ không nới lỏng OR giữa các loại ngón vì `segmentsCross` đã tự đảm bảo tính nhất quán hình học.
 
-**📷 Khung máy ảnh:** Tầng 1 mỗi tay tự kiểm hình L (cái+trỏ vuông góc, 3 ngón kia co). Tầng 2 dựa trên định lý: tứ giác có 2 cặp cạnh đối bằng nhau là hình bình hành; hình bình hành có 1 góc vuông là hình chữ nhật — Tầng 1 đã xác nhận góc vuông, chỉ cần thêm điều kiện "chạm chéo" (`indexA` chạm `thumbB` và ngược lại) để khép kín tứ giác. Lưu ý suy luận: khoảng cách nhỏ không tự nó chứng minh góc vuông — nó chỉ đóng vai trò khép kín hình dạng để định lý có đất dùng, đúng vì góc vuông đã xác nhận trước ở Tầng 1. Bài học debug: log không in được dòng nào (kể cả nhánh dừng sớm) hoá ra do quên đổi `requiredNumHands` từ 1 lên 2 cho effect gắn gesture này — không phải lỗi logic bên trong.
+> **Cử chỉ khung máy ảnh đã bị gỡ** (xem Mục 11.6) — từng dùng 2 tầng điều kiện (góc vuông
+> mỗi tay + chạm chéo 2 tay), phức tạp hơn hẳn 2 cử chỉ còn lại ở đây, đúng nguyên nhân bị
+> gỡ đã ghi ở đầu Mục 11.6.
 
 ### 11.8. Giới hạn đã biết & hướng mở rộng (cử chỉ động)
 
-Cả 3 cử chỉ trên đều là cử chỉ tĩnh — chỉ cần 1 frame để quyết định, không cần nhớ frame trước. Đây là lý do toàn bộ `object Gestures` dùng chung 1 instance vô trạng thái an toàn từ nhiều luồng. Cử chỉ động (ví dụ vỗ tay — cần biết khoảng cách 2 tay đang giảm dần rồi chạm) sẽ phá vỡ tính vô trạng thái đó, cần buffer riêng theo từng instance và áp lại bài học race condition ở Mục 8.3 — quyết định hoãn lại có chủ ý, chỉ làm khi có nhu cầu thật.
+Cả 2 cử chỉ trên đều là cử chỉ tĩnh — chỉ cần 1 frame để quyết định, không cần nhớ frame trước. Đây là lý do toàn bộ `object Gestures` dùng chung 1 instance vô trạng thái an toàn từ nhiều luồng. Cử chỉ động (ví dụ vỗ tay — cần biết khoảng cách 2 tay đang giảm dần rồi chạm) sẽ phá vỡ tính vô trạng thái đó, cần buffer riêng theo từng instance và áp lại bài học race condition ở Mục 8.3 — quyết định hoãn lại có chủ ý, chỉ làm khi có nhu cầu thật.
 
 Về việc tìm "công thức chuẩn" cho cử chỉ hình dạng phức tạp: khảo sát thực tế cho thấy không có giải pháp thuần công thức hình học nào được cộng đồng dùng phổ biến cho loại bài toán này. Thư viện `fingerpose` chỉ định nghĩa gesture 1 tay độc lập. Bộ dữ liệu HaGRID có sẵn lớp `hand_heart` nhưng giải bằng huấn luyện classifier trên hàng nghìn ảnh gán nhãn, không viết công thức hình học tay. Với quy mô app giải trí, chấp nhận giới hạn heuristic đã ghi chú rõ là quyết định hợp lý hơn đầu tư huấn luyện model chỉ cho 1 cử chỉ.
 
@@ -1294,3 +1316,78 @@ Về việc tìm "công thức chuẩn" cho cử chỉ hình dạng phức tạp
 5. Muốn phân biệt nhiều biến thể hình dạng gần giống nhau → tự hỏi có đang vá vô hạn không, nếu có thì dừng ở mức heuristic đủ dùng, ghi chú giới hạn.
 6. Log debug nhiều điều kiện con → luôn log từng biến con trước khi kết hợp bằng `&&`/`||`, không chỉ log kết quả cuối.
 7. Debug xong → luôn xoá sạch `Log.d`, nhất là gesture gọi mỗi frame (25-30 lần/giây).
+
+---
+
+## 12. Vẽ lớp Nền (Background) thay thế Camera
+
+### 12.1. Kiến trúc: `OverlayView` đảm nhiệm 2 trách nhiệm độc lập
+
+Kể từ khi `EffectDefinition` có thêm `background: EffectBackground?`, `OverlayView` vẫn chỉ là 1 class, nhưng gánh 2 việc không phụ thuộc nhau: vẽ nền (`liveBackground`/`recordingBackground`, chạy vô điều kiện mỗi frame nếu có nền) và vẽ hiệu ứng tay (`liveVisuals`/`recordingVisuals`, chỉ chạy khi có kết quả nhận diện). Cả 2 đều tuân thủ đúng nguyên tắc đã đúc kết ở Mục 8.3 biến thể 2: **2 instance riêng cho live và recording**, không chia sẻ trạng thái nội bộ (`Bitmap`/`AnimatedImageDrawable` của riêng từng instance) — nên bản thân cơ chế này không phải nguồn gây race condition, dù trông giống "một class làm quá nhiều việc".
+
+**Điểm khác biệt quan trọng so với hiệu ứng tay:** `EffectAsset` (Mục 7) được thiết kế để **đè lên** camera/tay — bắt buộc có alpha xung quanh chủ thể (Mục 1 `Asset_Format_Guidelines.md`). `EffectBackground` ngược lại hoàn toàn: nó **thay thế** camera (khi có nền, `PreviewView` bị ẩn — `binding.preview.visibility = INVISIBLE`), nên bắt buộc phải **opaque tuyệt đối**. Nhầm lẫn 2 yêu cầu đối nghịch này là gốc rễ của Cạm bẫy 3 (Mục 12.4).
+
+### 12.2. Cạm bẫy 1: Quên bước B — tính `Matrix` xong nhưng không gọi `drawBitmap`
+
+Đúng tái hiện lỗi đã cảnh báo ở Mục 7.2 ("quy tắc 2 bước") — nhưng lần này xảy ra thật, không phải giả định lý thuyết:
+
+```kotlin
+// SAI — tính matrix xong, không dùng đến
+override fun draw(canvas: Canvas) {
+    val scale = max(cw / bw, ch / bh)
+    val matrix = Matrix().apply { setScale(scale, scale); postTranslate(offsetX, offsetY) }
+    // thiếu: canvas.drawBitmap(bitmap, matrix, paint)
+}
+```
+
+Hậu quả: hàm chạy không lỗi, không crash, **không vẽ 1 pixel nào**. Live preview hiện màu nền mặc định của `FrameLayout` phía sau (vì camera đã ẩn) — trông giống "trắng bóc". Video ghi ra hiện nguyên nội dung buffer cũ đang xoay vòng của `Surface` (Mục 10.6.2) — trông giống "đen + ảnh chồng chéo". Cả 2 triệu chứng rất dễ bị quy nhầm cho alpha/asset sai (đã từng xảy ra khi debug lần này) — luôn đọc lại đúng hàm `draw()` thật trước, trước khi suy luận xa hơn về asset/thread.
+
+### 12.3. Cạm bẫy 2: Tái phạm lỗi `AnimatedImageDrawable` không tự scale theo `setBounds()`
+
+Biến thể của cạm bẫy đã ghi ở Mục 7.4, nhưng lần này xảy ra khi viết `AnimatedBackgroundRenderer` dù đã biết trước — chứng tỏ biết lý thuyết không thay thế được việc đối chiếu trực tiếp với pattern đã dùng đúng ở `AnimatedGifVisual`:
+
+```kotlin
+// SAI — setBounds() KHÔNG scale nội dung, chỉ định vị vùng vẽ đúng kích thước gốc
+drawable.setBounds(offsetX, offsetY, offsetX + dw, offsetY + dh)
+drawable.draw(canvas)
+```
+Triệu chứng: GIF/WebP động "dính đét" ở góc trên trái, đúng kích thước gốc, không phủ kín màn hình dù `dw`/`dh` đã tính đúng.
+
+**Fix — quay lại đúng pipeline "Buffer trung gian + Matrix" Mục 7.2, chỉ đổi kích thước buffer:**
+```kotlin
+private val buffer: Bitmap = createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight)
+private val bufferCanvas = Canvas(buffer)
+
+override fun draw(canvas: Canvas) {
+    buffer.eraseColor(Color.TRANSPARENT)      // Mục 7.5
+    drawable.draw(bufferCanvas)                // Bước A — đúng kích thước gốc, vào buffer riêng
+    canvas.drawColor(Color.BLACK, PorterDuff.Mode.SRC)   // Mục 12.4
+    val matrix = Matrix().apply { setScale(scale, scale); postTranslate(offsetX, offsetY) }
+    canvas.drawBitmap(buffer, matrix, null)    // Bước B — drawBitmap TÔN TRỌNG Matrix, khác Drawable.draw()
+}
+```
+Cốt lõi: `Canvas.drawBitmap(bitmap, matrix, paint)` luôn tôn trọng `Matrix` 100% (Mục 7.1 — Bitmap là dữ liệu pixel tĩnh, bất biến); `Drawable.draw(canvas)` thì không — nó tự quyết định cách vẽ dựa trên `setBounds()` của riêng loại `Drawable` đó.
+
+### 12.4. Cạm bẫy 3: Lớp nền phải phủ kín tuyệt đối — vì sao `drawBitmap` phủ kín kích thước vẫn chưa đủ
+
+Sau khi sửa 2 cạm bẫy trên, nền đã hiện đúng hình, đúng kích thước — nhưng vẫn có thể còn "bóng ma" (frame cũ loáng thoáng qua nền mới). Nguyên nhân: `scale = max(cw/bw, ch/bh)` (CENTER_CROP) chỉ đảm bảo phủ kín **về kích thước**, không đảm bảo phủ kín **về nội dung** — nếu file nguồn (ảnh tĩnh hoặc từng frame GIF/WebP) có vùng alpha, `drawBitmap` không ghi đè gì ở đúng vùng đó, để lộ nguyên buffer cũ của `Surface` đang xoay vòng (Mục 10.6.2) — khớp đúng triệu chứng "phủ kín màn nhưng vẫn không rõ đã hết bóng ma chưa" — nguy hiểm hơn Cạm bẫy 1 vì **không dễ nhận ra bằng mắt thường**, đặc biệt với nền động (bản thân nội dung liên tục thay đổi, khó phân biệt "bóng ma" với "khung hình thật").
+
+**Fix — `PorterDuff.Mode.SRC` fill cưỡng bức ngay trước khi vẽ nội dung thật, ở cả `ImageBackgroundRenderer` lẫn `AnimatedBackgroundRenderer`:**
+```kotlin
+canvas.drawColor(Color.BLACK, PorterDuff.Mode.SRC)   // ghi đè tuyệt đối cả kênh alpha, không blend với nội dung cũ
+```
+Khác `canvas.drawColor(color)` mặc định (`SRC_OVER` — blend theo alpha, vẫn có thể lọt sai số nếu buffer cũ còn alpha khác 0), `SRC` xoá sạch bất kể nội dung cũ là gì — áp dụng đúng tinh thần `eraseColor` (Mục 7.5) lên canvas thật thay vì buffer trung gian.
+
+**Cách kiểm chứng nhanh, không cần đoán:** đổi tạm `Color.BLACK` thành `Color.RED`, chạy lại — nếu trước đó có bóng ma ở vùng nào, vùng đó phải hiện đỏ chói thay vì bóng ma — xác nhận đúng asset có alpha thay vì đoán mò.
+
+### 12.5. Quy tắc asset: không dùng chung file giữa `EffectAsset` và `EffectBackground`
+
+Yêu cầu alpha của 2 loại asset **ngược hẳn nhau** (Mục 12.1): `EffectAsset` bắt buộc có alpha để đè lên camera/tay; `EffectBackground` bắt buộc opaque để thay thế camera. Dùng chung 1 `R.drawable.xxx` cho cả 2 vai trò — dù compile đúng, không báo lỗi gì — gần như chắc chắn tạo ra triệu chứng Mục 12.4 vì asset hiệu ứng tay luôn có vùng trong suốt xung quanh chủ thể. Khai `EffectBackground` cần asset riêng, thiết kế opaque ngay từ đầu — xem quy chuẩn cụ thể ở `Asset_Format_Guidelines.md` mục 5.
+
+### 12.6. Quy trình chẩn đoán lớp Nền (Debug Checklist)
+
+1. Nền không hiện gì (live trắng/video đen) → đọc lại đúng hàm `draw()` thật, xác nhận có dòng `canvas.drawBitmap(...)`/`drawable.draw(...)` thật sự được gọi — đừng suy luận từ triệu chứng trước.
+2. Nền động dính 1 góc, không phủ kín màn → đang dùng `Drawable.draw()` + `setBounds()` thay vì `Canvas.drawBitmap()` + `Matrix` (Mục 12.3).
+3. Nền đúng hình, đúng kích thước, nhưng vẫn nghờ thấy bóng ma mờ → đổi tạm màu fill sang `Color.RED` theo Mục 12.4 để xác nhận trực tiếp thay vì đoán.
+4. Nghi ngờ race condition giữa live/recording → grep lại `setEffect()`, xác nhận có đúng 2 lần gọi `createBackgroundRenderer` riêng biệt (2 instance) — nếu đúng, race condition kiểu Mục 8.3 không thể xảy ra ở đây về mặt thiết kế, đừng tiếp tục tìm theo hướng này.
+5. Muốn tái sử dụng asset hiệu ứng tay cũ làm nền để test nhanh → đừng — asset đó có alpha theo đúng thiết kế (Mục 12.5), sẽ tự gây ra triệu chứng Mục 12.4 dù code hoàn toàn đúng.
