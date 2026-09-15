@@ -175,6 +175,10 @@ class CameraRecordFragment : Fragment() {
         with(binding) {
             overlayView = overlay
             overlay.setEffect(currentEffect)
+            if (currentEffect.background != null) {
+                binding.preview.visibility = View.INVISIBLE
+            }
+
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()
 
@@ -421,22 +425,27 @@ class CameraRecordFragment : Fragment() {
                 val bitmap = latestCameraBitmap
                 val handResult = latestHandResult
 
-                if (bitmap != null) {
+                val hasBackground = overlay.hasBackground()
+                if (hasBackground || bitmap != null) {
                     videoRecorder?.pushFrame { canvas ->
-                        val recW = canvas.width.toFloat()
-                        val recH = canvas.height.toFloat()
-                        val w = bitmap.width.toFloat()
-                        val h = bitmap.height.toFloat()
+                        if (hasBackground) {
+                            overlay.drawRecordingBackground(canvas)
+                        } else {
+                            val recW = canvas.width.toFloat()
+                            val recH = canvas.height.toFloat()
+                            val w = bitmap!!.width.toFloat()
+                            val h = bitmap.height.toFloat()
 
-                        val s = max(recW / w, recH / h)
-                        val offsetX = (recW - w * s) / 2f
-                        val offsetY = (recH - h * s) / 2f
+                            val s = max(recW / w, recH / h)
+                            val offsetX = (recW - w * s) / 2f
+                            val offsetY = (recH - h * s) / 2f
 
-                        val bmpMatrix = Matrix().apply {
-                            setScale(-s, s)
-                            postTranslate(w * s + offsetX, offsetY)
+                            val bmpMatrix = Matrix().apply {
+                                setScale(-s, s)
+                                postTranslate(w * s + offsetX, offsetY)
+                            }
+                            canvas.drawBitmap(bitmap, bmpMatrix, null)
                         }
-                        canvas.drawBitmap(bitmap, bmpMatrix, null)
 
                         handResult?.let {
                             overlay.drawHandEffects(

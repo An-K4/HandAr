@@ -99,14 +99,69 @@ file WAV vừa export (không phải file gốc) để chắc bước convert kh
 
 ---
 
-## 5. Bảng tóm tắt nhanh (dán khi làm asset)
+## 5. Nền hiệu ứng — dùng cho `EffectBackground` (`Solid` / `Image` / `Animated`)
+
+Ba renderer trong package `effect/` (`SolidBackgroundRenderer`, `ImageBackgroundRenderer`,
+`AnimatedBackgroundRenderer`) đều vẽ **phủ kín toàn bộ canvas theo kiểu center-crop**: tính
+`scale = max(canvasW / nguồnW, canvasH / nguồnH)`, canh giữa rồi cắt phần thừa hai bên/trên-dưới.
+Khác với ảnh hiệu ứng vẽ theo bán kính bàn tay, nền **không co theo nội dung** — cạnh khung hình
+luôn bị cắt trên máy có tỉ lệ màn hình khác với ảnh gốc, nên bố cục quan trọng phải nằm giữa khung.
+
+Mỗi hiệu ứng có nền tạo ra **hai instance renderer riêng** (`liveBackground` và
+`recordingBackground` trong `OverlayView.setEffect()`) — ảnh/GIF bị decode **hai lần**, tốn gấp đôi
+bộ nhớ và thời gian load so với hiệu ứng không nền. Đây là lý do trực tiếp khiến giới hạn dung
+lượng ở bảng dưới nghiêm hơn so với ảnh/GIF hiệu ứng thường.
+
+### 5.1 `Solid` — màu trơn
+
+| Thuộc tính | Yêu cầu | Vì sao |
+|---|---|---|
+| Cách khai | Khai bằng `colorRes` (id trong `colors.xml`), **không** dùng số hex trần trong `EffectRepository` | `SolidBackgroundRenderer` gọi `ContextCompat.getColor(context, colorRes)` — tham số này bắt buộc là resource id, không phải giá trị màu; truyền nhầm số hex build vẫn qua nhưng `getColor` sẽ ném `Resources.NotFoundException` lúc chạy |
+
+### 5.2 `Image` — ảnh tĩnh
+
+`ImageBackgroundRenderer` decode bằng `BitmapFactory.decodeResource` — giữ nguyên độ phân giải
+gốc trong RAM suốt vòng đời effect, không có bước resize.
+
+| Thuộc tính | Yêu cầu | Vì sao |
+|---|---|---|
+| Định dạng file | WebP, đặt trong `res/drawable-nodpi/` | `drawable-nodpi` để Android không tự chọn theo mật độ màn hình rồi nạp nhầm bản chất lượng thấp; WebP giảm dung lượng APK so với PNG cho ảnh nền không cần alpha |
+| Tỉ lệ khung | ~9:19.5 (dọc), khớp tỉ lệ camera app đang khoá `portrait` | Center-crop scale theo cạnh nào hụt nhiều hơn — ảnh lệch xa tỉ lệ máy thật sẽ bị cắt mất phần lớn, đặc biệt trên màn hình rất dài |
+| Cạnh ngắn | ≥ 720px | Dưới ngưỡng này ảnh bị phóng to (scale > 1) để phủ kín canvas ghi hình 720p, lộ rõ vỡ hạt |
+| Nền | Không cần alpha — nền phủ kín toàn khung, phía sau không có gì để lộ ra | Khác với `StaticImage`/`AnimatedGif` ở mục 1–2 (vẽ đè lên camera, bắt buộc alpha) |
+
+### 5.3 `Animated` — ảnh động toàn màn hình
+
+`AnimatedBackgroundRenderer` dùng `ImageDecoder` với `ALLOCATOR_SOFTWARE` (cùng lý do bắt buộc đã
+ghi ở mục 2 cho GIF hiệu ứng), decode ra `AnimatedImageDrawable`, vẽ vào buffer đúng **kích thước
+gốc** của ảnh (không ép về 256×256 như GIF hiệu ứng) rồi mới center-crop buffer đó lên canvas.
+Vì vậy ảnh nền động **nặng hơn nhiều lần** so với GIF hiệu ứng bàn tay ở mục 2 — nó chiếm cả màn
+hình thay vì một vòng tròn quanh tay, và không có giới hạn buffer cố định nào trong code giúp
+"ghìm" chi phí lại.
+
+| Thuộc tính | Yêu cầu | Vì sao |
+|---|---|---|
+| Độ phân giải | ≤ 720p | Buffer trong `AnimatedBackgroundRenderer` = đúng kích thước gốc ảnh, không giới hạn cứng như buffer GIF 256×256 ở mục 2 — ảnh gốc lớn hơn 720p chỉ tốn RAM/CPU decode mỗi frame, không tăng chất lượng vì cuối cùng vẫn bị scale xuống canvas ghi hình |
+| Độ dài loop | ≤ 3 giây | `drawable` set `repeatCount = REPEAT_INFINITE` và tự tính frame theo đồng hồ hệ thống tại thời điểm `draw()` — loop dài làm điểm nối lặp lại thưa, người xem dễ nhận ra giật hơn loop ngắn mượt |
+| Dung lượng file | ≤ 1.5 MB | Nền động bị decode **hai lần** (live + recording, xem ghi chú đầu mục 5) — cùng một ngưỡng dung lượng như GIF hiệu ứng sẽ tốn gấp đôi bộ nhớ thực tế so với hiệu ứng thường |
+
+**Checklist trước khi thêm:** với `Animated`, đo thử `RecPerf` sau khi thêm hiệu ứng mới có nền —
+đây là loại asset duy nhất bị decode hai lần cùng lúc, nên chi phí thực tế cao hơn cảm giác "chỉ
+là một GIF" khi nhìn file gốc.
+
+---
+
+## 6. Bảng tóm tắt nhanh (dán khi làm asset)
 
 | Loại | Định dạng | Kích thước/Thông số | Nền/Kênh |
 |---|---|---|---|
-| Ảnh tĩnh | `.png` | 512–768px, vuông/gần vuông | Alpha trong suốt |
-| GIF | `.gif` | ≤256×256, vuông, ≤20 frame, ≤500KB | Alpha trong suốt |
+| Ảnh tĩnh (hiệu ứng) | `.png` | 512–768px, vuông/gần vuông | Alpha trong suốt |
+| GIF (hiệu ứng) | `.gif` | ≤256×256, vuông, ≤20 frame, ≤500KB | Alpha trong suốt |
 | Sprite sheet | `.png` | Lưới chia hết, ô đồng đều, ghi rõ columns/rows/frameCount/frameDurationMs | Alpha trong suốt |
 | Âm thanh | `.wav` | PCM 16-bit, Mono, 44100Hz, 0.3–3s | — |
+| Nền — Solid | `colors.xml` | — | Không dùng hex trần |
+| Nền — Image | `.webp`, `drawable-nodpi/` | ~9:19.5, cạnh ngắn ≥720px | Không cần alpha |
+| Nền — Animated | ảnh động (WebP/GIF động) | ≤720p, loop ≤3s, ≤1.5MB | Không cần alpha, decode 2 lần |
 
 > Nếu sau này thêm loại `EffectAsset` mới (ví dụ Lottie như đề cập trong
 > `HandAr_App_Expansion_Plan.md`), bổ sung thêm 1 mục vào file này theo đúng format trên: nêu yêu cầu +

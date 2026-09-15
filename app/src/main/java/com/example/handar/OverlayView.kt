@@ -5,11 +5,13 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.View
+import com.example.handar.effect.BackgroundRenderer
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import kotlin.math.hypot
 import kotlin.math.max
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectVisual
+import com.example.handar.effect.createBackgroundRenderer
 import com.example.handar.effect.createEffectVisual
 
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
@@ -21,10 +23,18 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var liveVisuals: List<EffectVisual?> = emptyList()
     private var recordingVisuals: List<EffectVisual?> = emptyList()
 
+    private var liveBackground: BackgroundRenderer? = null
+    private var recordingBackground: BackgroundRenderer? = null
+
     fun setEffect(effect: EffectDefinition) {
         this.effect = effect
         liveVisuals = effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) }}
         recordingVisuals = effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) }}
+
+        liveBackground?.release()
+        recordingBackground?.release()
+        liveBackground = effect.background?.let { createBackgroundRenderer(context!!, it) }
+        recordingBackground = effect.background?.let { createBackgroundRenderer(context!!, it) }
     }
 
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
@@ -78,9 +88,16 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        liveBackground?.draw(canvas)
         result?.let { handResult ->
             drawHandEffects(canvas, handResult, mirrorX = true, forRecording = false)
         }
         postInvalidateOnAnimation()
+    }
+
+    fun hasBackground(): Boolean = effect?.background != null
+
+    fun drawRecordingBackground(canvas: Canvas) {
+        recordingBackground?.draw(canvas)
     }
 }

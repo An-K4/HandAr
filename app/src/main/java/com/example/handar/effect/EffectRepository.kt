@@ -85,6 +85,28 @@ object EffectRepository {
             )
         ),
         EffectDefinition(
+            id = "black_background_with_monster",
+            displayName = "Quái vật bóng đêm với tiếng đồng hồ kêu",
+            thumbnailRes = R.drawable.stranger_things_monster,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "monster",
+                    gesture = Gestures.singleHandPalmOpen,
+                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
+                    soundRes = R.raw.stranger_things_monster
+                ),
+                EffectState(
+                    id = "monster_disappear",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.AnimatedGif(R.drawable.stranger_things_clock),
+                    soundRes = null
+                )
+            ),
+            background = EffectBackground.Animated(R.drawable.happy_happy_happy_cat),
+            bgm = EffectBgm(R.raw.stranger_things_clock)
+        ),
+        EffectDefinition(
             id = "rock_on_ily",
             displayName = "Rock on / I love you",
             thumbnailRes = R.drawable.rock_on,
