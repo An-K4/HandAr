@@ -30,6 +30,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.example.handar.BgmPlayer
 import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.SoundEffectPlayer
@@ -105,6 +106,9 @@ class CameraRecordFragment : Fragment() {
     private var activeEffect: ActiveEffect? = null
     private lateinit var soundEffectPlayer: SoundEffectPlayer
 
+    private var bgmPlayer: BgmPlayer? = null
+    private var bgmPcm: ShortArray? = null
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permission ->
@@ -172,6 +176,12 @@ class CameraRecordFragment : Fragment() {
             state.soundRes?.let { state.id to loadWavPcm(requireContext(), it) }
         }.toMap()
 
+        currentEffect.bgm?.let { bgm ->
+            bgmPcm = loadWavPcm(requireContext(), bgm.resId)
+            bgmPlayer = BgmPlayer(requireContext(), bgm.resId, bgm.gainPercent)
+            bgmPlayer?.startFromBeginning()
+        }
+
         with(binding) {
             overlayView = overlay
             overlay.setEffect(currentEffect)
@@ -193,6 +203,16 @@ class CameraRecordFragment : Fragment() {
         checkAndRequestPermission()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (videoRecorder?.isRecording != true) bgmPlayer?.startFromBeginning()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        bgmPlayer?.pause()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         stopRecordingTimerUI()
@@ -204,6 +224,7 @@ class CameraRecordFragment : Fragment() {
 
         backgroundExecutor.shutdown()
         soundEffectPlayer.release()
+        bgmPlayer?.release()
 
         overlayView = null
         handLandmarker = null
@@ -369,7 +390,10 @@ class CameraRecordFragment : Fragment() {
             ).apply {
                 onFirstFrame = {
                     startRecordingTimerUI()
+                    bgmPlayer?.startFromBeginning()
                 }
+                audioMixer.setBgm(bgmPcm, currentEffect.bgm?.gainPercent ?: 50)
+                audioMixer.resetBgmPos()
                 start()
                 activeEffect?.let { effect ->
                     val elapsedMs = SystemClock.elapsedRealtime() - effect.startedAtMs
