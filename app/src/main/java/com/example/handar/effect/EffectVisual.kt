@@ -5,11 +5,14 @@ import android.graphics.Canvas
 
 interface EffectVisual {
     fun setActive(active: Boolean)
-    fun draw(canvas: Canvas, cx: Float, cy: Float, r: Float)
+    fun draw(canvas: Canvas, frame: HandFrame)
+    fun onHandFrame(frame: HandFrame) = Unit
 }
 
-fun createEffectVisual(context: Context, asset: EffectAsset): EffectVisual = when(asset) {
-    is EffectAsset.StaticImage -> StaticImageVisual(context, asset.resId)
-    is EffectAsset.AnimatedGif -> AnimatedGifVisual(context, asset.resId)
-    is EffectAsset.SpriteSheet -> SpriteSheetVisual(context, asset)
-}
+fun createEffectVisual(context: Context, asset: EffectAsset, scope: EffectScope): EffectVisual =
+    when (asset) {
+        is EffectAsset.StaticImage -> StaticImageVisual(context, asset.resId)
+        is EffectAsset.AnimatedGif -> AnimatedGifVisual(context, asset)
+        is EffectAsset.SpriteSheet -> SpriteSheetVisual(context, asset)
+        is EffectAsset.Procedural -> asset.create(context, scope)
+    }

@@ -6,34 +6,56 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
+import android.graphics.drawable.Animatable2
 import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.Drawable
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withSave
 import kotlin.math.min
 
-class AnimatedGifVisual(context: Context, resId: Int) : EffectVisual {
+class AnimatedGifVisual(context: Context, private val asset: EffectAsset.AnimatedGif) :
+    EffectVisual {
     companion object {
         private const val GIF_BUFFER_SIZE = 256
     }
 
     private val drawable: AnimatedImageDrawable = (ImageDecoder.decodeDrawable(
-        ImageDecoder.createSource(context.resources, resId)
+        ImageDecoder.createSource(context.resources, asset.resId)
     ) { decoder, _, _ ->
         decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
     } as AnimatedImageDrawable).apply {
-        repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+        repeatCount = if (asset.oneShot) 0 else AnimatedImageDrawable.REPEAT_INFINITE
+        if (asset.oneShot) {
+            registerAnimationCallback(object : Animatable2.AnimationCallback() {
+                override fun onAnimationEnd(drawable: Drawable?) {
+                    finished = true
+                }
+            })
+        }
     }
+
+    @Volatile
+    private var finished = false
+    fun hasFinishedPlaying(): Boolean = finished
+
+    @Volatile
+    private var desiredActive = false
 
     private val buffer: Bitmap = createBitmap(GIF_BUFFER_SIZE, GIF_BUFFER_SIZE)
     private val bufferCanvas = Canvas(buffer)
 
     override fun setActive(active: Boolean) {
-        if (active) {
-            if (!drawable.isRunning) drawable.start()
-        } else drawable.stop()
+        if (active && asset.oneShot) finished = false
+        desiredActive = active
     }
 
     private fun renderToBuffer() {
+        if (desiredActive) {
+            if (!drawable.isRunning) drawable.start()
+        } else {
+            if (drawable.isRunning) drawable.stop()
+        }
+
         buffer.eraseColor(Color.TRANSPARENT)
         drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
 
@@ -53,17 +75,15 @@ class AnimatedGifVisual(context: Context, resId: Int) : EffectVisual {
 
     override fun draw(
         canvas: Canvas,
-        cx: Float,
-        cy: Float,
-        r: Float
+        frame: HandFrame
     ) {
         renderToBuffer()
 
-        val drawScale = r / GIF_BUFFER_SIZE
+        val drawScale = frame.r / GIF_BUFFER_SIZE
         val matrix = Matrix().apply {
             postTranslate(-GIF_BUFFER_SIZE / 2f, -GIF_BUFFER_SIZE / 2f)
             postScale(drawScale, drawScale)
-            postTranslate(cx, cy)
+            postTranslate(frame.cx, frame.cy)
         }
         canvas.drawBitmap(buffer, matrix, null)
     }

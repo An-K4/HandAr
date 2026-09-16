@@ -42,7 +42,7 @@ Windows đôi khi hiện nền trắng giả), xác nhận nền thật sự tro
 
 Đây là loại asset có nhiều ràng buộc ẩn nhất vì `AnimatedGifVisual` render GIF vào **1 buffer cố định
 256×256** (`GIF_BUFFER_SIZE = 256`) mỗi frame, dùng `ImageDecoder` với `ALLOCATOR_SOFTWARE` bắt buộc
-(ghi chú trong `HandAr_App_Expansion_Plan.md` mục 7: đây là "cạm bẫy" đã gặp và cố định để tránh crash).
+(ghi chú trong `HandAr_Plan.md` Phần I mục 7: đây là "cạm bẫy" đã gặp và cố định để tránh crash).
 
 | Thuộc tính | Yêu cầu | Vì sao |
 |---|---|---|
@@ -164,5 +164,5 @@ là một GIF" khi nhìn file gốc.
 | Nền — Animated | ảnh động (WebP/GIF động) | ≤720p, loop ≤3s, ≤1.5MB | Không cần alpha, decode 2 lần |
 
 > Nếu sau này thêm loại `EffectAsset` mới (ví dụ Lottie như đề cập trong
-> `HandAr_App_Expansion_Plan.md`), bổ sung thêm 1 mục vào file này theo đúng format trên: nêu yêu cầu +
+> `HandAr_Plan.md` Phần I), bổ sung thêm 1 mục vào file này theo đúng format trên: nêu yêu cầu +
 > trích dẫn dòng code gây ra yêu cầu đó — tránh quy tắc "nghe nói vậy" không có căn cứ trong code thật.

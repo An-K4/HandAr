@@ -16,12 +16,12 @@ class StaticImageVisual(context: Context, resId: Int) : EffectVisual {
 
     override fun setActive(active: Boolean) = Unit   // ảnh tĩnh không có gì để bật/tắt
 
-    override fun draw(canvas: Canvas, cx: Float, cy: Float, r: Float) {
-        val scale = r / max(bitmap.width, bitmap.height).toFloat()
+    override fun draw(canvas: Canvas, frame: HandFrame) {
+        val scale = frame.r / max(bitmap.width, bitmap.height).toFloat()
         val matrix = Matrix().apply {
             postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
             postScale(scale, scale)
-            postTranslate(cx, cy)
+            postTranslate(frame.cx, frame.cy)
         }
         canvas.drawBitmap(bitmap, matrix, paint)
     }

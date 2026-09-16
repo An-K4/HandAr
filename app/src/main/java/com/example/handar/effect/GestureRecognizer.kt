@@ -1,11 +1,13 @@
 package com.example.handar.effect
 
+import com.example.handar.utils.isFist
 import com.example.handar.utils.isIndexCurled
 import com.example.handar.utils.isIndexExtended
 import com.example.handar.utils.isMiddleExtended
 import com.example.handar.utils.isPalmOpen
 import com.example.handar.utils.isPinkyCurled
 import com.example.handar.utils.isPinkyExtended
+import com.example.handar.utils.isPointing
 import com.example.handar.utils.isRingExtended
 import com.example.handar.utils.isThumbExtended
 import com.example.handar.utils.palmLength
@@ -20,6 +22,10 @@ fun interface GestureRecognizer {
 
 object Gestures {
     // MỘT TAY
+    /** cử chỉ bất kỳ, miễn có tay trong màn hình — dùng làm state cuối cùng trong danh sách khi cần
+     *  một trạng thái mặc định (ví dụ vẽ khung xương liên tục trong hiệu ứng vẽ canvas) */
+    val anyHandPresent = GestureRecognizer { hands -> hands.isNotEmpty() }
+
     /** ✋ xòe tay */
     val singleHandPalmOpen = GestureRecognizer { hands ->
         val landmark = hands.firstOrNull() ?: return@GestureRecognizer false
@@ -29,7 +35,7 @@ object Gestures {
     /** ✊ nắm tay */
     val singleHandFist = GestureRecognizer { hands ->
         val landmark = hands.firstOrNull() ?: return@GestureRecognizer false
-        !isPalmOpen(landmark, landmark[0])
+        isFist(landmark, landmark[0])
     }
 
     /** ☝️ chỉ tay - giơ ngón trỏ - ký hiệu số 1 */
@@ -100,7 +106,10 @@ object Gestures {
         val wrist = landmark[0]
         val ratio = thumbIndexPinchRatio(landmark, wrist)
         ratio < 0.35 &&
-                isMiddleExtended(landmark, wrist) && isRingExtended(landmark, wrist) && isPinkyExtended(landmark, wrist)
+                isMiddleExtended(landmark, wrist) && isRingExtended(
+            landmark,
+            wrist
+        ) && isPinkyExtended(landmark, wrist)
     }
 
     /** 🤟 ký hiệu "ILY" i love you trong ngôn ngữ ký hiệu */
@@ -114,6 +123,10 @@ object Gestures {
                 !isMiddleExtended(landmark, wrist) && !isRingExtended(landmark, wrist)
     }
 
+    val anyHandPointing = GestureRecognizer { hands ->
+        hands.any { isPointing(it, it[0]) }
+    }
+
     // HAI TAY
     /** 🤚✋ xòe 2 tay */
     val bothHandsPalmOpen = GestureRecognizer { hands ->
@@ -122,7 +135,7 @@ object Gestures {
 
     /** ✊✊ nắm 2 tay */
     val bothHandsFist = GestureRecognizer { hands ->
-        hands.size >= 2 && hands.all { !isPalmOpen(it, it[0]) }
+        hands.size >= 2 && hands.all { isFist(it, it[0]) }
     }
 
     /** 🫶 ký hiệu trái tim 2 tay */
@@ -139,7 +152,10 @@ object Gestures {
         val thumbTouch = thumbRatio < 0.5
         val indexAboveThumb = (handA[8].y() + handB[8].y()) < (handA[4].y() + handB[4].y())
 
-        val indexOrPinkyCurled = (isPinkyCurled(handA) && isPinkyCurled(handB)) || (isIndexCurled(handA) && isIndexCurled(handB))
+        val indexOrPinkyCurled =
+            (isPinkyCurled(handA) && isPinkyCurled(handB)) || (isIndexCurled(handA) && isIndexCurled(
+                handB
+            ))
         indexTouch && thumbTouch && indexAboveThumb && indexOrPinkyCurled
     }
 
@@ -154,10 +170,14 @@ object Gestures {
         fun crossedWith(mcp: Int, tip: Int, straightA: Boolean, straightB: Boolean): Boolean =
             straightA && straightB && segmentsCross(handA[mcp], handA[tip], handB[mcp], handB[tip])
 
-        val indexCross = crossedWith(5, 8, isIndexExtended(handA, wristA), isIndexExtended(handB, wristB))
-        val middleCross = crossedWith(9, 12, isMiddleExtended(handA, wristA), isMiddleExtended(handB, wristB))
-        val ringCross = crossedWith(13, 16, isRingExtended(handA, wristA), isRingExtended(handB, wristB))
-        val pinkyCross = crossedWith(17, 20, isPinkyExtended(handA, wristA), isPinkyExtended(handB, wristB))
+        val indexCross =
+            crossedWith(5, 8, isIndexExtended(handA, wristA), isIndexExtended(handB, wristB))
+        val middleCross =
+            crossedWith(9, 12, isMiddleExtended(handA, wristA), isMiddleExtended(handB, wristB))
+        val ringCross =
+            crossedWith(13, 16, isRingExtended(handA, wristA), isRingExtended(handB, wristB))
+        val pinkyCross =
+            crossedWith(17, 20, isPinkyExtended(handA, wristA), isPinkyExtended(handB, wristB))
 
         indexCross || middleCross || ringCross || pinkyCross
     }

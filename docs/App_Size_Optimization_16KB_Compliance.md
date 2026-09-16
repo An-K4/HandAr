@@ -282,4 +282,4 @@ Khi viết thật, class này được bổ sung thêm 3 điểm so với phiên
 
 ### 12.5. Phát hiện phụ: `requiredNumHands = 2` lần đầu được dùng thật
 
-2 effect mới (`absolute_cinema_two_hand`, `heart_or_cross`) là lần đầu tiên `requiredNumHands` khác `1` trong toàn bộ dự án — nhánh "tạo lại `HandLandmarker` khi đổi số tay" trong `HandLandmarkerProvider` (Mục 3.5 của `HandAr_App_Expansion_Plan.md`) giờ đã được kiểm chứng bằng dữ liệu thật, không còn là code chưa từng chạy qua nhánh đó.
+2 effect mới (`absolute_cinema_two_hand`, `heart_or_cross`) là lần đầu tiên `requiredNumHands` khác `1` trong toàn bộ dự án — nhánh "tạo lại `HandLandmarker` khi đổi số tay" trong `HandLandmarkerProvider` (Mục 3.5 Phần I của `HandAr_Plan.md`) giờ đã được kiểm chứng bằng dữ liệu thật, không còn là code chưa từng chạy qua nhánh đó.

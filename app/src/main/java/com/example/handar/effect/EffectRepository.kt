@@ -293,6 +293,86 @@ object EffectRepository {
                 )
             ),
             background = EffectBackground.Solid(R.color.black)
+        ),
+        EffectDefinition(
+            id = "canvas_draw",
+            displayName = "Vẽ canvas",
+            thumbnailRes = R.drawable.stranger_things_monster,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "stroke",
+                    gesture = Gestures.singleHandPointing,
+                    asset = EffectAsset.Procedural("stroke") { _, scope ->
+                        StrokeVisual(scope.shared("stroke_model") { StrokeModel() })
+                    },
+                    soundRes = null
+                ),
+                EffectState(
+                    id = "stroke_clear",
+                    gesture = Gestures.singleHandFist,
+                    asset = EffectAsset.Procedural("stroke_clear") { _, scope ->
+                        ClearOnActivate(scope.shared("stroke_model") { StrokeModel() })
+                    },
+                    soundRes = R.raw.paper_tear
+                ),
+                EffectState(
+                    id = "idle_skeleton",
+                    gesture = Gestures.anyHandPresent,
+                    asset = EffectAsset.Procedural("idle_skeleton") { _, _ -> SkeletonOnlyVisual() },
+                    soundRes = null
+                )
+            ),
+            background = EffectBackground.Solid(R.color.black)
+        ),
+        EffectDefinition(
+            id = "earth",
+            displayName = "Trái đất",
+            thumbnailRes = R.drawable.earth,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState(
+                    id = "earth",
+                    gesture = Gestures.anyHandPresent,
+                    asset = EffectAsset.StaticImage(R.drawable.earth),
+                    soundRes = null,
+                    sizeSource = SizeSource.PinchDistance,
+                    anchorSource = AnchorSource.PinchMidpoint
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "black_hole",
+            displayName = "Hố đen",
+            thumbnailRes = R.drawable.black_hole,
+            requiredNumHands = 2,
+            states = listOf(
+                EffectState(
+                    id = "black_hole",
+                    gesture = Gestures.anyHandPresent,
+                    asset = EffectAsset.AnimatedGif(R.drawable.black_hole),
+                    soundRes = null,
+                    sizeSource = SizeSource.TwoHandDistance,
+                    anchorSource = AnchorSource.TwoHandMidpoint
+                )
+            )
+        ),
+        EffectDefinition(
+            id = "gojo",
+            displayName = "Gojo",
+            thumbnailRes = R.drawable.stranger_things_monster,
+            requiredNumHands = 2,
+            states = listOf(
+                EffectState(
+                    id = "gojo",
+                    gesture = Gestures.anyHandPointing,
+                    asset = EffectAsset.Procedural("gojo") { ctx, scope ->
+                        GojoVisual(ctx, scope.shared("gojo_model") { GojoModel() })
+                    },
+                    soundRes = null,
+                    anchorSource = AnchorSource.IndexFingertip
+                )
+            )
         )
     )
 

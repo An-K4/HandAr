@@ -5,7 +5,9 @@ data class EffectState(
     val gesture: GestureRecognizer,
     val asset: EffectAsset?,
     val soundRes: Int?,
-    val background: EffectBackground? = null
+    val background: EffectBackground? = null,
+    val sizeSource: SizeSource = SizeSource.PalmRadius,
+    val anchorSource: AnchorSource = AnchorSource.PalmCenter
 ) {
     init {
         require(asset != null || soundRes != null) {

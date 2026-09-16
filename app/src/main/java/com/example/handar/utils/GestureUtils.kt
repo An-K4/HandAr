@@ -60,9 +60,19 @@ fun thumbIndexPinchRatio(landmark: List<NormalizedLandmark>, wrist: NormalizedLa
     return distance(landmark[4], landmark[8]) / palmLength
 }
 
-fun fingerCurlRatio(landmark: List<NormalizedLandmark>, mcp: Int, pip: Int, dip: Int, tip: Int): Double {
+fun fingerCurlRatio(
+    landmark: List<NormalizedLandmark>,
+    mcp: Int,
+    pip: Int,
+    dip: Int,
+    tip: Int
+): Double {
     val straight = distance(landmark[mcp], landmark[tip])
-    val boneLength = distance(landmark[mcp], landmark[pip]) + distance(landmark[pip], landmark[dip]) + distance(landmark[dip], landmark[tip])
+    val boneLength =
+        distance(landmark[mcp], landmark[pip]) + distance(landmark[pip], landmark[dip]) + distance(
+            landmark[dip],
+            landmark[tip]
+        )
 
     if (boneLength == 0.0) return 1.0
     return straight / boneLength
@@ -81,9 +91,19 @@ fun isPinkyCurled(landmark: List<NormalizedLandmark>): Boolean =
     fingerCurlRatio(landmark, 17, 18, 19, 20) < 0.88
 
 fun isPalmOpen(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
-    return listOf(Pair(8, 6), Pair(12, 10), Pair(16, 14), Pair(20, 18)).count { (tip, pip) ->
-        isFingerExtended(landmark, tip, pip, wrist)
-    } >= 3
+    return isThumbExtended(landmark, wrist) &&
+            isIndexExtended(landmark, wrist) &&
+            isMiddleExtended(landmark, wrist) &&
+            isRingExtended(landmark, wrist) &&
+            isPinkyExtended(landmark, wrist)
+}
+
+fun isFist(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
+    return !isThumbExtended(landmark, wrist) &&
+            !isIndexExtended(landmark, wrist) &&
+            !isMiddleExtended(landmark, wrist) &&
+            !isRingExtended(landmark, wrist) &&
+            !isPinkyExtended(landmark, wrist)
 }
 
 fun segmentsCross(
@@ -96,3 +116,7 @@ fun segmentsCross(
     val d4 = crossSign(a, b, d)
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
 }
+
+fun isPointing(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean =
+    isIndexExtended(landmark, wrist) && !isMiddleExtended(landmark, wrist) &&
+            !isRingExtended(landmark, wrist) && !isPinkyExtended(landmark, wrist)

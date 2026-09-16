@@ -1,7 +1,432 @@
-# Kế hoạch Phase G–K — Nền, nhạc nền, và an toàn dữ liệu
+# Kế hoạch phát triển HandAr — Phase A → N
+
+> Tài liệu này gộp hai kế hoạch trước đó thành một mạch liền — **Phần I** là nội dung của
+> `HandAr_App_Expansion_Plan.md` cũ (Phase A–F, đưa app từ 1 màn hình thành 5 màn hình),
+> **Phần II** là `HandAr_Next_Phase_Plan.md` cũ (Phase G–N, nền / nhạc nền / an toàn dữ liệu /
+> hiệu ứng canvas). Hai file đó đã bị xoá — đây là bản duy nhất.
+>
+> Phần trước nữa (Phase 0–5, dựng pipeline ghi hình) vẫn nằm riêng ở `HandAr_Refactor_Plan.md`,
+> vì nó nói về một tầng khác của app và gần như không đổi nữa.
+
+## Bản đồ toàn bộ chặng đường
+
+| Phase | Nội dung | Tình trạng |
+|---|---|---|
+| 0–5 | Pipeline ghi hình (xem `HandAr_Refactor_Plan.md`) | ✅ Xong |
+| A–F | Từ 1 màn hình thành 5 màn hình — **Phần I** | ✅ Xong |
+| G | Đổi hình dạng dữ liệu hiệu ứng — **Phần II** | ✅ Xong |
+| H | An toàn dữ liệu khi quay | ✅ Xong |
+| I | Background cấp hiệu ứng | ✅ Xong |
+| J | Nhạc nền liên tục | ✅ Xong |
+| K | Nợ kỹ thuật rẻ tiền | ✅ K1 xong |
+| L | Nền theo từng state | ✅ Xong |
+| M | Hiệu ứng vẽ bằng canvas | ⚠️ M0–M7 xong, còn M8–M9 |
+| N | Dọn nợ hiệu năng + cấu trúc lại package | ⬜ Chưa làm |
+
+---
+
+# Phần I — Từ 1 màn hình thành 5 màn hình (Phase A–F)
+
+> Tiếp nối `HandAr_Refactor_Plan.md` (đã hoàn thành Phase 0-5, pipeline ghi hình đã ổn định).
+> Mục tiêu: từ 1 màn hình duy nhất (`MainActivity` làm hết mọi việc) → app hoàn chỉnh 5 màn hình, có thể chọn hiệu ứng, xem lại, và quản lý video đã quay.
+
+---
+
+## 0. Quyết định kiến trúc đã chốt
+
+| Hạng mục | Lựa chọn | Lý do |
+|---|---|---|
+| Điều hướng giữa màn hình | **Fragments + Navigation Component** | Giữ nguyên View/XML hiện có, không cần viết lại UI bằng Compose, tận dụng toàn bộ code `OverlayView`/`PreviewView` đang chạy tốt |
+| Phát video trong app | **ExoPlayer (Media3)** | Chuẩn hiện tại của Google, xử lý tốt các định dạng/edge-case mà `VideoView` (cũ, ít được bảo trì) hay gặp lỗi |
+| Kiến trúc mic/audio | **Giữ nguyên phương án B** (đã chốt ở Refactor Plan trước — không mic, chỉ `EffectAudioClock` + `AudioMixer`) | Không đổi gì, đã ổn định |
+| Truyền tham số giữa màn hình | **Safe Args** (plugin `androidx.navigation.safeargs.kotlin`, dùng các class `*Directions` / `*Args` được sinh ra) | ⚠️ **Đã đổi so với quyết định ban đầu.** Ban đầu chốt dùng Bundle thủ công (`bundleOf(...)` + `requireArguments()`) vì tưởng plugin safeargs bắt buộc phải apply tường minh `org.jetbrains.kotlin.android`, trong khi dự án dùng AGP 9 với Kotlin built-in. Thực tế plugin apply được bình thường, nên dự án đã chuyển sang Safe Args. Mọi tham số phải khai `<argument>` trong nav graph (nhớ `app:argType` viết thường: `string`) thì class Directions/Args mới sinh đúng |
+| View | **View Binding** (`viewBinding = true`) | Thay `findViewById`, giảm lỗi id sai. Lưu ý: binding chỉ dùng trên main thread trong khoảng `onViewCreated` → `onDestroyView` |
+
+---
+
+## 1. Vấn đề kiến trúc hiện tại cần giải quyết trước khi thêm màn hình
+
+| # | Vấn đề | Vì sao cản trở việc thêm màn hình |
+|---|---|---|
+| 1 | 2 hiệu ứng (`happy3`/`banana`) đang **hardcode thẳng** trong `OverlayView.GifLayer` và `MainActivity` | Muốn có "màn List Hiệu ứng" để chọn, bắt buộc phải có 1 **data model** đại diện cho "1 hiệu ứng" trước — hiện tại khái niệm này chưa tồn tại trong code |
+| 2 | `MainActivity` đang ôm hết: xin quyền, MediaPipe, Camera, Recording, UI nút bấm | Cần tách thành 1 `Fragment` riêng cho màn Camera, các màn khác không được kéo theo toàn bộ logic này |
+| 3 | Chưa có nơi nào đọc lại danh sách video đã quay (chỉ ghi file, không list) | Cần 1 lớp quét thư mục (`Repository`) trước khi có thể hiển thị màn "Danh sách Video" |
+
+---
+
+## 2. Cấu trúc package mục tiêu
+
+> **Trạng thái thực tế sau Phase B** (commit `c65a4d3`): cấu trúc bên dưới đã được áp dụng, với 2 điều chỉnh — `EffectListFragment`/`EffectListAdapter` chưa làm RecyclerView (hiện là 1 nút bấm tạm, hardcode `effectId = "happy_cat"`, sẽ hoàn thiện ở Phase F), và `HandLandmarkerProvider` được giải phóng ở `MainActivity.onDestroy` chứ không theo Fragment (cố ý — tránh tạo lại detector mỗi lần ra vào màn camera).
+
+```
+com.example.handar/
+├── MainActivity.kt                 → CHỈ còn là NavHost, không còn logic camera/recording
+├── effect/
+│   ├── EffectAsset.kt              → sealed class: StaticImage / AnimatedGif / SpriteSheet
+│   ├── EffectVisual.kt             → interface chung + factory createEffectVisual(), 1 lớp impl/loại asset
+│   ├── GestureRecognizer.kt        → fun interface + các công thức cử chỉ dựng sẵn (Gestures.singleHandPalmOpen...)
+│   ├── EffectState.kt              → data class gom gesture+asset+sound theo từng trạng thái
+│   ├── EffectDefinition.kt         → data class mô tả 1 hiệu ứng (giữ 1 List<EffectState>)
+│   ├── EffectRepository.kt         → danh sách hiệu ứng có sẵn trong app
+│   └── HandLandmarkerProvider.kt   → cache/tạo lại HandLandmarker theo requiredNumHands, phân phối kết quả qua SharedFlow
+├── ui/
+│   ├── effectlist/
+│   │   ├── EffectListFragment.kt
+│   │   └── EffectListAdapter.kt    → RecyclerView hiển thị hiệu ứng để chọn
+│   ├── camera/
+│   │   └── CameraRecordFragment.kt → gần như nguyên trạng logic MainActivity cũ, đổi lifecycle owner
+│   ├── preview/
+│   │   └── RecordedPreviewFragment.kt → xem lại NGAY sau khi bấm Stop
+│   ├── videolist/
+│   │   ├── VideoListFragment.kt
+│   │   ├── VideoListAdapter.kt
+│   │   └── VideoRepository.kt      → quét getExternalFilesDir(MOVIES)
+│   └── player/
+│       └── VideoPlayerFragment.kt  → ExoPlayer
+├── OverlayView.kt                  → SỬA: nhận EffectDefinition thay vì hardcode 2 GifLayer cố định
+├── VideoRecorder.kt, AudioMixer.kt, EffectAudioClock.kt,
+│   MuxerCoordinator.kt, wrapper/*  → GIỮ NGUYÊN, không đổi (đã ổn định qua Phase 0-5)
+└── utils/                          → giữ nguyên
+```
+
+---
+
+## 3. Data model cốt lõi: `EffectAsset` + `EffectVisual` + `GestureRecognizer` + `EffectDefinition`
+
+> Cập nhật so với bản đầu: thay vì gắn cứng "2 GIF theo xoè/nắm tay", thiết kế mới tách riêng 3 trục độc lập: **loại file hiệu ứng** (PNG tĩnh / GIF / sprite sheet), **cách vẽ hiệu ứng đó ra canvas**, và **công thức nhận diện cử chỉ**. Mục đích: thêm loại asset mới (ví dụ Lottie sau này) hoặc cử chỉ mới (ví dụ 2 tay) không cần sửa `OverlayView`.
+
+### 3.1. `EffectAsset` — sealed class nhận diện loại file qua kiểu dữ liệu, không đoán qua đuôi file
+
+```kotlin
+sealed class EffectAsset {
+    data class StaticImage(val resId: Int) : EffectAsset()
+
+    data class AnimatedGif(val resId: Int) : EffectAsset()
+
+    data class SpriteSheet(
+        val resId: Int,
+        val columns: Int,
+        val rows: Int,
+        val frameCount: Int,
+        val frameDurationMs: Int
+    ) : EffectAsset()
+}
+```
+
+### 3.2. `EffectVisual` — interface chung, mỗi loại asset có 1 lớp implement riêng
+
+```kotlin
+interface EffectVisual {
+    fun setActive(active: Boolean)
+    /** Vẽ đúng 1 frame hiện tại lên canvas, tại (cx, cy) với bán kính r. */
+    fun draw(canvas: Canvas, cx: Float, cy: Float, r: Float)
+}
+
+fun createEffectVisual(context: Context, asset: EffectAsset): EffectVisual = when (asset) {
+    is EffectAsset.StaticImage -> StaticImageVisual(context, asset.resId)
+    is EffectAsset.AnimatedGif -> AnimatedGifVisual(context, asset.resId)   // chính là GifLayer cũ, đổi tên
+    is EffectAsset.SpriteSheet -> SpriteSheetVisual(context, asset)
+}
+```
+
+**Vì sao dùng `sealed class` thay vì enum/int cờ định loại:** Kotlin ép `when` phải xử lý đủ mọi nhánh (không có `else`) — nếu sau này thêm 1 loại asset mới (ví dụ `Lottie`) mà quên viết `EffectVisual` tương ứng, code **sẽ báo lỗi biên dịch ngay**, không phải đợi runtime mới phát hiện thiếu xử lý.
+
+**Sprite sheet so với GIF:** vì sprite sheet chỉ là 1 `Bitmap` tĩnh (không phải `Drawable` có trạng thái nội bộ như `AnimatedImageDrawable`), `SpriteSheetVisual` **không cần** buffer trung gian, không cần `ALLOCATOR_SOFTWARE`, không cần `canvas.scale()` bù trừ — toàn bộ cạm bẫy đã gặp với GIF (Mục 7) không áp dụng cho loại asset này. Điểm cần tự làm: tính `frameIndex` theo **đồng hồ hệ thống** (`elapsedMs / frameDurationMs % frameCount`), không theo số lần gọi `draw()` — vì `draw()` được gọi từ 2 nơi có nhịp độ khác nhau (`onDraw()` live vs `recordingFrameThread` cố định fps), tính theo số lần gọi sẽ khiến animation chạy nhanh/chậm khác nhau giữa live và video ghi ra.
+
+### 3.3. `GestureRecognizer` — thay `isPalmOpen` hardcode bằng công thức truyền vào
+
+```kotlin
+fun interface GestureRecognizer {
+    /** Nhận TOÀN BỘ tay phát hiện được (có thể nhiều tay), trả về true/false. */
+    fun recognize(hands: List<List<NormalizedLandmark>>): Boolean
+}
+
+object Gestures {
+    val singleHandPalmOpen = GestureRecognizer { hands ->
+        val landmark = hands.firstOrNull() ?: return@GestureRecognizer false
+        isPalmOpen(landmark, landmark[0])   // hàm cũ giữ nguyên, chỉ đổi cách gọi
+    }
+
+    // Ví dụ mở rộng sau này — không cần sửa gì ở chỗ khác:
+    val bothHandsOpen = GestureRecognizer { hands ->
+        hands.size >= 2 && hands.all { isPalmOpen(it, it[0]) }
+    }
+}
+```
+
+### 3.4. `EffectState` + `EffectDefinition` — danh sách trạng thái, KHÔNG giới hạn 2
+
+> **Sửa so với bản đầu:** thiết kế trước đó tách riêng `activeGesture`/`inactiveGesture` và `activeAsset`/`inactiveAsset` — vừa **không mở rộng được quá 2 trạng thái**, vừa tách rời 3 thứ (gesture, asset, sound) vốn luôn đi cùng nhau theo từng trạng thái — dễ gây lỗi khi thêm trạng thái mới (quên sửa 1 trong 3 chỗ). Giải pháp: gom cả 3 vào **1 đơn vị** `EffectState`, `EffectDefinition` giữ 1 `List<EffectState>` không giới hạn số lượng — hiệu ứng “làm phép” với 4-5 cử chỉ tay khác nhau vẫn dùng chung 1 model, không cần sửa gì thêm.
+
+```kotlin
+data class EffectState(
+    val id: String,                  // dùng để debug/log, ví dụ "open", "fist_punch", "peace_sign"
+    val gesture: GestureRecognizer,
+    val asset: EffectAsset,
+    val soundRes: Int
+)
+
+data class EffectDefinition(
+    val id: String,
+    val displayName: String,
+    val thumbnailRes: Int,
+    val requiredNumHands: Int,
+    val states: List<EffectState>,      // 👈 KHÔNG giới hạn 2, muốn 5 trạng thái cũng được
+    val idleAsset: EffectAsset? = null  // hiện gì khi KHÔNG trạng thái nào khớp (null = không vẽ gì)
+)
+
+object EffectRepository {
+    val all = listOf(
+        EffectDefinition(
+            id = "happy_cat",
+            displayName = "Mèo vui / Chuối khóc",
+            thumbnailRes = R.drawable.thumb_happy_cat,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState("open", Gestures.singleHandPalmOpen, EffectAsset.AnimatedGif(R.drawable.happy_happy_happy_cat), R.raw.happy_happy_happy_cat),
+                EffectState("closed", Gestures.singleHandFist, EffectAsset.AnimatedGif(R.drawable.banana_cat_crying), R.raw.banana_cat_crying)
+            )
+        ),
+        // Ví dụ hiệu ứng “làm phép” với 4 cử chỉ khác nhau — vẫn cùng 1 model, không cần sửa code:
+        EffectDefinition(
+            id = "magic_spell",
+            displayName = "Phù thuỷ",
+            thumbnailRes = R.drawable.thumb_magic,
+            requiredNumHands = 1,
+            states = listOf(
+                EffectState("fireball", Gestures.fistPunch, EffectAsset.SpriteSheet(R.drawable.fireball_sheet, 4, 4, 16, 40), R.raw.fire_sound),
+                EffectState("lightning", Gestures.peaceSign, EffectAsset.AnimatedGif(R.drawable.lightning), R.raw.thunder_sound),
+                EffectState("shield", Gestures.singleHandPalmOpen, EffectAsset.StaticImage(R.drawable.shield), R.raw.shield_sound),
+                EffectState("heal", Gestures.thumbsUp, EffectAsset.SpriteSheet(R.drawable.heal_sheet, 3, 3, 9, 60), R.raw.heal_sound)
+            )
+        )
+    )
+
+    fun findById(id: String): EffectDefinition = all.first { it.id == id }
+}
+```
+
+**Cách `OverlayView` dùng `states`:** duyệt theo đúng thứ tự khai báo, lấy trạng thái **đầu tiên** có `gesture.recognize(hands) == true`:
+```kotlin
+val matchedState = effect.states.firstOrNull { it.gesture.recognize(hands) }
+// null -> dùng idleAsset (hoặc không vẽ gì nếu idleAsset == null)
+```
+
+> ⚠️ **Thứ tự trong `states` chính là độ ưu tiên.** Vì chỉ lấy trạng thái đầu tiên khớp, nếu 2 công thức `GestureRecognizer` vô tình cùng khớp 1 lúc (ví dụ “nắm đấm” và “1 ngón trỏ” chồng lấn nếu viết lỏng lẻo), kết quả phụ thuộc hoàn toàn vào thứ tự khai báo. Đây là trách nhiệm của người viết `GestureRecognizer` (thiết kế các công thức loại trừ lẫn nhau rõ ràng), không phải thứ code tự đảm bảo được.
+
+**Thay đổi ở `OverlayView`:** thay `GifLayer` hardcode bằng `createEffectVisual(context, asset)` cho từng `EffectState`, gọi qua `setEffect(effect: EffectDefinition)`. `OverlayView` từ đây chỉ làm việc với interface `EffectVisual` chung, không cần biết bên trong là GIF hay sprite hay PNG, và không cần biết đang có 2 hay 5 trạng thái.
+
+**Thay đổi ở `CameraRecordFragment`/`MainActivity`:** biến theo dõi debounce đổi từ `lastPalmOpen: Boolean?` thành `lastStateId: String?` (dùng `EffectState.id` thay vì `Boolean`) — cơ chế debounce (`pendingState`/`pendingStateSince`) giữ nguyên logic, chỉ đổi kiểu dữ liệu đang theo dõi từ `Boolean` sang `String?`.
+
+> ⚠️ **Ràng buộc kỹ thuật cần biết về `requiredNumHands`:** xem chi tiết ở Mục 3.5 (`HandLandmarkerProvider`) — không đơn giản như chỉ đọc giá trị này rồi gọi `setNumHands()`.
+
+### 3.5. `HandLandmarkerProvider` — tạo lại `HandLandmarker` đúng lúc, không leak callback theo Fragment
+
+`HandLandmarker.HandLandmarkerOptions.setNumHands(n)` chỉ đọc giá trị **đúng 1 lần lúc `createFromOptions()`** — không có API để đổi `n` tại chỗ, muốn đổi bắt buộc phải `close()` object cũ rồi `createFromOptions()` lại. Vì mỗi `EffectDefinition` có `requiredNumHands` riêng (hiệu ứng đơn giản cần 1 tay, hiệu ứng “làm phép” có thể cần 2 tay), cần 1 cơ chế **tạo lại đúng lúc** (khi `numHands` thực sự đổi), không tạo lại thừa khi không cần.
+
+**Cái khó không phải ở phần “so sánh rồi tạo lại” (đơn giản)** — mà là `setResultListener { ... }` bị **đóng cứng** ngay lúc `build()`, không đổi được sau. Nếu callback này tham chiếu trực tiếp tới `overlayView`/state của 1 Fragment instance cụ thể, và `HandLandmarker` được cache để tái sử dụng giữa các lần vào `CameraRecordFragment`, callback cũ sẽ **trỏ tới Fragment đã bị destroy** — gây leak hoặc crash.
+
+**Giải pháp:** tách hẳn detector khỏi Fragment bằng 1 object trung gian, phân phối kết quả qua `SharedFlow` thay vì callback trực tiếp:
+
+```kotlin
+object HandLandmarkerProvider {
+    private var cached: HandLandmarker? = null
+    private var cachedNumHands: Int = -1
+    private val _results = MutableSharedFlow<Pair<HandLandmarkerResult, MPImage>>(extraBufferCapacity = 1)
+    val results = _results.asSharedFlow()   // Fragment nào đang active tự collect từ đây
+
+    @Synchronized
+    fun getOrCreate(context: Context, numHands: Int): HandLandmarker {
+        if (cached == null || cachedNumHands != numHands) {
+            cached?.close()
+            val options = HandLandmarker.HandLandmarkerOptions.builder()
+                .setBaseOptions(BaseOptions.builder().setModelAssetPath("hand_landmarker.task").setDelegate(Delegate.CPU).build())
+                .setNumHands(numHands)
+                .setRunningMode(RunningMode.LIVE_STREAM)
+                .setResultListener { result, inputImage -> _results.tryEmit(result to inputImage) }  // callback CỐ ĐỊNH, không đổi theo Fragment
+                .build()
+            cached = HandLandmarker.createFromOptions(context, options)
+            cachedNumHands = numHands
+        }
+        return cached!!
+    }
+}
+```
+
+`CameraRecordFragment` không tự tạo `HandLandmarker` nữa — gọi `HandLandmarkerProvider.getOrCreate(context, effect.requiredNumHands)` (tự động biết tái sử dụng hay tạo lại), rồi `collect` từ `HandLandmarkerProvider.results` trong `viewLifecycleOwner.lifecycleScope` — Flow tự huỷ đăng ký đúng lúc `onDestroyView` nhờ gắn theo `viewLifecycleOwner`, không cần tự quản lý dọn dẹp callback thủ công.
+
+**Không cần “nơi lưu trữ trung gian” riêng cho `numHands`:** `requiredNumHands` đã có sẵn trong `EffectDefinition`, đọc được ngay qua `EffectRepository.findById(effectId)` từ Safe Args — `CameraRecordFragment` tự đọc được giá trị cần, không cần truyền qua kênh phụ nào khác. `HandLandmarkerProvider` chỉ đóng vai trò cache + phân phối kết quả.
+
+> 💡 **Đo trước khi quyết định có cần cơ chế cache này không:** thử đo thời gian `createFromOptions()` thực tế mất bao lâu trên máy bạn (`System.currentTimeMillis()` quanh nó). Nếu chỉ ~20-50ms, có thể đơn giản hoá: tạo mới `HandLandmarker` **mỗi lần vào Fragment**, đóng lúc rời đi, bỏ hẳn phần cache/so sánh trong `HandLandmarkerProvider` — vẫn đúng yêu cầu “cấu hình theo đúng effect”, chỉ là không tối ưu tái sử dụng. Nếu đo ra >150-200ms (đủ để cảm nhận “giật” khi chuyển màn), lúc đó áp dụng đúng cache ở trên mới thực sự đáng công.
+
+---
+
+## 4. Navigation Graph
+
+```
+effectListFragment (start destination)
+        │  chọn 1 effect, truyền effectId qua Safe Args
+        ▼
+cameraRecordFragment
+        │  bấm Stop, có file video xong
+        ▼
+recordedPreviewFragment (Lưu / Xoá / Chia sẻ)
+        │  bấm "Xong" hoặc back
+        ▼
+quay lại effectListFragment (popBackStack)
+
+--- lối vào riêng, độc lập ---
+(nút "Thư viện" đặt ở effectListFragment hoặc cameraRecordFragment)
+        ▼
+videoListFragment
+        │  chọn 1 video
+        ▼
+videoPlayerFragment
+```
+
+**Quy ước đặt tên trong `nav_graph.xml`** (đã áp dụng từ Phase B):
+
+| Loại | Quy ước | Ví dụ |
+|---|---|---|
+| Destination | camelCase, khớp tên class, giữ hậu tố `Fragment` | `cameraRecordFragment` |
+| Action | `action_<từ>_to_<đến>`, bỏ hậu tố `Fragment` | `action_cameraRecord_to_recordedPreview` |
+| Id của View trong layout | snake_case | `btn_toggle_record` |
+| `app:argType` | **luôn viết thường** | `string`, không phải `String` |
+
+> ⚠️ `argType` viết hoa (`String`) không bị compiler bắt: Navigation sẽ hiểu đó là **tên class đầy đủ**, đi tìm class không tồn tại và ném exception lúc parse graph.
+
+**Cấu hình `popUpTo` cho action `cameraRecordFragment → recordedPreviewFragment`:**
+
+```xml
+app:popUpTo="@id/cameraRecordFragment"
+app:popUpToInclusive="true"
+```
+
+Mục đích: back từ Preview về thẳng `effectListFragment`, **không** rơi lại vào màn camera (tránh mở lại camera/MediaPipe không cần thiết), và giải phóng camera ngay lúc navigate.
+
+**Vì sao trỏ `popUpTo` vào chính `cameraRecordFragment` chứ không vào `effectListFragment`:** nếu destination được trỏ tới **không có trong back stack**, `popUpTo` im lặng không làm gì cả — không lỗi, không cảnh báo. Ở Phase F sẽ có đường vào camera không đi qua màn List (từ `videoListFragment`), lúc đó cách trỏ vào `effectListFragment` sẽ hoặc gỡ nhầm màn khác, hoặc không gỡ gì. Quy tắc: **`popUpTo` nên nói về màn mình đang rời, không nói về màn mình đoán là đang nằm dưới.**
+
+> `popUpTo` cũng là thứ quyết định vòng đời: với `popUpToInclusive="true"`, `CameraRecordFragment` bị huỷ hẳn (`onDestroyView → onDestroy → onDetach`) lúc navigate, không nằm lại back stack. Xem `Fragment_Review_Checklist.md` mục 0.
+
+---
+
+## 5. Thứ tự Phase đề xuất
+
+```
+Phase A → Effect Data Model (nền tảng, làm trước tiên, rủi ro thấp)
+Phase B → Navigation skeleton + chuyển MainActivity → CameraRecordFragment
+Phase C → Recorded Preview screen (xem lại ngay sau khi Stop)
+Phase D → Video List (thư viện video đã quay)
+Phase E → Video Player (ExoPlayer)
+Phase F → Polish, liên kết điều hướng, test toàn diện
+```
+
+**Vì sao thứ tự này:**
+- Phase A phải làm trước tất cả — không có `EffectDefinition`, không màn nào khác có ý nghĩa.
+- Phase B là bước "đau" nhất (chuyển toàn bộ logic Activity → Fragment) nhưng **không đổi logic recording/MediaPipe gì cả** — chỉ đổi lifecycle owner, nên rủi ro chủ yếu nằm ở lifecycle (Fragment bị destroy/recreate khác Activity), không nằm ở nghiệp vụ.
+- Phase C-D-E độc lập tương đối với nhau, có thể làm song song nếu muốn, nhưng đề xuất làm tuần tự để dễ test từng phần.
+- Phase F luôn ở cuối, dùng để nối các mảnh và test navigation đầy đủ (bấm back ở mọi màn, xoay màn hình nếu hỗ trợ, v.v.)
+
+---
+
+## 6. Chi tiết từng Phase
+
+### Phase A — Effect Data Model
+- Tạo `EffectAsset`, `EffectVisual` (+ 3 lớp impl: `StaticImageVisual`, `AnimatedGifVisual` đổi tên từ `GifLayer` cũ, `SpriteSheetVisual` mới), `GestureRecognizer`, `EffectState`, `EffectDefinition`, `EffectRepository`, `HandLandmarkerProvider` (chi tiết mục 3).
+- Sửa `OverlayView`: đổi 2 `GifLayer` hardcode (`happy3Layer`/`bananaCryingLayer`) thành khởi tạo động qua `createEffectVisual()` cho từng `EffectState` trong `effect.states`, nhận `EffectDefinition` qua hàm `setEffect()`. Đổi logic nhận diện cử chỉ thành duyệt `states.firstOrNull { it.gesture.recognize(hands) }`.
+- Sửa `CameraRecordFragment`/`MainActivity`: đổi `lastPalmOpen: Boolean?` thành `lastStateId: String?`, giữ nguyên cơ chế debounce, chỉ đổi kiểu dữ liệu theo dõi. Load đúng `soundRes` theo `EffectState` đang khớp thay vì 2 biến `activeSoundPcm`/`inactiveSoundPcm` cố định.
+- Thay `setupMediaPipe()` tự tạo `HandLandmarker` bằng gọi `HandLandmarkerProvider.getOrCreate(context, effect.requiredNumHands)`, collect kết quả qua `SharedFlow` trong `viewLifecycleOwner.lifecycleScope` thay vì `setResultListener` trực tiếp.
+- **Đo thời gian `createFromOptions()` trước** (xem Mục 3.5) để quyết định có thực sự cần phần cache trong `HandLandmarkerProvider` hay chỉ cần tạo mới/đóng đơn giản mỗi lần vào Fragment.
+- **Chưa cần làm `SpriteSheetVisual`/`StaticImageVisual` đầy đủ ngay** ở Phase này nếu chưa có asset thực tế loại đó — có thể chỉ viết `AnimatedGifVisual` trước (đủ dùng cho effect hiện có, chỉ có 2 trạng thái GIF), thêm 2 lớp còn lại khi thực sự có hiệu ứng dùng đúng loại asset đó — đúng tinh thần đơn giản trước, phức tạp hoá khi có nhu cầu thật.
+- **Test bằng cách:** chạy lại đúng bộ Checklist B (Live preview) + D (kịch bản đặc biệt) hiện có — đảm bảo hành vi không đổi dù đã refactor cách nạp effect và cách tạo `HandLandmarker`.
+
+### Phase B — Navigation skeleton ✅ ĐÃ HOÀN THÀNH (commit `c65a4d3`)
+
+**Đã làm:**
+- Dependency: `navigation-fragment-ktx` + `navigation-ui-ktx` + `recyclerview`, bật `viewBinding = true`. (Lúc Phase B chưa dùng plugin Safe Args; hiện tại dự án **đã** apply `androidx.navigation.safeargs.kotlin` — xem Mục 0.)
+- `activity_main.xml` chỉ còn `FragmentContainerView` (`android:name` = `NavHostFragment`, `app:defaultNavHost="true"`, `app:navGraph`). `MainActivity` rút gọn còn `enableEdgeToEdge` + `setContentView` + `HandLandmarkerProvider.release()` ở `onDestroy`.
+- `CameraRecordFragment` (`ui/camera/`): di chuyển nguyên trạng logic `MainActivity` cũ, không đụng pipeline recording.
+- `EffectListFragment` (`ui/effectlist/`): **tạm thời chỉ là 1 nút** navigate kèm `effectId = "happy_cat"` hardcode. RecyclerView + Adapter dời sang Phase F.
+- `effectId` lúc Phase B truyền qua `bundleOf("effectId" to id)`, nhận bằng `requireArguments().getString("effectId")!!` trong `onCreate`. **Hiện đã thay bằng Safe Args**: `EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)`.
+
+**Lệch so với kế hoạch ban đầu:**
+1. ~~Không dùng Safe Args → dùng Bundle thủ công (Mục 0).~~ **Không còn đúng**: dự án đã chuyển sang Safe Args, xem Mục 0.
+2. `EffectListFragment` chưa có RecyclerView → dời Phase F.
+3. Bỏ `ViewCompat.setOnApplyWindowInsetsListener` khỏi `MainActivity` — nó set padding systembar cho toàn NavHost, làm camera preview có viền đen. Insets cho nút record để lại Phase F.
+
+**Bài học lifecycle rút ra** (chi tiết đầy đủ trong `Fragment_Review_Checklist.md`):
+- Tài nguyên (`backgroundExecutor`, `SoundEffectPlayer`, `statePcmMap`) tạo ở `onViewCreated`, huỷ ở `onDestroyView` — **nơi tạo và nơi huỷ phải đối xứng**.
+- Dùng `viewLifecycleOwner` cho cả `lifecycleScope` lẫn `bindToLifecycle`, không dùng `this`.
+- Thread nền (`recordingFrameThread`) không được chạm `binding`; capture `OverlayView` ra biến local trước khi tạo thread.
+- Mọi callback đến muộn (`stop {}`, `cameraProviderFuture.addListener`) phải chốt cửa bằng `_binding ?: return@...` / `context ?: return@...`.
+- `onDestroyView` theo thứ tự: cắt `videoRecorder` → `join` thread → `stop()` recorder → shutdown executor/release player → null hoá **mọi** tham chiếu View.
+- Không giới thiệu `ViewModel` ở phase này (giữ nguyên khuyến nghị ban đầu — làm đơn giản trước).
+
+### Phase C — Recorded Preview screen
+
+**Thứ tự làm: C1 → C2 → C3 → C4 → C5**, mỗi bước build + chạy được rồi mới đi tiếp (đừng gộp C2 với C3 — nếu Preview vừa không hiện vừa không phát được sẽ không biết lỗi ở navigation hay ExoPlayer).
+
+**C1 — Dependency Media3**
+- `libs.versions.toml`: `media3 = "1.8.0"` + 2 library `media3-exoplayer` (engine) và `media3-ui` (`PlayerView`, có sẵn play/pause/seek).
+- **Và** khai `implementation(libs.androidx.media3.exoplayer)` / `implementation(libs.androidx.media3.ui)` trong `app/build.gradle.kts` — toml chỉ là danh mục, không tự thêm dependency vào module.
+- Nếu resolve lỗi phiên bản: hạ về `1.4.1`.
+
+**C2 — Nav graph + điều hướng khi Stop xong**
+- Thêm destination `recordedPreviewFragment` với `<argument android:name="videoPath" app:argType="string"/>` (viết thường!).
+- Thêm action `action_cameraRecord_to_recordedPreview` kèm `popUpTo` + `popUpToInclusive` (xem Mục 4).
+- Đổi callback `VideoRecorder.stop { }` từ hiện Toast thành `navigate(...)` kèm `bundleOf("videoPath" to outputFile.absolutePath)`, với **2 lớp bảo vệ bắt buộc**:
+  1. `if (!isAdded) return@stop` — callback về sau 1-2s với clip dài (ca D2), người dùng có thể đã back; `findNavController()` trên fragment đã detach sẽ ném `IllegalStateException`.
+  2. `if (nav.currentDestination?.id != R.id.cameraRecordFragment) return@stop` — `navigate(actionId)` yêu cầu action tồn tại ở destination hiện tại; gọi lần hai (double-tap, callback về 2 lần) sẽ ném `IllegalArgumentException: navigation destination ... is unknown`.
+- Làm stub `RecordedPreviewFragment` chỉ in `videoPath` ra TextView để nghiệm thu riêng phần điều hướng trước.
+
+**C3 — Phát video bằng ExoPlayer**
+- Layout: `androidx.media3.ui.PlayerView` + hàng 3 nút.
+- `onViewCreated`: `ExoPlayer.Builder(requireContext()).build()` → gán `playerView.player`, `setMediaItem(MediaItem.fromUri(...))`, `prepare()`, `playWhenReady = true`.
+- `onDestroyView`: `playerView.player = null` **trước**, rồi `player?.release()`, rồi `player = null`. Release ở `onDestroyView` chứ không phải `onDestroy` — ExoPlayer giữ codec phần cứng, quên release là chiếm codec, lần sau không phát được (cùng bản chất với vấn đề camera).
+
+**C4 — Ba hành động**
+- **Xong** (thay tên "Lưu" cho thành thật): video đã nằm sẵn trong `getExternalFilesDir(MOVIES)` từ lúc `VideoRecorder.start()`, nút này chỉ `popBackStack()`.
+- **Xoá:** release player **trước**, rồi `File(videoPath).delete()`, rồi `popBackStack()`. Nên có dialog xác nhận — hành động không hoàn tác được.
+- **Chia sẻ:** xem C5.
+
+**C5 — FileProvider cho nút Chia sẻ**
+- `res/xml/file_paths.xml`: `<external-files-path name="movies" path="Movies/" />` — thẻ `external-files-path` ứng với `getExternalFilesDir(...)`, `path` khớp `Environment.DIRECTORY_MOVIES` mà `VideoRecorder.start()` đang dùng. Sai thẻ/sai path → `IllegalArgumentException: Failed to find configured root`.
+- `AndroidManifest.xml`: `<provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">` + `<meta-data name="android.support.FILE_PROVIDER_PATHS" resource="@xml/file_paths"/>`.
+- Intent: `ACTION_SEND` + `type = "video/mp4"` + `EXTRA_STREAM` = `FileProvider.getUriForFile(...)` + **`addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)`**. Thiếu flag này thì share sheet vẫn mở nhưng app nhận không đọc được file.
+
+**Nghiệm thu Phase C:** chạy A-F như thường lệ, cộng thêm mục G-H trong `Test_Checklist.md` (đặc biệt H9, H11, H12), cộng 3 ca riêng của phase này: xoá xong file biến mất thật (`adb shell ls /sdcard/Android/data/com.example.handar/files/Movies`); chia sẻ sang app khác mở được; bấm Stop rồi bấm lia lịa vào nút → chỉ điều hướng đúng 1 lần.
+
+### Phase D — Video List (thư viện)
+- `VideoRepository`: quét `context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)`, liệt kê file `.mp4`, map thành `data class VideoItem(val file: File, val durationMs: Long, val createdAt: Long)`.
+- Sinh thumbnail bằng `MediaMetadataRetriever.getFrameAtTime(0)` — nên chạy trên background thread (`Dispatchers.IO` hoặc `Executors`), tránh block UI khi list dài.
+- `VideoListFragment`: `RecyclerView` hiển thị thumbnail + thời lượng (format `mm:ss`) + ngày quay (`file.lastModified()` format lại).
+- Bấm vào 1 item → `navigate` sang `videoPlayerFragment` kèm `file.absolutePath`.
+- **Cân nhắc thêm (không bắt buộc ngay):** nút xoá video ngay tại list (long-press hoặc icon), tránh phải vào Player mới xoá được.
+
+### Phase E — Video Player
+- `VideoPlayerFragment`: `PlayerView` (Media3) full màn hình, controls mặc định (play/pause/seek) đã có sẵn qua `PlayerView`, không cần tự vẽ.
+- **Bắt buộc xử lý đúng lifecycle** để tránh leak: khởi tạo `ExoPlayer` ở `onViewCreated`, `player.release()` ở `onDestroyView` (không phải `onDestroy` — Fragment view có thể bị destroy/recreate nhiều lần trong khi Fragment instance còn sống).
+
+### Phase F — Polish & liên kết
+- **Hoàn thiện `EffectListFragment`** (dời từ Phase B): thay nút bấm tạm bằng `RecyclerView` + `EffectListAdapter`, mỗi item hiện `thumbnailRes` + `displayName`, bấm vào thì navigate kèm `effectId` thật. Nhớ `layoutManager` — thiếu nó list hiện trắng và **không có lỗi nào trong logcat**.
+- **Xử lý window insets**: `MainActivity` đã bỏ listener insets (nó làm camera preview có viền đen). Cần apply insets riêng cho nút record trong `CameraRecordFragment` để nút không bị navigation bar che.
+- Thêm nút/icon "Thư viện" (ví dụ icon góc trên `EffectListFragment` hoặc `CameraRecordFragment`) điều hướng sang `VideoListFragment`.
+- Rà lại toàn bộ hành vi nút Back ở từng màn — đặc biệt đảm bảo **không thể back vào giữa lúc đang quay dở** (camera vẫn mở, `VideoRecorder.isRecording == true`) mà không có cảnh báo, tránh mất video đang quay dở hoặc leak tài nguyên camera.
+- Chạy lại **toàn bộ** `HandAr_Manual_Test_Checklist.md` hiện có (mục A-F) sau khi refactor xong Phase B, vì đây là bộ test duy nhất xác nhận hành vi ghi hình không bị phá vỡ trong quá trình chuyển từ Activity sang Fragment.
+- Bổ sung thêm few test case mới riêng cho navigation: "back liên tục qua 5 màn có gây crash không", "xoay hiệu ứng qua lại nhiều lần rồi mới bấm Record có load đúng effect không".
+
+---
+
+## 7. Rủi ro lớn nhất cần lưu ý xuyên suốt
+
+**Toàn bộ pipeline recording (`VideoRecorder`, `AudioMixer`, `EffectAudioClock`, `MuxerCoordinator`, wrapper) đã rất ổn định qua nhiều vòng debug — mục tiêu của kế hoạch này là KHÔNG đụng vào logic bên trong các class đó**, chỉ đổi **nơi chúng được gọi** (từ Activity sang Fragment) và **cách chọn effect** (từ hardcode sang `EffectDefinition`). Nếu trong lúc refactor phát hiện cần sửa logic recording, nên dừng lại và đối chiếu với `HandAr_Refactor_Plan.md` + `Camera_X_Hand_Landmarker.md` trước, tránh vô tình phá lại các bug đã mất công fix (đặc biệt Mục D trong checklist test — đây là những bug rất dễ tái phát nếu đổi sai chỗ trong lúc di chuyển code).
+
+---
+
+# Phần II — Nền, nhạc nền, an toàn dữ liệu và hiệu ứng canvas (Phase G–N)
 
 > Tiếp nối `HandAr_Refactor_Plan.md` (Phase 0–5, pipeline ghi hình) và
-> `HandAr_App_Expansion_Plan.md` (Phase A–F, 5 màn hình).
+> **Phần I** (Phase A–F, 5 màn hình).
 > Tại thời điểm viết, app đã chạy đủ luồng: chọn hiệu ứng → quay → xem lại → thư viện → phát.
 > Kế hoạch này giải quyết ba việc: **mở rộng khả năng biểu đạt của một hiệu ứng**
 > (nền riêng, nhạc nền liên tục, trạng thái chỉ có tiếng),
@@ -38,9 +463,10 @@ Phase H → An toàn dữ liệu khi quay          (độc lập, rủi ro thấ
 Phase I → Background                        (dựng trên G)
 Phase J → Nhạc nền liên tục                 (dựng trên G, chạm vùng recording/)
 Phase K → Nợ kỹ thuật rẻ tiền
---- ranh giới: G–K đã xong, L–M là vòng tiếp theo ---
+--- ranh giới: G–K đã xong ---
 Phase L → Nền theo từng state             (đủ để làm "Dịch chuyển tức thời giữa các phòng")
 Phase M → Hiệu ứng vẽ bằng canvas          (đủ để làm "Vẽ canvas", mở đường cho Tia sét / Trái Đất / Hố đen)
+Phase N → Dọn nợ hiệu năng của L/M + cấu trúc lại package
 ```
 
 **Vì sao G đứng trước:** ba thay đổi kiểu dữ liệu (asset cho phép null, thêm `background`,
@@ -122,7 +548,7 @@ sealed class EffectBackground {
 }
 ```
 
-Dùng `sealed class` cùng lý do đã ghi ở `HandAr_App_Expansion_Plan.md` mục 3.1: thêm loại nền
+Dùng `sealed class` cùng lý do đã ghi ở **Phần I** mục 3.1: thêm loại nền
 mới mà quên viết cách vẽ tương ứng thì **lỗi biên dịch ngay**, không đợi runtime.
 
 Ba nhánh cố ý khớp một–một với ba nhánh của `EffectAsset` — ai đã hiểu `EffectAsset` thì không
@@ -558,7 +984,7 @@ Chỉ gồm những việc có tỉ lệ lợi ích/chi phí cao và không rủ
 
 ---
 
-## 7. Phase L — Nền theo từng state
+## 7. Phase L — Nền theo từng state ✅ ĐÃ HOÀN THÀNH (`f51750b`)
 
 > Hiệu ứng đích: **Dịch chuyển tức thời giữa các phòng** (`docs/Design_App_HandAr.md` mục 4).
 > 4 state, mỗi state là một căn phòng: số 1 → phòng khách (tiếng TV), số 2 → phòng tắm (tiếng
@@ -727,7 +1153,38 @@ trong ~150 ms. Thêm sau được mà không phá gì đã có. **Không làm �
 
 ---
 
-## 8. Phase M — Hiệu ứng vẽ bằng canvas
+## 8. Phase M — Hiệu ứng vẽ bằng canvas ⚠️ ĐÃ LÀM M0–M7, CÒN M8–M9
+
+> **Tình trạng:** M0–M7 đã triển khai (`EffectAsset.Procedural`, `HandFrame`, `onHandFrame`,
+> `ProceduralVisual`, `EffectScope`, hiệu ứng `canvas_draw`). **M8 (`handedness`) và M9
+> (`SizeSource`) chưa làm** — chưa có hiệu ứng nào cần tới, làm khi bắt tay vào Gojo / Trái Đất /
+> Hố đen.
+>
+> **Lệch so với kế hoạch:**
+>
+> 1. **Thêm một state thứ ba `idle_skeleton`** dùng `Gestures.anyHandPresent` làm state cuối
+>    danh sách, để khung xương bàn tay luôn được vẽ. Đúng thủ thuật "state mặc định" mà G5 đã
+>    mô tả khi bỏ `idleAsset`.
+> 2. **`isPalmOpen` / `isFist` được viết lại trong `utils/GestureUtils.kt`**: xoè tay từ "≥ 3
+>    ngón duỗi" thành "cả 5 ngón duỗi", nắm tay từ "phủ định của xoè" thành "cả 5 ngón gập".
+>    ⚠️ Hai cử chỉ này **không còn phủ kín mọi khả năng** — bàn tay nửa vời giờ không khớp state
+>    nào. Thay đổi nằm ở `utils/` nhưng ảnh hưởng **toàn bộ 10 hiệu ứng cũ**; phải chạy lại
+>    Checklist B + D, không chỉ test hiệu ứng vẽ canvas.
+> 3. **Nhận diện cử chỉ dồn về `setResult`**: `matchedIndex` được giải đúng một lần cho mỗi kết
+>    quả MediaPipe và lưu vào field `@Volatile`; `onDraw` và thread ghi hình chỉ đọc lại. Trước
+>    đó `resolveMatchedIndex` bị gọi ở cả ba nơi (~85 lần/giây thay vì ~30) và hai thread cùng
+>    ghi `latchedIndex`.
+> 4. **`setActive` cũng chuyển về `setResult`, gọi cho cả hai bộ visual.** Để nó trong `drawFrame`
+>    là một lỗi thật: bộ recording chỉ được vẽ khi đang quay, nên trước lúc bấm Record nó không
+>    nhận được tín hiệu kích hoạt nào — `ClearOnActivate` không bao giờ chạy, model tích luỹ mãi,
+>    và video sẽ hiện lại toàn bộ nét người dùng tưởng đã xoá.
+> 5. **Khung xương gom vào `HandSkeletonRenderer`** (`HandSkeleton.kt`) thay cho hàm rời
+>    `drawHandSkeleton` + ba bộ `Paint` khai riêng ở ba lớp — ba bộ đó đã lệch nhau một chỗ
+>    (`argb(225,225,225,0)` vs `argb(255,255,255,0)`) làm khung xương đổi màu khi đổi trạng thái.
+> 6. **Mọi độ dày nét suy từ `canvas.width`**, không dùng số pixel cố định: canvas ghi hình (~720)
+>    hẹp hơn view live (~1080) nên nét cố định sẽ dày hơn ~1,5 lần trong video — phá đúng cam kết
+>    của M3 và ca nghiệm thu M-b.
+> 7. `canvas_draw` đang mượn tạm `thumbnailRes = R.drawable.stranger_things_monster`.
 
 > Hiệu ứng đích: **Vẽ canvas** (`docs/Design_App_HandAr.md` mục 4). Duỗi ngón trỏ di chuyển →
 > vẽ điểm trắng theo đường ngón tay trên nền đen; nắm tay → xoá hết, phát tiếng xé giấy.
@@ -996,7 +1453,93 @@ M-b và M-e là hai ca không thể bỏ: chúng là lý do tồn tại của M3
 
 ---
 
-## 9. Việc đã bàn nhưng cố ý hoãn
+## 9. Phase N — Dọn nợ của L/M và cấu trúc lại dự án
+
+> Làm **sau khi Phase M chạy ổn**, không chen vào giữa. Cả ba mục dưới đây đều là việc đã biết
+> rõ, không có ẩn số thiết kế nào — nên để dồn lại một đợt, làm gọn trong vài commit tách bạch.
+
+### N1 — Bỏ cấp phát trong đường nóng
+
+`drawFrame` chạy 25 lần/giây trên thread ghi hình (ngân sách 40 ms/frame) và ~60 lần/giây trên
+UI. Mỗi lần gọi hiện đang cấp phát:
+
+| Chỗ | Cấp phát mỗi frame | Cách sửa |
+|---|---|---|
+| `(stateBackgrounds + defaultBackground).filterNotNull().distinct()` | 3 `List` + 1 `Set` | Tính sẵn một lần trong `setEffect`, lưu thành field |
+| `hands.map { … }.average()` ×3 (cx, cy, r) | 3 `List` + boxing sang `Double` | Vòng lặp thủ công cộng dồn, không qua `map`/`average` |
+| `StrokeModel.snapshot()` = `_points.toList()` | copy **toàn bộ** danh sách, ở cả hai instance | Xem N2 |
+| `StaticImageVisual` / `AnimatedGifVisual` / hai background renderer: `Matrix()` | 1 `Matrix` mỗi cái | Đưa `Matrix` thành field, chỉ tính lại khi kích thước canvas đổi |
+
+Hai dòng `hands.map{}` và `Matrix()` có từ trước Phase L/M; hai dòng còn lại là nợ mới. Cả bốn
+đều vi phạm đúng luật M6 #2 mà chính tài liệu này vừa đặt ra, và ăn thẳng vào con số
+"GC làm đứng thread ghi: 0 lần" đang ghi trong `README.md`.
+
+**Quy trình bắt buộc:** đo `RecPerf` trước và sau, máy nguội, mỗi cấu hình đo hai lần để biết
+ngưỡng nhiễu — theo đúng quy ước "đo trước khi kết luận" của dự án.
+
+### N2 — Giới hạn và tăng tốc nét vẽ
+
+`StrokeVisual.onHandFrame` thêm một `PointF` **mỗi lần nhận diện**, kể cả khi ngón tay đứng yên:
+~30 điểm/giây → 5 phút vẽ liên tục là ~9.000 điểm. Mỗi frame lại dựng lại toàn bộ `Path` từ
+đầu, sau khi đã copy cả danh sách.
+
+Ba việc, làm cùng nhau:
+
+1. **Lọc theo khoảng cách tối thiểu** — ngón tay chưa đi đủ xa (ví dụ < 0,5% chiều rộng khung)
+   thì không thêm điểm. Vừa chặn điểm trùng, vừa làm nét mượt hơn.
+2. **Trần cứng số điểm**, bỏ điểm cũ nhất khi vượt.
+3. **Lưu điểm trong `FloatArray` (x, y xen kẽ) + số đếm** thay cho `MutableList<PointF>`, và
+   **cache `Path` đã dựng** — chỉ dựng lại khi số điểm hoặc phép chiếu thay đổi. Hết cả copy
+   lẫn dựng lại mỗi frame.
+
+### N3 — Cấu trúc lại package
+
+`effect/` hiện chứa hơn 20 file lẫn lộn bốn nhóm khái niệm khác nhau (mô tả hiệu ứng, cử chỉ,
+cách vẽ, nền), và `EffectRepository.kt` đã hơn 300 dòng và còn dài ra mỗi lần thêm hiệu ứng.
+`OverlayView.kt`, `SoundEffectPlayer.kt`, `BgmPlayer.kt` thì nằm trần ở gốc package cùng
+`MainActivity`.
+
+Hướng đề xuất:
+
+```text
+com/example/handar/
+├── MainActivity.kt
+├── audio/        SoundEffectPlayer, BgmPlayer
+├── effect/
+│   ├── model/        EffectDefinition, EffectState, EffectAsset, EffectBackground,
+│   │                 EffectBgm, StateMode (+ SizeSource khi làm M9)
+│   ├── gesture/      GestureRecognizer, Gestures, GestureUtils (chuyển từ utils/ về đây)
+│   ├── visual/       EffectVisual, HandFrame, EffectScope, ProceduralVisual, factory
+│   │   ├── image/    StaticImageVisual, AnimatedGifVisual, SpriteSheetVisual
+│   │   └── canvas/   StrokeVisual, StrokeModel, ClearOnActivate, SkeletonOnlyVisual, HandSkeleton
+│   ├── background/   BackgroundRenderer + 3 renderer + factory
+│   ├── catalog/      mỗi hiệu ứng phức tạp một file trả về EffectDefinition
+│   ├── EffectRepository.kt        chỉ còn danh sách, không còn khai chi tiết
+│   └── HandLandmarkerProvider.kt
+├── recording/    giữ nguyên, không đụng
+├── ui/           giữ nguyên (chia theo màn hình đã hợp lý)
+└── utils/        chỉ còn thứ thật sự dùng chung: AudioUtils, FormatUtils, logger
+```
+
+**Bốn luật cho đợt cấu trúc lại này:**
+
+1. **Chỉ di chuyển file và đổi `package`/`import`. Không sửa một dòng logic nào trong cùng commit.**
+   Nếu thấy code cần sửa trong lúc chuyển, ghi lại và làm ở commit sau — diff phải đọc được, nếu
+   không thì mất luôn khả năng soát. Đây chính là bài học "khi refactor: đừng đọc, hãy diff".
+2. **`nav_graph.xml` khai tên class đầy đủ** (`android:name="com.example.handar.ui…"`). Đề xuất
+   trên **không** động tới `ui/`, nhưng nếu có đổi thì phải sửa nav graph — và đây là loại lỗi
+   chỉ nổ lúc chạy, không bị compiler bắt.
+3. **`GestureUtils` chuyển từ `utils/` sang `effect/gesture/`** là thay đổi có ảnh hưởng rộng
+   nhất trong danh sách (nhiều file import). Làm riêng một commit.
+4. **Sau khi chuyển xong: chạy lại toàn bộ Checklist A–H.** Một đợt đổi cấu trúc mà build xanh
+   không chứng minh được gì cả.
+
+`app/src/main/keepRules/rules.keep` hiện chỉ có comment mẫu, không khai tên class nào — nên
+việc đổi package không ảnh hưởng R8. Kiểm tra lại file này nếu sau này có thêm keep rule thật.
+
+---
+
+## 10. Việc đã bàn nhưng cố ý hoãn
 
 Ghi lại để lần sau không phải bàn lại từ đầu:
 
@@ -1011,7 +1554,7 @@ Ghi lại để lần sau không phải bàn lại từ đầu:
 
 ---
 
-## 10. Rủi ro lớn nhất
+## 11. Rủi ro lớn nhất
 
 > **Cập nhật sau khi J xong:** phần dưới đã được nghiệm thu — `AudioMixer` chỉ nhận thêm ba
 > trường và một nguồn PCM trong `mix()`, không có gì liên quan tới PTS bị đụng. Giữ lại nguyên

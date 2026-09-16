@@ -24,7 +24,8 @@ class SpriteSheetVisual(
     private val src = Rect()
     private val dst = RectF()
 
-    @Volatile private var activatedAtMs = 0L
+    @Volatile
+    private var activatedAtMs = 0L
 
     init {
         require(sheet.width % asset.columns == 0 && sheet.height % asset.rows == 0) {
@@ -37,11 +38,12 @@ class SpriteSheetVisual(
     }
 
     override fun setActive(active: Boolean) {
-        if (active) { if (activatedAtMs == 0L) activatedAtMs = SystemClock.elapsedRealtime() }
-        else activatedAtMs = 0L
+        if (active) {
+            if (activatedAtMs == 0L) activatedAtMs = SystemClock.elapsedRealtime()
+        } else activatedAtMs = 0L
     }
 
-    override fun draw(canvas: Canvas, cx: Float, cy: Float, r: Float) {
+    override fun draw(canvas: Canvas, frame: HandFrame) {
         val startedAt = activatedAtMs
         val elapsed = if (startedAt == 0L) 0L else SystemClock.elapsedRealtime() - startedAt
         val frameIndex = ((elapsed / asset.frameDurationMs) % asset.frameCount).toInt()
@@ -55,15 +57,14 @@ class SpriteSheetVisual(
             (row + 1) * frameH
         )
 
-        val scale = r / max(frameW, frameH).toFloat()
-
+        val scale = frame.r / max(frameW, frameH).toFloat()
         val halfW = (frameW * scale) / 2f
         val halfH = (frameH * scale) / 2f
         dst.set(
-            cx - halfW,
-            cy - halfH,
-            cx + halfW,
-            cy + halfH
+            frame.cx - halfW,
+            frame.cy - halfH,
+            frame.cx + halfW,
+            frame.cy + halfH
         )
         canvas.drawBitmap(sheet, src, dst, paint)
     }

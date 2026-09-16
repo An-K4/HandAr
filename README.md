@@ -251,7 +251,8 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 |---|---|
 | `Camera_X_Hand_Landmarker.md` | Tài liệu gốc & đầy đủ nhất: 21 điểm mốc bàn tay, toàn bộ công thức hình học, CameraX, Canvas, kiến trúc mix audio/video, refactor hiệu năng, nhận diện cử chỉ 2 tay — kèm danh sách **cạm bẫy** đã gặp thật |
 | `HandAr_Refactor_Plan.md` | Kế hoạch Phase 0–5 của pipeline ghi hình (resolution, bitrate, bỏ mic, tách thread, PTS baseline) |
-| `HandAr_App_Expansion_Plan.md` | Kế hoạch Phase A–F đưa app từ 1 màn thành 5 màn; thiết kế `EffectDefinition` & nav graph |
+| `HandAr_Plan.md` | Kế hoạch Phase A–N gộp thành một mạch: **Phần I** (A–F) đưa app từ 1 màn thành 5 màn + thiết kế `EffectDefinition` & nav graph; **Phần II** (G–N) nền theo hiệu ứng/state, nhạc nền, an toàn dữ liệu khi quay, hiệu ứng vẽ bằng canvas, và đợt cấu trúc lại package sắp tới |
+| `Design_App_HandAr.md` | Tài liệu thiết kế sản phẩm: app tham khảo, danh sách màn hình còn thiếu, 10 hiệu ứng đề xuất |
 | `Fragment_Review_Checklist.md` | Checklist tự soát mỗi khi thêm/sửa Fragment: bảng cấp phát ↔ giải phóng, 3 câu hỏi cho mỗi khối code, thứ tự trong `onDestroyView` |
 | `Asset_Format_Guidelines.md` | Quy chuẩn PNG / GIF / sprite sheet / WAV, mỗi quy tắc gắn với dòng code sinh ra nó |
 | `Perf_Notes.md` | Kết quả điều tra hiệu năng, quy trình đo chuẩn, thí nghiệm GIF vs sprite sheet |

@@ -5,10 +5,15 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.View
+import com.example.handar.effect.AnchorSource
 import com.example.handar.effect.BackgroundRenderer
 import com.example.handar.effect.EffectBackground
 import com.example.handar.effect.EffectDefinition
+import com.example.handar.effect.EffectScope
 import com.example.handar.effect.EffectVisual
+import com.example.handar.effect.HandFrame
+import com.example.handar.effect.HandSide
+import com.example.handar.effect.SizeSource
 import com.example.handar.effect.StateMode
 import com.example.handar.effect.createBackgroundRenderer
 import com.example.handar.effect.createEffectVisual
@@ -36,13 +41,36 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     @Volatile
     private var latchedIndex = -1
 
+    private val gestureFrame = HandFrame()
+    private val liveDrawFrame = HandFrame()
+    private val recordingDrawFrame = HandFrame()
+
     fun setEffect(effect: EffectDefinition) {
         releaseBackgrounds()
         this.effect = effect
+
+        val liveScope = EffectScope()
+        val recordingScope = EffectScope()
         liveVisuals =
-            effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) } }
+            effect.states.map { st ->
+                st.asset?.let {
+                    createEffectVisual(
+                        context!!,
+                        it,
+                        liveScope
+                    )
+                }
+            }
         recordingVisuals =
-            effect.states.map { st -> st.asset?.let { createEffectVisual(context!!, it) } }
+            effect.states.map { st ->
+                st.asset?.let {
+                    createEffectVisual(
+                        context!!,
+                        it,
+                        recordingScope
+                    )
+                }
+            }
 
         val liveCache = HashMap<EffectBackground, BackgroundRenderer>()
         val recordingCache = HashMap<EffectBackground, BackgroundRenderer>()
@@ -87,6 +115,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         this.liveCache = liveCache
         this.recordingCache = recordingCache
         latchedIndex = -1
+        matchedIndex = -1
     }
 
     private fun releaseBackgrounds() {
@@ -94,10 +123,32 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         recordingCache?.values?.forEach { it.release() }
     }
 
+    /**
+     * Nhận diện cử chỉ chạy đúng MỘT lần cho mỗi kết quả MediaPipe, ở đây.
+     * `onDraw` (live) và thread ghi hình chỉ đọc lại kết quả này — không tự nhận diện lại:
+     * vừa đỡ ~55 lần nhận diện thừa mỗi giây, vừa bỏ được chuyện hai thread cùng ghi `latchedIndex`.
+     */
+    @Volatile
+    private var matchedIndex = -1
+
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
         result = handResult
         this.imgWidth = imgWidth
         this.imgHeight = imgHeight
+
+        val hands = handResult.landmarks()
+        val matched = resolveMatchedIndex(hands)
+        matchedIndex = matched
+
+        liveVisuals.forEachIndexed { index, visual -> visual?.setActive(index == matched) }
+        recordingVisuals.forEachIndexed { index, visual -> visual?.setActive(index == matched) }
+
+        if (matched != -1 && hands.isNotEmpty()) {
+            gestureFrame.hands = hands
+            liveVisuals.getOrNull(matched)?.onHandFrame(gestureFrame)
+            recordingVisuals.getOrNull(matched)?.onHandFrame(gestureFrame)
+        }
+
         invalidate()
     }
 
@@ -121,7 +172,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     ) {
         val currentEffect = effect ?: return
         val hands = handResult?.landmarks() ?: emptyList()
-        val matchedIndex = resolveMatchedIndex(hands)
+        val matchedIndex = this.matchedIndex
 
         val stateBackgrounds = if (forRecording) recordingStateBackgrounds else liveStateBackgrounds
         val defaultBackground =
@@ -135,28 +186,96 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         if (hands.isEmpty() || matchedIndex == -1) return
 
         val visuals = if (forRecording) recordingVisuals else liveVisuals
+        val frame = if (forRecording) recordingDrawFrame else liveDrawFrame
+
         val targetW = if (forRecording) canvas.width.toFloat() else width.toFloat()
         val targetH = if (forRecording) canvas.height.toFloat() else height.toFloat()
         val localScale = max(targetW / imgWidth, targetH / imgHeight)
         val localOffsetX = (targetW - imgWidth * localScale) / 2f
         val localOffsetY = (targetH - imgHeight * localScale) / 2f
 
-        val normMidX = hands.map { it[9].x() }.average().toFloat()
-        val normMidY = hands.map { it[9].y() }.average().toFloat()
-        val normalizeX = if (mirrorX) 1f - normMidX else normMidX
-        val cx = (normalizeX * imgWidth * localScale) + localOffsetX
-        val cy = (normMidY * imgHeight * localScale) + localOffsetY
+        frame.hands = hands
+        frame.handedness = handResult?.handednesses()?.map { categories ->
+            val raw = categories.firstOrNull()?.categoryName()
+            val label = if (mirrorX) when (raw) {
+                "Left" -> "Right"; "Right" -> "Left"; else -> raw
+            } else raw
+            when (label) {
+                "Left" -> HandSide.Left
+                "Right" -> HandSide.Right
+                else -> HandSide.Unknown
+            }
+        } ?: emptyList()
+        frame.setProjection(mirrorX, imgWidth, imgHeight, localScale, localOffsetX, localOffsetY)
 
-        val r = hands.map { landmark ->
-            val wrist = landmark[0]
-            val middleMcp = landmark[9]
-            val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
-            val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
-            hypot(dx.toDouble(), dy.toDouble()).toFloat()
-        }.average().toFloat()
+        val anchorSource =
+            currentEffect.states.getOrNull(matchedIndex)?.anchorSource ?: AnchorSource.PalmCenter
+        when (anchorSource) {
+            AnchorSource.PalmCenter -> {
+                val normMidX = hands.map { it[9].x() }.average().toFloat()
+                val normMidY = hands.map { it[9].y() }.average().toFloat()
+                frame.cx = frame.px(normMidX)
+                frame.cy = frame.py(normMidY)
+            }
 
-        visuals.forEachIndexed { index, visual -> visual?.setActive(index == matchedIndex) }
-        visuals[matchedIndex]?.draw(canvas, cx, cy, r)
+            AnchorSource.PinchMidpoint -> {
+                val normMidX = hands.map { (it[4].x() + it[8].x()) / 2f }.average().toFloat()
+                val normMidY = hands.map { (it[4].y() + it[8].y()) / 2f }.average().toFloat()
+                frame.cx = frame.px(normMidX)
+                frame.cy = frame.py(normMidY)
+            }
+
+            AnchorSource.IndexFingertip -> {
+                val normMidX = hands.map { it[8].x() }.average().toFloat()
+                val normMidY = hands.map { it[8].y() }.average().toFloat()
+                frame.cx = frame.px(normMidX)
+                frame.cy = frame.py(normMidY)
+            }
+
+            AnchorSource.TwoHandMidpoint -> {
+                if (hands.size >= 2) {
+                    val normMidX = (hands[0][9].x() + hands[1][9].x()) / 2f
+                    val normMidY = (hands[0][9].y() + hands[1][9].y()) / 2f
+                    frame.cx = frame.px(normMidX)
+                    frame.cy = frame.py(normMidY)
+                } else {
+                    frame.cx = frame.px(hands[0][9].x())
+                    frame.cy = frame.py(hands[0][9].y())
+                }
+            }
+        }
+
+        val sizeSource =
+            currentEffect.states.getOrNull(matchedIndex)?.sizeSource ?: SizeSource.PalmRadius
+        frame.r = when (sizeSource) {
+            SizeSource.PalmRadius -> hands.map { landmark ->
+                val wrist = landmark[0]
+                val middleMcp = landmark[9]
+                val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
+                val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
+                hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            }.average().toFloat()
+
+            SizeSource.PinchDistance -> hands.map { landmarks ->
+                val thumbTip = landmarks[4]
+                val indexTip = landmarks[8]
+                val dx = (thumbTip.x() - indexTip.x()) * imgWidth * localScale
+                val dy = (thumbTip.y() - indexTip.y()) * imgHeight * localScale
+                hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            }.average().toFloat()
+
+            SizeSource.TwoHandDistance -> {
+                if (hands.size >= 2) {
+                    val a = hands[0][9]
+                    val b = hands[1][9]
+                    val dx = (a.x() - b.x()) * imgWidth * localScale
+                    val dy = (a.y() - b.y()) * imgHeight * localScale
+                    hypot(dx.toDouble(), dy.toDouble()).toFloat()
+                } else 0f
+            }
+        }
+
+        visuals.getOrNull(matchedIndex)?.draw(canvas, frame)
     }
 
     @SuppressLint("DrawAllocation")
