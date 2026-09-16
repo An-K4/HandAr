@@ -6,8 +6,9 @@
 > **Mục A-F**: kiểm tra pipeline ghi hình (có từ Phase 0-5, không được phép hỏng sau mỗi lần refactor).
 > **Mục G-H**: thêm từ Phase B — điều hướng giữa màn hình và vòng đời/leak của Fragment. Đây là lớp bug mới xuất hiện kể từ khi app có nhiều màn; chúng **không** biểu hiện ở lần chạy đầu tiên mà chỉ lộ ra sau nhiều lần vào/ra màn, nên phải test riêng.
 > **Mục I**: thêm từ đợt mở rộng `Gestures` (1 tay + 2 tay) — xem chi tiết công thức/lý do tại `Camera_X_Hand_Landmarker.md` Mục 11. Chạy mục này sau bất kỳ lần nào sửa `GestureRecognizer.kt`/`GestureUtils.kt`/`EffectRepository.kt`.
+> **Mục J-L**: thêm từ Phase M (hiệu ứng procedural/canvas, `SizeSource`/`AnchorSource`/`handedness`, và race condition `AnimatedGifVisual` khi ghi hình). Chạy sau bất kỳ lần nào sửa `HandFrame.kt`, `EffectScope.kt`, `ProceduralVisual.kt`, `OverlayView.kt` (phần `setResult`/`drawFrame`), hoặc thêm effect procedural/anchor-size mới.
 >
-> Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi. Chạy Mục I sau mỗi lần thêm/sửa cử chỉ.
+> Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi. Chạy Mục I sau mỗi lần thêm/sửa cử chỉ. Chạy Mục J-L sau mỗi lần đụng tới hạ tầng Phase M nói trên.
 
 ---
 
@@ -224,11 +225,68 @@ git checkout main && git stash pop
 |---|---|---|
 | I19 | Grep `Log.d` trong `GestureRecognizer.kt`/`GestureUtils.kt` sau khi hoàn tất debug 1 cử chỉ mới | Không còn dòng nào sót lại — log chạy mỗi frame (25-30 lần/giây) không gây lỗi chức năng nhưng ảnh hưởng hiệu năng nếu để sót trong bản release |
 
+### I.8. Nắm tay / xòe tay — đủ 5 điều kiện, không suy luận qua phủ định hay đếm ngưỡng (Phase M)
+
+> Chống regression cho bug: `singleHandFist`/`bothHandsFist` từng định nghĩa bằng `!isPalmOpen(...)`, khiến cử chỉ trỏ tay cũng bị tính nhầm là nắm tay; đồng thời `isPalmOpen` cũ (ngưỡng ≥3/4) cũng tính nhầm cử chỉ "3 ngón" là xòe tay.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I20 | Chỉ ngón trỏ (☝️) trên effect dùng `singleHandFist` (vd `egg`, `weather`) | KHÔNG bị nhận nhầm là nắm tay |
+| I21 | Ba ngón (trỏ+giữa+áp út duỗi) trên effect dùng `singleHandPalmOpen` | KHÔNG bị nhận nhầm là xòe tay |
+| I22 | Nắm tay thật (cả 5 ngón kể cả ngón cái gập) | Vẫn kích hoạt đúng `singleHandFist` — xác nhận không bị thắt quá chặt tới mức không trigger được |
+| I23 | Xòe tay thật (cả 5 ngón kể cả ngón cái duỗi) | Vẫn kích hoạt đúng `singleHandPalmOpen` — nếu KHÓ trigger hơn hẳn trước đây (đặc biệt do ngón cái), xem ghi chú "công thức ngón cái chưa chặt hoàn toàn" ở `GestureUtils.kt`, cân nhắc nới ngưỡng riêng cho ngón cái thay vì quay lại kiểu đếm cũ |
+
+### I.9. Cử chỉ catch-all (`anyHandPresent`) — thứ tự ưu tiên
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| I24 | Effect `canvas_draw`: đưa tay vào khung hình nhưng KHÔNG làm cử chỉ trỏ/nắm nào | Chỉ khung xương hiện, không nét vẽ, không tiếng — xác nhận state `idle_skeleton` (catch-all) hoạt động đúng vai trò mặc định |
+| I25 | Effect `canvas_draw`: chỉ ngón trỏ (state `stroke`) | Nét vẽ + khung xương cùng hiện — xác nhận state cụ thể vẫn được ưu tiên trước catch-all nhờ đúng thứ tự khai báo trong `states` |
+| I26 | Bất kỳ effect nào khác dùng `anyHandPresent`/gesture luôn-đúng tương tự làm catch-all trong tương lai | Đảm bảo state đó luôn được khai **cuối cùng** trong danh sách `states` — nếu đặt trước, nó sẽ che mất mọi cử chỉ khác |
+
+---
+
+## J. Hiệu ứng Procedural / mô hình dùng chung giữa live-recording (Phase M)
+
+> Riêng cho hiệu ứng dựng bằng code (`EffectAsset.Procedural`) — vd "Vẽ canvas". Chạy sau bất kỳ lần nào sửa `HandFrame.kt`, `EffectScope.kt`, `ProceduralVisual.kt`, hoặc bất kỳ `EffectVisual` procedural nào.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| J1 | Chỉ ngón trỏ di chuyển vẽ 1 nét, xem live | Nét bám đúng đầu ngón trỏ, mượt, không giật |
+| J2 | Nắm tay lại | Nét biến mất ngay (model bị clear) |
+| J3 | Vẽ nét mới sau khi xóa | Nét mới vẽ đúng, không dính tàn dư nét cũ |
+| J4 | **Vẽ nét → đợi vài giây → bấm Record → dừng → xem video** | Video phải có nét đã vẽ **trước** khi bấm Record, ngay từ khung đầu tiên (giống nguyên tắc D1, áp dụng cho model dùng chung qua `EffectScope`) |
+| J5 | **Vẽ → xóa (nắm tay) → vẽ lại → bấm Record → dừng → xem video** | Video **chỉ** có nét vẽ **sau lần xóa gần nhất** — nét đã xóa KHÔNG được hiện lại trong video (bug thật đã gặp: xóa chỉ tác động lên `StrokeModel` phía live nếu code viết sai chỗ gọi `setActive`) |
+| J6 | Vẽ 1 nét dài băng ngang toàn bộ khung hình, bấm Record giữa chừng lúc đang vẽ, tiếp tục vẽ nốt, dừng, xem video | Nét trong video liền mạch, không đứt đoạn hay lệch hình dạng so với nét đã thấy lúc live (xác nhận model theo tọa độ normalized dùng đúng, không lệch tỉ lệ giữa 2 canvas) |
+| J7 | Vào camera → Back → vào lại effect `canvas_draw` | `StrokeModel` phải **rỗng** lúc vào lại — xác nhận `EffectScope` được tạo mới mỗi lần `setEffect()`, không dùng chung với phiên trước |
+
+## K. Anchor/Size source & handedness — Trái đất, Hố đen, Gojo (Phase M)
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| K1 | Effect "Trái đất": chụm ngón cái+trỏ lại gần rồi tách xa | Kích thước ảnh to/nhỏ theo đúng khoảng cách 2 đầu ngón, tâm ảnh luôn ở trung điểm 2 ngón, KHÔNG theo độ mở cả bàn tay như hiệu ứng khác |
+| K2 | Effect "Hố đen": 2 tay, kéo ra xa/lại gần nhau | Kích thước hiệu ứng to/nhỏ theo khoảng cách 2 tay, tâm hiệu ứng luôn ở trung điểm 2 tay |
+| K3 | Effect "Hố đen": chỉ đưa 1 tay vào khung hình | Không crash (nhánh `else` phải có giá trị mặc định hợp lệ, không index-out-of-bounds khi truy `hands[1]`) |
+| K4 | Effect "Gojo": chỉ ngón trỏ mỗi tay, đưa cả 2 tay vào khung hình, KHÔNG bắt chéo tay | Tay bên trái người dùng nhìn thấy ra quả cầu 1 màu, tay phải ra màu còn lại — đúng màu như thiết kế, KHÔNG bị đảo màu |
+| K5 | Effect "Gojo": bắt chéo 2 tay qua nhau (tay trái đưa sang phải, tay phải đưa sang trái) | Màu quả cầu vẫn bám đúng theo **tay thật** (trái/phải theo người dùng), KHÔNG đổi màu theo vị trí trái/phải trên màn hình — đây là phép thử trực tiếp cho phần đảo `handedness` theo `mirrorX` |
+| K6 | Effect "Gojo": chạm 2 đầu ngón trỏ vào nhau | Phát hoạt ảnh hợp nhất, xong chuyển sang ảnh tĩnh quả cầu tím |
+| K7 | Lặp lại K4-K6 **trong lúc đang ghi hình**, xem lại video | Kết quả giống hệt live — đặc biệt màu tay không bị đảo trong video dù đã qua `mirrorX` |
+
+## L. Race điều kiện thread — AnimatedGifVisual trong lúc ghi hình (Phase M, chống regression)
+
+> Riêng cho bug đã fix: `setActive()` từng gọi `drawable.start()/stop()` trực tiếp từ main thread trong khi `draw()` của bản ghi chạy trên thread ghi hình — sửa bằng cờ `desiredActive` áp dụng trong `renderToBuffer()`. Test này **chỉ** lộ ra khi đang ghi hình thật, xem live không đủ.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| L1 | Chọn effect dùng `AnimatedGif` (`cat_meme_1`, `weather`, `rock_on_ily`, `mood_meter`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
+| L2 | Effect "Gojo": chạm 2 tay để trigger hoạt ảnh hợp nhất **trong lúc đang quay**, lặp lại vài lần | Hoạt ảnh phát trọn vẹn mỗi lần trong video, không bị đứng hình/giật ở khung đầu hoạt ảnh |
+| L3 | Bất kỳ effect `AnimatedGif` nào: quay 1 clip dài (~60s), đổi cử chỉ liên tục suốt clip | App không crash, không ANR — nếu crash log có `IllegalStateException`/liên quan `AnimatedImageDrawable`, đây là regression của đúng race đã sửa |
+
 ---
 
 ## Cách ghi kết quả
 
-Với mỗi dòng test, đánh dấu: ✅ Pass / ❌ Fail / ⚠️ Pass có lưu ý. Nếu Fail, ghi lại: model máy, số liệu `VideoStatsLogger` (nếu có), và mô tả hiện tượng — quay lại đúng phase liên quan trong `HandAr_Refactor_Plan.md` (mục A-F) hoặc `HandAr_App_Expansion_Plan.md` (mục G-H) để xử lý tiếp.
+Với mỗi dòng test, đánh dấu: ✅ Pass / ❌ Fail / ⚠️ Pass có lưu ý. Nếu Fail, ghi lại: model máy, số liệu `VideoStatsLogger` (nếu có), và mô tả hiện tượng — quay lại đúng phase liên quan trong `HandAr_Refactor_Plan.md` (Phase 0–5) hoặc `HandAr_Plan.md` (Phase A–N) để xử lý tiếp.
 
 Riêng mục **G-H**, khi Fail hãy đối chiếu với `Fragment_Review_Checklist.md` trước khi sửa — mỗi kiểu hỏng ở hai mục này đều ứng với đúng một mục trong checklist đó.
 
