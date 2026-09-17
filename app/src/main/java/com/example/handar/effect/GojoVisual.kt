@@ -8,9 +8,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import com.example.handar.R
 import com.example.handar.effect.model.EffectAsset
-import com.example.handar.utils.isPointing
-import com.example.handar.utils.palmLength
-import com.example.handar.utils.pointDistance
+import com.example.handar.effect.gesture.isPointing
+import com.example.handar.effect.gesture.palmLength
+import com.example.handar.effect.gesture.pointDistance
 import kotlin.math.max
 
 class GojoVisual(

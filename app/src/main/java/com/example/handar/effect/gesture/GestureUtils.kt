@@ -1,4 +1,4 @@
-package com.example.handar.utils
+package com.example.handar.effect.gesture
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import kotlin.math.hypot

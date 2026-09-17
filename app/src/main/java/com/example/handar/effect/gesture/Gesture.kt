@@ -1,20 +1,5 @@
 package com.example.handar.effect.gesture
 
-import com.example.handar.utils.isFist
-import com.example.handar.utils.isIndexCurled
-import com.example.handar.utils.isIndexExtended
-import com.example.handar.utils.isMiddleExtended
-import com.example.handar.utils.isPalmOpen
-import com.example.handar.utils.isPinkyCurled
-import com.example.handar.utils.isPinkyExtended
-import com.example.handar.utils.isPointing
-import com.example.handar.utils.isRingExtended
-import com.example.handar.utils.isThumbExtended
-import com.example.handar.utils.palmLength
-import com.example.handar.utils.pointDistance
-import com.example.handar.utils.segmentsCross
-import com.example.handar.utils.thumbIndexPinchRatio
-
 object Gestures {
     // MỘT TAY
     /** cử chỉ bất kỳ, miễn có tay trong màn hình — dùng làm state cuối cùng trong danh sách khi cần
