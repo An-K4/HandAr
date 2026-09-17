@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.os.SystemClock
+import com.example.handar.effect.model.EffectAsset
 import kotlin.math.max
 
 class SpriteSheetVisual(

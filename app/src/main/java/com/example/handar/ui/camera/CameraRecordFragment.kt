@@ -35,10 +35,10 @@ import com.example.handar.OverlayView
 import com.example.handar.R
 import com.example.handar.audio.SoundEffectPlayer
 import com.example.handar.databinding.FragmentCameraRecordBinding
-import com.example.handar.effect.EffectDefinition
+import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
-import com.example.handar.effect.StateMode
+import com.example.handar.effect.model.StateMode
 import com.example.handar.recording.VideoRecorder
 import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.loadWavPcm

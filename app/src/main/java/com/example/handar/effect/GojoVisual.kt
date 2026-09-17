@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import com.example.handar.R
+import com.example.handar.effect.model.EffectAsset
 import com.example.handar.utils.isPointing
 import com.example.handar.utils.palmLength
 import com.example.handar.utils.pointDistance

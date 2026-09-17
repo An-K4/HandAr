@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.model
 
 data class EffectDefinition(
     val id: String,

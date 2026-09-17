@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.model
 
 /** quyết định khoảng cách để tính bán kính r cho 1 state */
 enum class SizeSource {

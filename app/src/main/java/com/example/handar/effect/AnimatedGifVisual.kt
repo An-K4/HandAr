@@ -11,6 +11,7 @@ import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.Drawable
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withSave
+import com.example.handar.effect.model.EffectAsset
 import kotlin.math.min
 
 class AnimatedGifVisual(context: Context, private val asset: EffectAsset.AnimatedGif) :

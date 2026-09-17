@@ -2,6 +2,7 @@ package com.example.handar.effect
 
 import android.content.Context
 import android.graphics.Canvas
+import com.example.handar.effect.model.EffectBackground
 
 interface BackgroundRenderer {
     fun draw(canvas: Canvas)

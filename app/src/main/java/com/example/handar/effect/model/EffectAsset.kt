@@ -1,6 +1,8 @@
-package com.example.handar.effect
+package com.example.handar.effect.model
 
 import android.content.Context
+import com.example.handar.effect.EffectScope
+import com.example.handar.effect.EffectVisual
 
 sealed class EffectAsset {
     data class StaticImage(val resId: Int) : EffectAsset()

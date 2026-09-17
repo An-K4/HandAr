@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.handar.databinding.ItemEffectBinding
-import com.example.handar.effect.EffectDefinition
+import com.example.handar.effect.model.EffectDefinition
 
 class EffectAdapter(
     private val items: List<EffectDefinition>,

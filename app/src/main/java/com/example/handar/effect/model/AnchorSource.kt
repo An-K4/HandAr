@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.model
 
 /** quyết định tâm asset cho một state sắp vẽ là ở đâu. */
 enum class AnchorSource {

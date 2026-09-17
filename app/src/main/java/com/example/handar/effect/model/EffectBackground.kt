@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.model
 
 sealed class EffectBackground {
     data class Solid(val colorRes: Int) : EffectBackground()
