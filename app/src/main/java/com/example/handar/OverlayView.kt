@@ -35,6 +35,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
 
     private var liveStateBackgrounds: List<BackgroundRenderer?> = emptyList()
     private var recordingStateBackgrounds: List<BackgroundRenderer?> = emptyList()
+    private var liveAllBackgrounds: List<BackgroundRenderer> = emptyList()
+    private var recordingAllBackgrounds: List<BackgroundRenderer> = emptyList()
     private var liveDefaultBackground: BackgroundRenderer? = null
     private var recordingDefaultBackground: BackgroundRenderer? = null
 
@@ -111,6 +113,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
                 )
             }
         }
+        liveAllBackgrounds = (liveStateBackgrounds + liveDefaultBackground).filterNotNull().distinct()
+        recordingAllBackgrounds = (recordingStateBackgrounds + recordingDefaultBackground).filterNotNull().distinct()
 
         this.liveCache = liveCache
         this.recordingCache = recordingCache
@@ -180,7 +184,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         val background = matchedIndex.takeIf { it != -1 }?.let { stateBackgrounds.getOrNull(it) }
             ?: defaultBackground
         background?.draw(canvas)
-        val allBackgrounds = (stateBackgrounds + defaultBackground).filterNotNull().distinct()
+        val allBackgrounds = if (forRecording) recordingAllBackgrounds else liveAllBackgrounds
         allBackgrounds.forEach { it.setActive(it === background) }
 
         if (hands.isEmpty() || matchedIndex == -1) return
@@ -212,24 +216,28 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             currentEffect.states.getOrNull(matchedIndex)?.anchorSource ?: AnchorSource.PalmCenter
         when (anchorSource) {
             AnchorSource.PalmCenter -> {
-                val normMidX = hands.map { it[9].x() }.average().toFloat()
-                val normMidY = hands.map { it[9].y() }.average().toFloat()
-                frame.cx = frame.px(normMidX)
-                frame.cy = frame.py(normMidY)
+                var sumX = 0f
+                var sumY = 0f
+                for (h in hands) {
+                    sumX += h[9].x()
+                    sumY += h[9].y()
+                }
+                frame.cx = frame.px(sumX / hands.size)
+                frame.cy = frame.py(sumY / hands.size)
             }
 
             AnchorSource.PinchMidpoint -> {
-                val normMidX = hands.map { (it[4].x() + it[8].x()) / 2f }.average().toFloat()
-                val normMidY = hands.map { (it[4].y() + it[8].y()) / 2f }.average().toFloat()
-                frame.cx = frame.px(normMidX)
-                frame.cy = frame.py(normMidY)
+                var sumX = 0f; var sumY = 0f
+                for (h in hands) { sumX += (h[4].x() + h[8].x()) / 2f; sumY += (h[4].y() + h[8].y()) / 2f }
+                frame.cx = frame.px(sumX / hands.size)
+                frame.cy = frame.py(sumY / hands.size)
             }
 
             AnchorSource.IndexFingertip -> {
-                val normMidX = hands.map { it[8].x() }.average().toFloat()
-                val normMidY = hands.map { it[8].y() }.average().toFloat()
-                frame.cx = frame.px(normMidX)
-                frame.cy = frame.py(normMidY)
+                var sumX = 0f; var sumY = 0f
+                for (h in hands) { sumX += h[8].x(); sumY += h[8].y() }
+                frame.cx = frame.px(sumX / hands.size)
+                frame.cy = frame.py(sumY / hands.size)
             }
 
             AnchorSource.TwoHandMidpoint -> {
@@ -248,21 +256,27 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         val sizeSource =
             currentEffect.states.getOrNull(matchedIndex)?.sizeSource ?: SizeSource.PalmRadius
         frame.r = when (sizeSource) {
-            SizeSource.PalmRadius -> hands.map { landmark ->
-                val wrist = landmark[0]
-                val middleMcp = landmark[9]
-                val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
-                val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
-                hypot(dx.toDouble(), dy.toDouble()).toFloat()
-            }.average().toFloat()
+            SizeSource.PalmRadius -> {
+                var sum = 0.0
+                for (landmark in hands) {
+                    val wrist = landmark[0]; val middleMcp = landmark[9]
+                    val dx = (wrist.x() - middleMcp.x()) * imgWidth * localScale
+                    val dy = (wrist.y() - middleMcp.y()) * imgHeight * localScale
+                    sum += hypot(dx.toDouble(), dy.toDouble())
+                }
+                (sum / hands.size).toFloat()
+            }
 
-            SizeSource.PinchDistance -> hands.map { landmarks ->
-                val thumbTip = landmarks[4]
-                val indexTip = landmarks[8]
-                val dx = (thumbTip.x() - indexTip.x()) * imgWidth * localScale
-                val dy = (thumbTip.y() - indexTip.y()) * imgHeight * localScale
-                hypot(dx.toDouble(), dy.toDouble()).toFloat()
-            }.average().toFloat()
+            SizeSource.PinchDistance -> {
+                var sum = 0.0
+                for (landmark in hands) {
+                    val thumbTip = landmark[4]; val indexTip = landmark[8]
+                    val dx = (thumbTip.x() - indexTip.x()) * imgWidth * localScale
+                    val dy = (thumbTip.y() - indexTip.y()) * imgHeight * localScale
+                    sum += hypot(dx.toDouble(), dy.toDouble())
+                }
+                (sum / hands.size).toFloat()
+            }
 
             SizeSource.TwoHandDistance -> {
                 if (hands.size >= 2) {

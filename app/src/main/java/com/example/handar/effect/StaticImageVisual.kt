@@ -13,12 +13,14 @@ class StaticImageVisual(context: Context, resId: Int) : EffectVisual {
         BitmapFactory.decodeResource(context.resources, resId)
     ) { "Không decode được ảnh '${context.resources.getResourceEntryName(resId)}'" }
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val matrix = Matrix()
 
     override fun setActive(active: Boolean) = Unit   // ảnh tĩnh không có gì để bật/tắt
 
     override fun draw(canvas: Canvas, frame: HandFrame) {
         val scale = frame.r / max(bitmap.width, bitmap.height).toFloat()
-        val matrix = Matrix().apply {
+        with(matrix) {
+            reset()
             postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
             postScale(scale, scale)
             postTranslate(frame.cx, frame.cy)

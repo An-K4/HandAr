@@ -17,21 +17,30 @@ class ImageBackgroundRenderer(context: Context, resId: Int) : BackgroundRenderer
     ) {
         "Không decode được ảnh nền ${context.resources.getResourceEntryName(resId)}"
     }
+    private val matrix = Matrix()
+    private var lastW = -2
+    private var lastH = -1
 
     override fun draw(canvas: Canvas) {
         canvas.drawColor(Color.BLACK, PorterDuff.Mode.SRC)
 
-        val cw = canvas.width.toFloat()
-        val ch = canvas.height.toFloat()
-        val bw = bitmap.width.toFloat()
-        val bh = bitmap.height.toFloat()
-        val scale = max(cw / bw, ch / bh)
-        val offsetX = (cw - bw * scale) / 2f
-        val offsetY = (ch - bh * scale) / 2f
-        val matrix = Matrix().apply {
-            setScale(scale, scale)
-            postTranslate(offsetX, offsetY)
+        if (canvas.width != lastW || canvas.height != lastH) {
+            lastW = canvas.width
+            lastH = canvas.height
+            val cw = canvas.width.toFloat()
+            val ch = canvas.height.toFloat()
+            val bw = bitmap.width.toFloat()
+            val bh = bitmap.height.toFloat()
+            val scale = max(cw / bw, ch / bh)
+            val offsetX = (cw - bw * scale) / 2f
+            val offsetY = (ch - bh * scale) / 2f
+            with(matrix) {
+                reset()
+                setScale(scale, scale)
+                postTranslate(offsetX, offsetY)
+            }
         }
+
         canvas.drawBitmap(bitmap, matrix, null)
     }
 

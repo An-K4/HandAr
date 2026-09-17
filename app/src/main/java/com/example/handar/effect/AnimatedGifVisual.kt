@@ -38,24 +38,21 @@ class AnimatedGifVisual(context: Context, private val asset: EffectAsset.Animate
     private var finished = false
     fun hasFinishedPlaying(): Boolean = finished
 
-    @Volatile
-    private var desiredActive = false
-
     private val buffer: Bitmap = createBitmap(GIF_BUFFER_SIZE, GIF_BUFFER_SIZE)
     private val bufferCanvas = Canvas(buffer)
 
-    override fun setActive(active: Boolean) {
-        if (active && asset.oneShot) finished = false
-        desiredActive = active
-    }
+    private val matrix = Matrix()
 
-    private fun renderToBuffer() {
-        if (desiredActive) {
+    override fun setActive(active: Boolean) {
+        if (active) {
+            if (asset.oneShot) finished = false
             if (!drawable.isRunning) drawable.start()
         } else {
             if (drawable.isRunning) drawable.stop()
         }
+    }
 
+    private fun renderToBuffer() {
         buffer.eraseColor(Color.TRANSPARENT)
         drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
 
@@ -80,7 +77,8 @@ class AnimatedGifVisual(context: Context, private val asset: EffectAsset.Animate
         renderToBuffer()
 
         val drawScale = frame.r / GIF_BUFFER_SIZE
-        val matrix = Matrix().apply {
+        with(matrix) {
+            reset()
             postTranslate(-GIF_BUFFER_SIZE / 2f, -GIF_BUFFER_SIZE / 2f)
             postScale(drawScale, drawScale)
             postTranslate(frame.cx, frame.cy)

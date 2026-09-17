@@ -14,6 +14,7 @@ class StrokeVisual(private val model: StrokeModel) : ProceduralVisual() {
     }
     private val path = Path()
     private val skeleton = HandSkeletonRenderer()
+    private var builtVersion = -1
 
     override fun onHandFrame(frame: HandFrame) {
         val hand = frame.hands.firstOrNull() ?: return
@@ -21,28 +22,27 @@ class StrokeVisual(private val model: StrokeModel) : ProceduralVisual() {
         model.addPoint(indexTip.x(), indexTip.y())
     }
 
-    override fun onDraw(
-        canvas: Canvas,
-        frame: HandFrame
-    ) {
-        // Độ dày nét theo bề ngang canvas: live và bản ghi khác độ phân giải, nếu để số pixel
-        // cố định thì nét trong video dày hơn nét đang thấy trên màn hình.
+    override fun onDraw(canvas: Canvas, frame: HandFrame) {
         paint.strokeWidth = canvas.width * STROKE_WIDTH_RATIO
 
-        val pts = model.snapshot()
-
-        if (pts.size >= 2) {
+        if (model.version != builtVersion) {
             path.rewind()
-            path.moveTo(frame.px(pts[0].x), frame.py(pts[0].y))
-            for (i in 1 until pts.size) {
-                path.lineTo(frame.px(pts[i].x), frame.py(pts[i].y))
+            model.withPoints { xs, ys, count ->
+                if (count >= 2) {
+                    path.moveTo(frame.px(xs[0]), frame.py(ys[0]))
+                    for (i in 1 until count) {
+                        path.lineTo(frame.px(xs[i]), frame.py(ys[i]))
+                    }
+                }
             }
-            canvas.drawPath(path, paint)
+            builtVersion = model.version
         }
+
+        canvas.drawPath(path, paint)                       // 👈 luôn vẽ, kể cả khi không dựng lại
         skeleton.draw(canvas, frame)
     }
 
     private companion object {
-        const val STROKE_WIDTH_RATIO = 0.011f   // ~12px trên canvas rộng 1080
+        const val STROKE_WIDTH_RATIO = 0.011f
     }
 }

@@ -19,11 +19,20 @@ class AnimatedBackgroundRenderer(context: Context, resId: Int) : BackgroundRende
     } as AnimatedImageDrawable).apply {
         repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
         start()
-        setBounds(0, 0, intrinsicWidth, intrinsicHeight)   // đúng kích thước gốc — KHÔNG cần scale ở bước này
+        setBounds(
+            0,
+            0,
+            intrinsicWidth,
+            intrinsicHeight
+        )   // đúng kích thước gốc — KHÔNG cần scale ở bước này
     }
 
     private val buffer: Bitmap = createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight)
     private val bufferCanvas = Canvas(buffer)
+
+    private val matrix = Matrix()
+    private var lastW = -1
+    private var lastH = -1
 
     override fun draw(canvas: Canvas) {
         buffer.eraseColor(Color.TRANSPARENT)
@@ -31,18 +40,22 @@ class AnimatedBackgroundRenderer(context: Context, resId: Int) : BackgroundRende
 
         canvas.drawColor(Color.BLACK, PorterDuff.Mode.SRC)
 
-        val cw = canvas.width.toFloat()
-        val ch = canvas.height.toFloat()
-        val bw = buffer.width.toFloat()
-        val bh = buffer.height.toFloat()
-        val scale = max(cw / bw, ch / bh)
-        val offsetX = (cw - bw * scale) / 2f
-        val offsetY = (ch - bh * scale) / 2f
+        if (canvas.width != lastW || canvas.height != lastH) {
+            lastW = canvas.width
+            lastH = canvas.height
+            val cw = canvas.width.toFloat()
+            val ch = canvas.height.toFloat()
+            val bw = buffer.width.toFloat()
+            val bh = buffer.height.toFloat()
+            val scale = max(cw / bw, ch / bh)
 
-        val matrix = Matrix().apply {
-            setScale(scale, scale)
-            postTranslate(offsetX, offsetY)
+            with(matrix) {
+                reset()
+                setScale(scale, scale)
+                matrix.postTranslate((cw - bw * scale) / 2f, (ch - bh * scale) / 2f)
+            }
         }
+
         canvas.drawBitmap(buffer, matrix, null)
     }
 

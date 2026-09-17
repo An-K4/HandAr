@@ -91,6 +91,20 @@
     - 12.4. Cạm bẫy 3: Lớp nền phải phủ kín tuyệt đối — vì sao `drawBitmap` phủ kín kích thước vẫn chưa đủ
     - 12.5. Quy tắc asset: không dùng chung file giữa `EffectAsset` và `EffectBackground`
     - 12.6. Quy trình chẩn đoán lớp Nền (Debug Checklist)
+13. [Hiệu ứng Procedural, `HandFrame` và Race Condition khi tách `setActive()` khỏi `draw()` (Phase M)](#13-hiệu-ứng-procedural-handframe-và-race-condition-khi-tách-setactive-khỏi-draw-phase-m)
+    - 13.1. Vì sao cần trừu tượng hoá `HandFrame` thay cho `cx/cy/r` rời rạc
+    - 13.2. Tách nhịp `onHandFrame()` khỏi nhịp `draw()` — vì sao model tích luỹ cần điều này
+    - 13.3. Dữ liệu "trung lập" (normalized, chưa chiếu) — nguyên tắc dùng chung 1 model cho 2 canvas khác kích thước
+    - 13.4. `EffectScope` — state dùng chung giữa các state của cùng 1 effect, tách riêng live/recording
+    - 13.5. Cạm bẫy: quên gọi `setProjection()` — lỗi im lặng khiến mọi hiệu ứng vẽ dồn về góc
+    - 13.6. Cạm bẫy: nhầm biến `offsetX`/`offsetY` khi viết hàm chiếu
+    - 13.7. Cạm bẫy: định nghĩa cử chỉ bằng phủ định/đếm ngưỡng thay vì điều kiện tường minh
+    - 13.8. Cử chỉ catch-all thay thế `idleAsset` đã gỡ — quy tắc thứ tự ưu tiên
+    - 13.9. `AnchorSource`/`SizeSource` — tổng quát hoá công thức neo/kích thước theo từng state
+    - 13.10. `handedness` — MediaPipe báo Left/Right theo ảnh gốc chưa lật, phải tự đảo lại theo `mirrorX`
+    - 13.11. Race condition khi gộp `setActive()` vào nhịp MediaPipe — hai loại "kích hoạt" cần chiến lược thread-safety khác nhau
+    - 13.12. Cạm bẫy khi tự sửa race condition: dời `setActive()` sai chỗ làm hỏng bài toán khác
+    - 13.13. Quy trình chẩn đoán mở rộng (Debug Checklist)
 
 ---
 
@@ -883,7 +897,7 @@ Nếu không có `hasAudio` (người dùng từ chối quyền mic — xem 9.9)
 
 ### 9.8. `SoundEffectPlayer` — phát trực tiếp ra loa, độc lập với pipeline ghi hình
 
-D�ng `SoundPool` — API dành riêng cho hiệu ứng ngắn, độ trễ thấp (khác `MediaPlayer` vốn hợp cho nhạc/video dài). 3 tham số cấu hình quan trọng, đều đã được chọn có chủ đích:
+Dùng `SoundPool` — API dành riêng cho hiệu ứng ngắn, độ trễ thấp (khác `MediaPlayer` vốn hợp cho nhạc/video dài). 3 tham số cấu hình quan trọng, đều đã được chọn có chủ đích:
 
 | Tham số | Giá trị | Vì sao |
 |---|---|---|
@@ -1391,3 +1405,105 @@ Yêu cầu alpha của 2 loại asset **ngược hẳn nhau** (Mục 12.1): `Eff
 3. Nền đúng hình, đúng kích thước, nhưng vẫn nghờ thấy bóng ma mờ → đổi tạm màu fill sang `Color.RED` theo Mục 12.4 để xác nhận trực tiếp thay vì đoán.
 4. Nghi ngờ race condition giữa live/recording → grep lại `setEffect()`, xác nhận có đúng 2 lần gọi `createBackgroundRenderer` riêng biệt (2 instance) — nếu đúng, race condition kiểu Mục 8.3 không thể xảy ra ở đây về mặt thiết kế, đừng tiếp tục tìm theo hướng này.
 5. Muốn tái sử dụng asset hiệu ứng tay cũ làm nền để test nhanh → đừng — asset đó có alpha theo đúng thiết kế (Mục 12.5), sẽ tự gây ra triệu chứng Mục 12.4 dù code hoàn toàn đúng.
+
+---
+
+## 13. HIỆU ỨNG PROCEDURAL, `HANDFRAME` VÀ RACE CONDITION KHI TÁCH `setActive()` KHỎI `draw()` (PHASE M)
+
+> Mục này đúc kết từ Phase M — thêm hiệu ứng đầu tiên **dựng bằng code** ("Vẽ canvas", thay vì chỉ phát lại ảnh/GIF/sprite có sẵn), cộng thêm `SizeSource`/`AnchorSource`/`handedness` cho Trái đất/Hố đen/Gojo. Khác hẳn Mục 7–12 (tài nguyên tĩnh đã có sẵn), đây là lần đầu một hiệu ứng cần **tích luỹ trạng thái qua thời gian** (nét vẽ) và **dùng chung trạng thái đó** giữa live và recording — nhóm lỗi mới hoàn toàn so với các Mục trước.
+
+### 13.1. Vì sao cần trừu tượng hoá `HandFrame` thay cho `cx/cy/r` rời rạc
+
+Trước Phase M, `EffectVisual.draw(canvas, cx, cy, r)` nhận 3 số đã chiếu sẵn — đủ cho hiệu ứng chỉ cần biết "vẽ ở đâu, to cỡ nào". Hiệu ứng procedural cần nhiều hơn thế: `StrokeVisual` cần đầu ngón trỏ (không phải tâm lòng bàn tay), `GojoVisual` cần cả 2 tay riêng biệt + `handedness`, khung xương (Mục 13.8) cần cả 21 landmark mỗi tay. Giải pháp: gom mọi thứ cần thiết vào 1 struct `HandFrame` tái dùng (không cấp phát mỗi frame — xem quy tắc “không cấp phát trong `onDraw`” đã áp dụng xuyên suốt dự án), mang cả dữ liệu thô (`hands`, `handedness`) lẫn dữ liệu đã chiếu (`cx/cy/r/elapsedMs`) kèm 2 hàm tiện ích `px()/py()` để tự quy đổi normalized → pixel đúng theo đúng canvas đang vẽ.
+
+### 13.2. Tách nhịp `onHandFrame()` khỏi nhịp `draw()`
+
+`draw()`/`onDraw()` của live chạy theo tốc độ màn hình (~60fps), của recording chạy đúng nhịp ghi (~25fps) — cả hai đều là nhịp **hiển thị lại**, không phải nhịp **dữ liệu tay mới** (chỉ có từ kết quả MediaPipe mới, qua `OverlayView.setResult()`). Nếu 1 hiệu ứng tích luỹ trạng thái (như thêm điểm vào nét vẽ) lại làm việc đó bên trong `draw()`, live sẽ thêm điểm 60 lần/giây còn video chỉ 25 lần/giây — cùng 1 cử động tay thật ra 2 nét khác nhau. Fix: thêm `EffectVisual.onHandFrame(frame)` (mặc định no-op), chỉ gọi đúng 1 lần mỗi kết quả MediaPipe, cho **cả** `liveVisuals` lẫn `recordingVisuals` (hai bộ object độc lập, không ai tự biết tin của ai — phải gọi cả hai). `draw()` từ đó chỉ đọc lại model, không nhận input mới.
+
+### 13.3. Dữ liệu "trung lập" — vì sao phải lưu normalized, chưa chiếu
+
+Live canvas và recording canvas **khác kích thước**. Nếu model (`StrokeModel`) lưu toạ độ đã quy đổi ra pixel ngay lúc `onHandFrame()`, nó buộc phải chọn quy đổi theo canvas nào — chọn live thì sai tỉ lệ khi vẽ vào recording, và ngược lại. Quy tắc: **chỉ lưu đúng con số thô `[0,1]` từ landmark**, không mirror, không nhân `imgWidth/localScale` — quy đổi sang pixel **chỉ** xảy ra ở `draw()`, lúc đó `frame` (là `liveDrawFrame` hay `recordingDrawFrame`) đã biết chính xác nó đang vẽ vào canvas nào. Nhờ vậy, cùng 1 chuỗi điểm ghi lại được vẽ đúng vào bất kỳ canvas kích thước nào mà không méo tỉ lệ. Quy tắc thực hành: trong `onHandFrame()` chỉ được lấy `.x()/.y()` thô; trong `onDraw()` mới được gọi `frame.px()/py()` — thấy `px()` xuất hiện trong `onHandFrame()` là dấu hiệu sai.
+
+### 13.4. `EffectScope` — state dùng chung, tách riêng live/recording
+
+"Vẽ canvas" cần 2 state (`stroke`, `stroke_clear`) cùng đọc/ghi chung **1** `StrokeModel`. `EffectScope` là nơi chứa model dùng chung đó, với 2 nguyên tắc: (1) `OverlayView.setEffect()` tạo **hai** scope riêng (một cho `liveVisuals`, một cho `recordingVisuals`) — nếu dùng chung 1 scope, nét vẽ bên live sẽ ảnh hưởng trực tiếp tới nội dung video (và ngược lại) thay vì chỉ đồng bộ gián tiếp qua `onHandFrame()`; (2) **không** tạo `EffectScope` trong `EffectRepository` — repository là singleton sống suốt process, model tạo ở đó sẽ rò rỉ qua nhiều lần vào/ra màn camera và giữa các lần quay khác nhau.
+
+### 13.5. Cạm bẫy: quên gọi `setProjection()` — lỗi im lặng khiến mọi hiệu ứng vẽ dồn về góc
+
+Sau khi tính xong `localScale/localOffsetX/localOffsetY` trong `drawFrame()`, rất dễ gọi thẳng `frame.px(normMidX)` mà quên gọi `frame.setProjection(...)` để nạp 6 giá trị đó vào `frame` trước. Kết quả: `px()/py()` dùng đúng giá trị mặc định lúc khai báo field (`imgWidth=1, imgHeight=1, localScale=1f, offset=0f`) — không crash, không exception, chỉ **mọi hiệu ứng vẽ dồn về 1 góc** thay vì bám theo tay. Đây đúng loại lỗi “im lặng, không crash, chỉ sai hình” đã gặp nhiều lần ở các Mục trước (7.2, 12.2) — quy tắc chung: bất kỳ struct nào có hàm "nạp tham số trước khi dùng" (`setXxx()`), luôn grep để xác nhận nó được gọi trước **mọi** lần dùng, không chỉ 1 trong nhiều chỗ gọi.
+
+### 13.6. Cạm bẫy: nhầm biến `offsetX`/`offsetY` khi viết hàm chiếu
+
+```kotlin
+// SAI — px() dùng nhầm localScaleOffsetY
+fun px(normX: Float): Float {
+    val nx = if (mirrorX) 1f - normX else normX
+    return nx * imgWidth * localScale + localScaleOffsetY   // ⚠️ phải là ...OffsetX
+}
+```
+Cả `px()` lẫn `py()` cùng cộng `offsetY`, nghĩa là `offsetX` **không bao giờ được dùng tới**. Nếu ảnh vuông (`offsetX == offsetY == 0`) lỗi không lộ ra; camera dọc center-crop thì 2 offset gần như luôn khác nhau — vẽ sẽ bị lệch ngang. Cùng họ với cạm bẫy đổi biến `normMidX`/`normMidY` ở Mục 11.3: **hai biến tên gần giống nhau (X/Y) xuất hiện cạnh nhau trong cùng 1 hàm** luôn là điểm cần đọc lại bằng mắt, không chỉ liếc qua.
+
+### 13.7. Cạm bẫy: định nghĩa cử chỉ bằng phủ định/đếm ngưỡng thay vì điều kiện tường minh
+
+```kotlin
+// SAI — nắm tay = phủ định của xòe tay
+val singleHandFist = GestureRecognizer { hands -> !isPalmOpen(hands.first(), hands.first()[0]) }
+// isPalmOpen: ≥ 3/4 ngón (không tính cái) duỗi
+```
+`!isPalmOpen` thực chất chỉ có nghĩa "dưới 3/4 ngón duỗi" — vẫn cho phép tới 2 ngón đang duỗi mà không ai kiểm tra ngón nào. Trỏ tay (chỉ ngón trỏ duỗi, đếm = 1) rơi đúng vào đó → bị tính nhầm thành nắm tay. Fix: viết `isFist()` riêng, kiểm tra tường minh **cả 5 ngón** đều gập (không suy ra từ `isPalmOpen`), áp dụng đối xứng cho `isPalmOpen` (cũng bị trường hợp đối xứng: ký hiệu "3 ngón" cũng đủ ≥ 3/4 để lọt vào `isPalmOpen`). Quy tắc chung: **định nghĩa 1 cử chỉ bằng phủ định của cử chỉ khác, hoặc bằng ngưỡng đếm thay vì điều kiện từng thành phần, luôn có nguy cơ "nứt vỡ" sang cử chỉ khác** mà không báo lỗi gì — chỉ lộ ra khi test đúng kịch bản giao thoa giữa 2 cử chỉ. ⚠️ Đối trọng: siết chặt thành 5 điều kiện (kể cả ngón cái, vốn có công thức đo “chưa chặt hoàn toàn” — Mục 2.4/6) có thể khiến cử chỉ khó trigger hơn hẳn so với ngưỡng đếm khoan dung cũ — luôn chạy lại Checklist B/D toàn bộ hiệu ứng cũ sau thay đổi này.
+
+### 13.8. Cử chỉ catch-all thay thế `idleAsset` đã gỡ
+
+`idleAsset` (hệ cũ) từng là field riêng cho "vẽ gì đó khi không cử chỉ nào khớp", đã bị gỡ vì không khớp với hình dạng dữ liệu mới (`List<EffectState>`). Khi Phase M thực sự cần lại nhu cầu đó (vẽ khung xương liên tục dù không đúng cử chỉ nào), cách đúng không phải hồi sinh field đó, mà là thêm **1 gesture luôn đúng khi có tay** (`anyHandPresent`) làm state **cuối cùng** trong `states` — tận dụng đúng quy tắc “thứ tự khai báo là độ ưu tiên” (`indexOfFirst`) vốn đã có sẵn, không cần khái niệm kiến trúc riêng. Đặt sai thứ tự (catch-all đặt trước) sẽ che mất mọi cử chỉ khác của cùng effect đó.
+
+### 13.9. `AnchorSource`/`SizeSource` — tổng quát hoá công thức neo/kích thước theo từng state
+
+Trước Phase M, `OverlayView.drawFrame()` dùng **đúng 1** công thức cứng cho mọi hiệu ứng: tâm = trung điểm cổ tay–khớp giữa, bán kính = khoảng cách cổ tay–khớp giữa (Công thức 2–3, Mục 3). Trái đất (chụm cái–trỏ) và Hố đen (khoảng cách 2 tay) cần công thức khác hẳn. Giải pháp: thêm `AnchorSource`/`SizeSource` (enum) làm field **tùy chọn** của `EffectState`, mặc định giữ nguyên công thức cũ (`PalmCenter`/`PalmRadius`) để 10+ hiệu ứng cũ không phải sửa gì; `drawFrame()` chọn công thức theo đúng `anchorSource`/`sizeSource` của state đang khớp thay vì 1 công thức cứng cho mọi state.
+
+### 13.10. `handedness` — MediaPipe báo Left/Right theo ảnh gốc chưa lật
+
+Giống đúng bẫy đã gặp ở Công thức 1.5 (Mục 3) với toạ độ X: `HandLandmarkerResult.handednesses()` trả "Left"/"Right" theo ảnh camera **gốc, chưa mirror** — ngược với cảm nhận của người dùng khi nhìn preview đã bị lật gương. Nếu dùng thẳng giá trị đó (ví dụ tô màu quả cầu Gojo theo tay trái/phải), màu sẽ bị đảo so với tay thật mà người dùng nhìn thấy. Fix: đảo lại nhãn khi `mirrorX == true` ("Left" ↔ "Right") ngay trong `OverlayView.drawFrame()` trước khi đưa vào `HandFrame.handedness`. Test trực tiếp cho lỗi này: bắt chéo 2 tay qua nhau — màu phải bám theo tay thật, không đổi theo vị trí trái/phải trên màn hình.
+
+### 13.11. Race condition khi gộp `setActive()` vào nhịp MediaPipe
+
+Để có đúng 1 lần `resolveMatchedIndex()` mỗi kết quả MediaPipe (thay vì bị gọi độc lập từ cả `onDraw` lẫn recording thread — từng gây race thật trên `latchedIndex` ở chế độ Latched), Phase M cache `matchedIndex` (`@Volatile`) trong `setResult()` (main thread), rồi gọi luôn `setActive()` đồng loạt cho cả `liveVisuals` lẫn `recordingVisuals` từ đó. Vấn đề: trước đây `setActive()` của `recordingVisuals` luôn chạy **cùng thread** với `draw()` của nó (cả hai nằm trong `drawFrame(forRecording=true)`, chỉ gọi từ recording thread). Giờ `setActive()` chuyển sang main thread trong khi `draw()` vẫn chạy trên recording thread — với `AnimatedGifVisual`, `setActive()` gọi thẳng `drawable.start()/stop()`, còn `draw()` gọi `drawable.setBounds()/draw()` — hai thread đồng thời đụng chung 1 `AnimatedImageDrawable` không được thiết kế cho đa luồng, rủi ro thật (giật/đứng khung GIF trong video, hoặc crash) chỉ lộ ra khi ghi hình thật.
+
+Fix đúng: không dời chỗ gọi `setActive()` (Mục 13.12 giải thích vì sao dời chỗ gọi lại gây bug khác), mà sửa **bên nhận**: `AnimatedGifVisual.setActive()` chỉ ghi 1 cờ `@Volatile desiredActive`, không đụng `drawable`; việc áp `start()/stop()` thật dời vào đầu `renderToBuffer()` (hàm chỉ được gọi từ `draw()`) — để chính thread sở hữu `drawable` (thread nào gọi `draw()` của visual đó) tự áp thay đổi, bất kể lệnh đến từ thread nào:
+
+```kotlin
+private fun renderToBuffer() {
+    // Chỉ thread sở hữu drawable (thread đang gọi draw()) mới chạm tới drawable.start()/stop(),
+    // dù lệnh setActive() đến từ main thread.
+    if (desiredActive) { if (!drawable.isRunning) drawable.start() }
+    else { if (drawable.isRunning) drawable.stop() }
+    buffer.eraseColor(Color.TRANSPARENT)
+    ...
+}
+```
+
+Các visual chỉ đụng field `@Volatile` (`ProceduralVisual.activateAtMs`, `SpriteSheetVisual.activatedAtMs`, `GojoModel.wasTouching`) không bị ảnh hưởng — đọc/ghi `Volatile` xuyên thread luôn an toàn. Quy tắc chung: khi 1 hàm `setActive()`/callback tương tự có thể bị gọi từ thread khác thread vẫn đụng object đó ở nơi khác, đừng để nó đụng trực tiếp vào object không thread-safe — chuyển thành ghi cờ, rồi để đúng thread sở hữu áp cờ đó tại thời điểm nó vốn đã đụng vào object đó (ở đây là `draw()`).
+
+### 13.12. Cạm bẫy khi tự sửa race condition: dời `setActive()` sai chỗ làm hỏng bài toán khác
+
+Phản ứng đầu tiên trước Mục 13.11 là **dời chỗ gọi** `setActive()` từ `setResult()` sang `drawFrame()` để nó luôn cùng thread với `draw()` — về mặt kỹ thuật giải đúng race của `AnimatedGifVisual`, nhưng gây ra 1 bug khác: `drawFrame(forRecording=true)` **chỉ** chạy khi đang quay. `ClearOnActivate` (xóa `StrokeModel` khi nắm tay) giờ chỉ được kích hoạt lúc đang quay — nếu người dùng vẽ → nắm tay xóa → vẽ lại **trước khi** bấm Record, `StrokeModel` của bản ghi chưa bao giờ được báo xóa → video hiện lại toàn bộ nét cũ tưởng đã xóa.
+
+Bài học: `setActive()` thực ra gánh **2 loại nhu cầu khác hẳn nhau**, không thể giải bằng 1 chỗ gọi duy nhất theo kiểu "ai cũng giống ai":
+
+| Loại | Ví dụ | Cần chạy khi nào |
+|---|---|---|
+| Bật/tắt tài nguyên hệ thống (Drawable) | `AnimatedGifVisual` | Đúng lúc `draw()` sắp chạy, **trên thread sở hữu nó** |
+| Kích hoạt state dùng chung 1 lần | `ClearOnActivate`, `StrokeModel` | Ngay khi cử chỉ đổi, **bất kể có đang quay hay không** |
+
+Giải đúng (Mục 13.11): giữ nguyên chỗ gọi `setActive()` ở `setResult()` (đúng cho loại 2), chỉ sửa **bên nhận** của loại 1 (`AnimatedGifVisual`) để nó tự an toàn xuyên thread thay vì ép chỗ gọi phải đổi theo nó. Quy tắc chung: khi 1 hàm dùng chung (`setActive`, `onXxx`...) phục vụ nhiều loại implementation khác bản chất, đừng giả định "sửa chỗ gọi cho 1 trường hợp" là an toàn cho mọi trường hợp khác — liệt kê hết các implementation đang tồn tại trước khi đổi ý nghĩa thời điểm gọi của 1 hàm dùng chung.
+
+### 13.13. Quy trình chẩn đoán mở rộng (Debug Checklist)
+
+Bổ sung nối tiếp Debug Checklist ở Mục 10.12:
+
+1. **Hiệu ứng (bất kỳ loại nào) vẽ dồn về 1 góc cố định, không phản ứng theo tay** → grep `setProjection(` — xác nhận nó được gọi đúng trước **mọi** lần gọi `px()/py()`, không chỉ 1 trong nhiều chỗ (Mục 13.5).
+2. **Lệch ngang cố định, chỉ xảy ra khi tỉ lệ khung hình không vuông** → kiểm tra `px()/py()` có dùng đúng `offsetX`/`offsetY` tương ứng, không bị đổi chỗ (Mục 13.6).
+3. **1 cử chỉ bị kích hoạt nhầm bởi 1 cử chỉ khác không liên quan** → tìm xem định nghĩa cử chỉ đó có đang dùng phủ định của cử chỉ khác hoặc đếm ngưỡng thay vì điều kiện tường minh từng thành phần (Mục 13.7).
+4. **Thêm 1 state "catch-all" nhưng các state khác của cùng effect đó ngừng hoạt động** → kiểm tra state catch-all có được đặt **cuối cùng** trong `states`, không phải đầu hay giữa danh sách (Mục 13.8).
+5. **Màu/hướng gắn với tay trái-phải bị đảo khi bắt chéo tay** → kiểm tra `handedness` có được đảo lại đúng theo `mirrorX` trước khi dùng, không dùng thẳng giá trị thô từ `handednesses()` (Mục 13.10).
+6. **Video ghi ra hiện lại nội dung tưởng đã xóa/thay đổi trước khi bấm Record** → kiểm tra state one-shot kiểu `ClearOnActivate` có được kích hoạt đúng nhịp MediaPipe (`setResult()`), không bị vô tình gắn vào nhịp `drawFrame(forRecording=true)` vốn chỉ chạy khi đang quay (Mục 13.12).
+7. **Video (không phải live) bị giật/đứng hình ở đúng lúc đổi cử chỉ, riêng với hiệu ứng GIF** → nghi ngờ `setActive()` đang đụng trực tiếp vào `Drawable`/tài nguyên không thread-safe từ thread khác thread gọi `draw()` — chuyển sang mô hình cờ `@Volatile` áp trong chính `draw()` (Mục 13.11), không dời chỗ gọi `setActive()`.
