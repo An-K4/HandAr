@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 

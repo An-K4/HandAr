@@ -1,7 +1,10 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual
 
 import android.content.Context
 import android.graphics.Canvas
+import com.example.handar.effect.visual.image.AnimatedGifVisual
+import com.example.handar.effect.visual.image.SpriteSheetVisual
+import com.example.handar.effect.visual.image.StaticImageVisual
 import com.example.handar.effect.model.EffectAsset
 
 interface EffectVisual {

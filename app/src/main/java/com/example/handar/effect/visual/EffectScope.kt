@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual
 
 class EffectScope {
     private val models = HashMap<String, Any>()

@@ -1,8 +1,9 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.canvas.drawcanvas
 
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import com.example.handar.effect.visual.HandFrame
 
 private val HAND_CONNECTIONS = listOf(
     0 to 1, 1 to 2, 2 to 3, 3 to 4,

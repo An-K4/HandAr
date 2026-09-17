@@ -1,6 +1,8 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.canvas.drawcanvas
 
 import android.graphics.Canvas
+import com.example.handar.effect.visual.EffectVisual
+import com.example.handar.effect.visual.HandFrame
 
 class ClearOnActivate(private val model: StrokeModel) : EffectVisual {
     private var wasActive = false

@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.image
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
+import com.example.handar.effect.visual.EffectVisual
+import com.example.handar.effect.visual.HandFrame
 import kotlin.math.max
 
 class StaticImageVisual(context: Context, resId: Int) : EffectVisual {

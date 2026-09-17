@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.canvas.drawcanvas
 
 class StrokeModel {
     private val lock = Any()

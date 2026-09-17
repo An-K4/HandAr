@@ -10,6 +10,12 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.model.SizeSource
 import com.example.handar.effect.model.StateMode
+import com.example.handar.effect.visual.canvas.drawcanvas.ClearOnActivate
+import com.example.handar.effect.visual.canvas.gojo.GojoModel
+import com.example.handar.effect.visual.canvas.gojo.GojoVisual
+import com.example.handar.effect.visual.canvas.drawcanvas.SkeletonOnlyVisual
+import com.example.handar.effect.visual.canvas.drawcanvas.StrokeModel
+import com.example.handar.effect.visual.canvas.drawcanvas.StrokeVisual
 
 object EffectRepository {
     val all = listOf(

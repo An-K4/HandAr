@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.image
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -9,6 +9,8 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.os.SystemClock
 import com.example.handar.effect.model.EffectAsset
+import com.example.handar.effect.visual.EffectVisual
+import com.example.handar.effect.visual.HandFrame
 import kotlin.math.max
 
 class SpriteSheetVisual(

@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.canvas.gojo
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,6 +11,10 @@ import com.example.handar.effect.model.EffectAsset
 import com.example.handar.effect.gesture.isPointing
 import com.example.handar.effect.gesture.palmLength
 import com.example.handar.effect.gesture.pointDistance
+import com.example.handar.effect.visual.EffectVisual
+import com.example.handar.effect.visual.HandFrame
+import com.example.handar.effect.visual.HandSide
+import com.example.handar.effect.visual.image.AnimatedGifVisual
 import kotlin.math.max
 
 class GojoVisual(

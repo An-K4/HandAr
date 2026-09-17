@@ -1,9 +1,11 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.canvas.drawcanvas
 
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import com.example.handar.effect.visual.HandFrame
+import com.example.handar.effect.visual.ProceduralVisual
 
 class StrokeVisual(private val model: StrokeModel) : ProceduralVisual() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

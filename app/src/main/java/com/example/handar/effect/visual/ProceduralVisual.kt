@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual
 
 import android.graphics.Canvas
 import android.os.SystemClock

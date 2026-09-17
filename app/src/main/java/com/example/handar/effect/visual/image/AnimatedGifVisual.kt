@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.visual.image
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -12,6 +12,8 @@ import android.graphics.drawable.Drawable
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withSave
 import com.example.handar.effect.model.EffectAsset
+import com.example.handar.effect.visual.EffectVisual
+import com.example.handar.effect.visual.HandFrame
 import kotlin.math.min
 
 class AnimatedGifVisual(context: Context, private val asset: EffectAsset.AnimatedGif) :
