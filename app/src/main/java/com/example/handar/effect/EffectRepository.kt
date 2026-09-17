@@ -1,21 +1,18 @@
 package com.example.handar.effect
 
 import com.example.handar.R
+import com.example.handar.effect.catalog.blackHoleEffect
+import com.example.handar.effect.catalog.cameraShutterEffect
+import com.example.handar.effect.catalog.canvasDrawEffect
+import com.example.handar.effect.catalog.earthEffect
+import com.example.handar.effect.catalog.gojoEffect
+import com.example.handar.effect.catalog.testEffectBackgroundEffect
 import com.example.handar.effect.gesture.Gestures
-import com.example.handar.effect.model.AnchorSource
 import com.example.handar.effect.model.EffectAsset
 import com.example.handar.effect.model.EffectBackground
 import com.example.handar.effect.model.EffectBgm
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
-import com.example.handar.effect.model.SizeSource
-import com.example.handar.effect.model.StateMode
-import com.example.handar.effect.visual.canvas.drawcanvas.ClearOnActivate
-import com.example.handar.effect.visual.canvas.gojo.GojoModel
-import com.example.handar.effect.visual.canvas.gojo.GojoVisual
-import com.example.handar.effect.visual.canvas.drawcanvas.SkeletonOnlyVisual
-import com.example.handar.effect.visual.canvas.drawcanvas.StrokeModel
-import com.example.handar.effect.visual.canvas.drawcanvas.StrokeVisual
 
 object EffectRepository {
     val all = listOf(
@@ -141,44 +138,7 @@ object EffectRepository {
                 )
             )
         ),
-        EffectDefinition(
-            id = "camera_shutter",
-            displayName = "Chụp ảnh",
-            thumbnailRes = R.drawable.camera_shutter,
-            requiredNumHands = 2,
-            states = listOf(
-                EffectState(
-                    id = "shutter_ok",
-                    gesture = Gestures.singleHandOkSign,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                ),
-                EffectState(
-                    id = "shutter_hi",
-                    gesture = Gestures.singleHandPeaceSign,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                ),
-                EffectState(
-                    id = "shutter_like",
-                    gesture = Gestures.singleHandThumbsUp,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                ),
-                EffectState(
-                    id = "shutter_rock_on",
-                    gesture = Gestures.singleHandRockOn,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                ),
-                EffectState(
-                    id = "shutter_call",
-                    gesture = Gestures.singleHandCall,
-                    asset = EffectAsset.AnimatedGif(R.drawable.camera_shutter),
-                    soundRes = R.raw.camera_shutter
-                )
-            )
-        ),
+        cameraShutterEffect(),
         EffectDefinition(
             id = "cat_meme_2",
             displayName = "Meme mèo 2",
@@ -271,124 +231,11 @@ object EffectRepository {
                 )
             )
         ),
-        EffectDefinition(
-            id = "test_effect_background",
-            displayName = "Thay đổi nền",
-            thumbnailRes = R.color.black,
-            requiredNumHands = 1,
-            stateMode = StateMode.Latched,
-            states = listOf(
-                EffectState(
-                    id = "happy_cat",
-                    gesture = Gestures.singleHandPointing,
-                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
-                    soundRes = R.raw.happy_happy_happy_cat,
-                    background = EffectBackground.Animated(R.drawable.happy_happy_happy_cat)
-                ),
-                EffectState(
-                    id = "clock",
-                    gesture = Gestures.singleHandPeaceSign,
-                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
-                    soundRes = R.raw.stranger_things_clock,
-                    background = EffectBackground.Animated(R.drawable.stranger_things_clock)
-                ),
-                EffectState(
-                    id = "egg",
-                    gesture = Gestures.singleHandThreeFingers,
-                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
-                    soundRes = R.raw.egg_cracked,
-                    background = EffectBackground.Image(R.drawable.egg_cracked)
-                ),
-                EffectState(
-                    id = "absolute_cinema",
-                    gesture = Gestures.singleHandFist,
-                    asset = EffectAsset.StaticImage(R.drawable.stranger_things_monster),
-                    soundRes = R.raw.absolute_cinema,
-                    background = EffectBackground.Image(R.drawable.absolute_cinema)
-                )
-            ),
-            background = EffectBackground.Solid(R.color.black)
-        ),
-        EffectDefinition(
-            id = "canvas_draw",
-            displayName = "Vẽ canvas",
-            thumbnailRes = R.drawable.stranger_things_monster,
-            requiredNumHands = 1,
-            states = listOf(
-                EffectState(
-                    id = "stroke",
-                    gesture = Gestures.singleHandPointing,
-                    asset = EffectAsset.Procedural("stroke") { _, scope ->
-                        StrokeVisual(scope.shared("stroke_model") { StrokeModel() })
-                    },
-                    soundRes = null
-                ),
-                EffectState(
-                    id = "stroke_clear",
-                    gesture = Gestures.singleHandFist,
-                    asset = EffectAsset.Procedural("stroke_clear") { _, scope ->
-                        ClearOnActivate(scope.shared("stroke_model") { StrokeModel() })
-                    },
-                    soundRes = R.raw.paper_tear
-                ),
-                EffectState(
-                    id = "idle_skeleton",
-                    gesture = Gestures.anyHandPresent,
-                    asset = EffectAsset.Procedural("idle_skeleton") { _, _ -> SkeletonOnlyVisual() },
-                    soundRes = null
-                )
-            ),
-            background = EffectBackground.Solid(R.color.black)
-        ),
-        EffectDefinition(
-            id = "earth",
-            displayName = "Trái đất",
-            thumbnailRes = R.drawable.earth,
-            requiredNumHands = 1,
-            states = listOf(
-                EffectState(
-                    id = "earth",
-                    gesture = Gestures.anyHandPresent,
-                    asset = EffectAsset.StaticImage(R.drawable.earth),
-                    soundRes = null,
-                    sizeSource = SizeSource.PinchDistance,
-                    anchorSource = AnchorSource.PinchMidpoint
-                )
-            )
-        ),
-        EffectDefinition(
-            id = "black_hole",
-            displayName = "Hố đen",
-            thumbnailRes = R.drawable.black_hole,
-            requiredNumHands = 2,
-            states = listOf(
-                EffectState(
-                    id = "black_hole",
-                    gesture = Gestures.anyHandPresent,
-                    asset = EffectAsset.AnimatedGif(R.drawable.black_hole),
-                    soundRes = null,
-                    sizeSource = SizeSource.TwoHandDistance,
-                    anchorSource = AnchorSource.TwoHandMidpoint
-                )
-            )
-        ),
-        EffectDefinition(
-            id = "gojo",
-            displayName = "Gojo",
-            thumbnailRes = R.drawable.stranger_things_monster,
-            requiredNumHands = 2,
-            states = listOf(
-                EffectState(
-                    id = "gojo",
-                    gesture = Gestures.anyHandPointing,
-                    asset = EffectAsset.Procedural("gojo") { ctx, scope ->
-                        GojoVisual(ctx, scope.shared("gojo_model") { GojoModel() })
-                    },
-                    soundRes = null,
-                    anchorSource = AnchorSource.IndexFingertip
-                )
-            )
-        )
+        testEffectBackgroundEffect(),
+        canvasDrawEffect(),
+        earthEffect(),
+        blackHoleEffect(),
+        gojoEffect()
     )
 
     fun findById(id: String): EffectDefinition = all.first { it.id == id }
