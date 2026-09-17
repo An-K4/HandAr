@@ -20,8 +20,8 @@
 | J | Nhạc nền liên tục | ✅ Xong |
 | K | Nợ kỹ thuật rẻ tiền | ✅ K1 xong |
 | L | Nền theo từng state | ✅ Xong |
-| M | Hiệu ứng vẽ bằng canvas | ⚠️ M0–M7 xong, còn M8–M9 |
-| N | Dọn nợ hiệu năng + cấu trúc lại package | ⬜ Chưa làm |
+| M | Hiệu ứng vẽ bằng canvas | ✅ Xong |
+| N | Dọn nợ hiệu năng + cấu trúc lại package | ✅ Xong |
 
 ---
 
@@ -1153,12 +1153,11 @@ trong ~150 ms. Thêm sau được mà không phá gì đã có. **Không làm �
 
 ---
 
-## 8. Phase M — Hiệu ứng vẽ bằng canvas ⚠️ ĐÃ LÀM M0–M7, CÒN M8–M9
+## 8. Phase M — Hiệu ứng vẽ bằng canvas ✅ ĐÃ HOÀN THÀNH
 
-> **Tình trạng:** M0–M7 đã triển khai (`EffectAsset.Procedural`, `HandFrame`, `onHandFrame`,
-> `ProceduralVisual`, `EffectScope`, hiệu ứng `canvas_draw`). **M8 (`handedness`) và M9
-> (`SizeSource`) chưa làm** — chưa có hiệu ứng nào cần tới, làm khi bắt tay vào Gojo / Trái Đất /
-> Hố đen.
+> **Tình trạng:** Toàn bộ M0–M9 đã triển khai. M8 (`handedness`) và M9 (`SizeSource`,
+> cộng thêm `AnchorSource` phát sinh thêm — xem mục 8 dưới) được làm khi bắt tay vào 3 hiệu
+> ứng Trái Đất, Hố đen, Gojo — cả 3 đều đã chạy đúng, đã test, đã commit.
 >
 > **Lệch so với kế hoạch:**
 >
@@ -1185,6 +1184,33 @@ trong ~150 ms. Thêm sau được mà không phá gì đã có. **Không làm �
 >    hẹp hơn view live (~1080) nên nét cố định sẽ dày hơn ~1,5 lần trong video — phá đúng cam kết
 >    của M3 và ca nghiệm thu M-b.
 > 7. `canvas_draw` đang mượn tạm `thumbnailRes = R.drawable.stranger_things_monster`.
+> 8. **Thêm hẳn một enum `AnchorSource`** (không có trong bản gốc) định vị tâm vẽ
+>    (`HandFrame.cx/cy`), đúng cùng lý do và cùng chỗ code với `SizeSource`: tâm vẽ cũng cần
+>    khai được như bán kính, không chỉ cứng một công thức "luôn là tâm lòng bàn tay". Giá trị:
+>    `PalmCenter` (mặc định, đúng hành vi cũ), `PinchMidpoint` (Trái Đất), `IndexFingertip`
+>    (Gojo), `TwoHandMidpoint` (Hố đen).
+> 9. `HandFrame.handedness` dùng kiểu `HandSide` (enum `Left/Right/Unknown`), không phải
+>    `Handedness` như bản phác thảo trong tài liệu gốc — chỉ khác tên gọi, không khác ý nghĩa.
+> 10. **Thêm `EffectAsset.AnimatedGif.oneShot: Boolean = false`** (không có trong kế hoạch M
+>     gốc) — cần cho animation hoà quyện của Gojo chạy đúng 1 lượt rồi dừng, thay vì lặp vô
+>     hạn như mặc định. Kèm `AnimatedGifVisual.hasFinishedPlaying()` để hiệu ứng gọi biết
+>     lúc nào chuyển sang ảnh tĩnh thay thế.
+> 11. **Gojo không nằm vừa mô hình "1 state = 1 asset tĩnh"** — `GojoVisual`/`GojoModel` tự đọc
+>     `frame.hands` theo từng tay độc lập (tay này chỉ, tay kia có thể không), bọc trong
+>     `EffectAsset.Procedural` dù không hề vẽ hình học bằng canvas — xác nhận đúng bản chất
+>     `Procedural` là "chạy code tuỳ ý", không riêng cho vẽ hình học.
+> 12. `black_hole` dùng `EffectAsset.AnimatedGif` (ảnh động), khác `earth` dùng `StaticImage`
+>     (ảnh tĩnh) — do asset thật là webp động dạng xoáy, không phải ảnh tĩnh như dự kiến ban đầu.
+> 13. **Bổ sung `hasFinishedPlaying()` và chuyển hẳn `start()`/`stop()` vào `setActive()`** trong
+>     `AnimatedGifVisual` (không đợi tới lần `draw()` kế) — sửa một bug thật tìm thấy lúc
+>     audit: bản đầu dùng cờ `desiredActive` hoãn start/stop tới `renderToBuffer()`, khiến GIF
+>     không dừng giải mã khi state hết khớp — vi phạm đúng nguyên tắc L5 ("nền/visual
+>     không được chọn phải dừng giải mã ngay lúc đó"), áp dụng cho cả visual chính chứ
+>     không riêng nền.
+> 14. **Thêm bounds-check `hands.size >= 2`** trong `GojoVisual.draw()` trước khi truy `hands[1]`
+>     — phòng lệch nhịp giữa `onHandFrame()` (theo nhịp `setResult`) và `draw()` (nhịp viết
+>     riêng cho live/recording), tránh crash `IndexOutOfBoundsException` khi 1 tay vừa biến mất
+>     khỏi khung ngay lúc đang ghép 2 đầu ngón trỏ.
 
 > Hiệu ứng đích: **Vẽ canvas** (`docs/Design_App_HandAr.md` mục 4). Duỗi ngón trỏ di chuyển →
 > vẽ điểm trắng theo đường ngón tay trên nền đen; nắm tay → xoá hết, phát tiếng xé giấy.
