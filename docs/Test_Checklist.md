@@ -211,13 +211,7 @@ git checkout main && git stash pop
 | I14 | Bắt chéo 2 ngón út (thay vì trỏ) | Hiệu ứng X **vẫn** kích hoạt — xác nhận tổng quát hoá sang "1 trong 4 loại ngón" hoạt động đúng |
 | I15 | 2 ngón trỏ chỉ **gần nhau**, chưa thực sự bắt chéo qua | **Không** kích hoạt — xác nhận `segmentsCross` phân biệt đúng "cắt qua" với "ở gần" |
 
-### I.6. 📷 Khung máy ảnh — 2 hình L ghép chữ nhật (Mục 11.7c)
-
-| # | Bước | Kỳ vọng |
-|---|---|---|
-| I16 | Ghép đúng 2 hình L thành khung chữ nhật trước ngực | Hiệu ứng khung máy ảnh kích hoạt |
-| I17 | Chỉ 1 tay tạo hình L, tay kia không tạo | **Không** kích hoạt |
-| I18 | Kiểm tra effect gắn gesture này khai đúng `requiredNumHands = 2` trong `EffectRepository.kt` | Đọc code xác nhận, **không** để sót lại `requiredNumHands = 1` — đây đúng là lỗi thật đã gặp (Mục 11.7c), triệu chứng là im lặng hoàn toàn kể cả log debug |
+> **Mục I.6 (cũ) đã xoá** — checklist trước đây có một mục kiểm tra cử chỉ 2 tay "ghép hình chữ L thành khung máy ảnh", nhưng gesture đó không còn tồn tại trong `Gestures` (chỉ còn `twoHandsHeart`, `twoHandsCrossedFingers`, `bothHandsPalmOpen`, `bothHandsFist` ở nhóm 2 tay). `camera_shutter` hiện tại kích hoạt bằng 5 cử chỉ **1 tay** (OK sign, peace, thumbs up, rock on, call) — không có gesture 2 tay nào cho hiệu ứng chụp ảnh nữa. Nếu sau này thêm lại kiểu cử chỉ ghép hình, viết lại mục này từ đầu thay vì khôi phục nguyên văn, vì `EffectRepository.kt`/`GestureRecognizer.kt` đã đổi cấu trúc nhiều lần từ lúc mục cũ được viết.
 
 ### I.7. Log dọn dẹp
 
