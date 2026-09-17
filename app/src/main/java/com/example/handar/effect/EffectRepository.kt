@@ -1,6 +1,7 @@
 package com.example.handar.effect
 
 import com.example.handar.R
+import com.example.handar.effect.gesture.Gestures
 import com.example.handar.effect.model.AnchorSource
 import com.example.handar.effect.model.EffectAsset
 import com.example.handar.effect.model.EffectBackground

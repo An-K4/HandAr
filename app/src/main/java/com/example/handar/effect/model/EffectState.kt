@@ -1,6 +1,6 @@
 package com.example.handar.effect.model
 
-import com.example.handar.effect.GestureRecognizer
+import com.example.handar.effect.gesture.GestureRecognizer
 
 data class EffectState(
     val id: String,

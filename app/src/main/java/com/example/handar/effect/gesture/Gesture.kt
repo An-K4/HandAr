@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.gesture
 
 import com.example.handar.utils.isFist
 import com.example.handar.utils.isIndexCurled
@@ -14,11 +14,6 @@ import com.example.handar.utils.palmLength
 import com.example.handar.utils.pointDistance
 import com.example.handar.utils.segmentsCross
 import com.example.handar.utils.thumbIndexPinchRatio
-import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
-
-fun interface GestureRecognizer {
-    fun recognize(hands: List<List<NormalizedLandmark>>): Boolean
-}
 
 object Gestures {
     // MỘT TAY
