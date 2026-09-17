@@ -1,4 +1,4 @@
-package com.example.handar.effect
+package com.example.handar.effect.background
 
 import android.content.Context
 import android.graphics.Bitmap

@@ -6,7 +6,7 @@ import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.View
 import com.example.handar.effect.model.AnchorSource
-import com.example.handar.effect.BackgroundRenderer
+import com.example.handar.effect.background.BackgroundRenderer
 import com.example.handar.effect.model.EffectBackground
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.visual.EffectScope
@@ -15,7 +15,7 @@ import com.example.handar.effect.visual.HandFrame
 import com.example.handar.effect.visual.HandSide
 import com.example.handar.effect.model.SizeSource
 import com.example.handar.effect.model.StateMode
-import com.example.handar.effect.createBackgroundRenderer
+import com.example.handar.effect.background.createBackgroundRenderer
 import com.example.handar.effect.visual.createEffectVisual
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
