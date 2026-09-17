@@ -30,10 +30,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.example.handar.BgmPlayer
+import com.example.handar.audio.BgmPlayer
 import com.example.handar.OverlayView
 import com.example.handar.R
-import com.example.handar.SoundEffectPlayer
+import com.example.handar.audio.SoundEffectPlayer
 import com.example.handar.databinding.FragmentCameraRecordBinding
 import com.example.handar.effect.EffectDefinition
 import com.example.handar.effect.EffectRepository
