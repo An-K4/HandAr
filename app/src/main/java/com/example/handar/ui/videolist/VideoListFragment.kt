@@ -5,14 +5,12 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.handar.databinding.FragmentVideoListBinding
+import com.example.handar.utils.applySystemBarsInsetsPadding
 import kotlinx.coroutines.launch
 
 class VideoListFragment : Fragment() {
@@ -30,14 +28,7 @@ class VideoListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val rv = binding.recyclerVideos
-        val baseTop = rv.paddingTop
-        val baseBottom = rv.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(rv) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.updatePadding(top = baseTop + bars.top, bottom = baseBottom + bars.bottom)
-            insets
-        }
+        binding.recyclerVideos.applySystemBarsInsetsPadding(left = false, right = false)
 
         val adapter = VideoAdapter(emptyList()) { videoItem ->
             val action = VideoListFragmentDirections.actionVideoListToVideoPlayer(videoItem.file.absolutePath)

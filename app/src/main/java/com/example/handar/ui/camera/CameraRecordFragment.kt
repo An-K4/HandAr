@@ -23,9 +23,6 @@ import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -41,6 +38,7 @@ import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.effect.model.StateMode
 import com.example.handar.recording.VideoRecorder
 import com.example.handar.utils.RecordingPerfLogger
+import com.example.handar.utils.applySystemBarsInsetsMargin
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -156,17 +154,8 @@ class CameraRecordFragment : Fragment() {
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
-        val btn = binding.btnToggleRecord
-        val baseMarginBottom = (btn.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
-        ViewCompat.setOnApplyWindowInsetsListener(btn) { v, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars()
-            )
-            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = baseMarginBottom + bars.bottom
-            }
-            insets
-        }
+        binding.btnToggleRecord.applySystemBarsInsetsMargin(bottom = true)
+        binding.tvRecordingTimer.applySystemBarsInsetsMargin(top = true)
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
         soundEffectPlayer = SoundEffectPlayer(
