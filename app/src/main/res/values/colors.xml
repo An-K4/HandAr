@@ -2,4 +2,25 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Bottom nav / floating action icon (Property 1=Effect) -->
+    <color name="cyan_bright">#1DECFE</color>
+    <color name="cyan_deep">#01C8DD</color>
+    <color name="navy_darkest">#01060B</color>
+    <color name="nav_bg">#0A1020</color>
+    <color name="nav_bg_light">#151E33</color>
+
+    <!-- linear-gradient(90deg, #19C7D8 0%, #35E7FF 100%) -->
+    <color name="gradient_action_start">#19C7D8</color>
+    <color name="gradient_action_end">#35E7FF</color>
+
+    <color name="text_primary_light">#F0EFFE</color>
+    <color name="text_secondary">#A3A5C0</color>
+    <color name="text_disabled">#5A5E7A</color>
+    <color name="purple_accent">#7541FD</color>
+    <color name="gold_accent">#F7C666</color>
+
+    <!-- linear-gradient(90deg, #35E7FF 34%, #7C4DFF 100%) -->
+    <color name="gradient_glow_start">#35E7FF</color>
+    <color name="gradient_glow_end">#7C4DFF</color>
 </resources>

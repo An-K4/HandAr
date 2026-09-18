@@ -9,9 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -21,6 +18,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.example.handar.R
 import com.example.handar.databinding.FragmentRecordedPreviewBinding
+import com.example.handar.utils.applySystemBarsInsetsPadding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.File
 
@@ -43,15 +41,7 @@ class RecordedPreviewFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val row = binding.buttonRow
-        val basePaddingBottom = row.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(row) { v, insets ->
-            val bar = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            v.updatePadding(bottom = basePaddingBottom + bar.bottom)
-            insets
-        }
+        binding.buttonRow.applySystemBarsInsetsPadding(top = false, includeDisplayCutout = true)
 
         player = ExoPlayer.Builder(requireContext()).build().also { p ->
             p.addListener(object : Player.Listener{

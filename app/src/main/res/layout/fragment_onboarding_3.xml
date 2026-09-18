@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/fragment_effect_list"
+    android:id="@+id/fragment_onboarding_3"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_gravity="center"
-    android:gravity="center"
     android:orientation="vertical"
     android:layout_margin="24dp"
-    tools:context=".ui.effectlist.EffectListFragment">
+    tools:context=".ui.onboarding.Onboarding3Fragment">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_effect"
+    <TextView
+        android:id="@+id/tv_onboarding_content"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="Onboarding 3"
+        android:textSize="20sp" />
 
-    <Button android:id="@+id/btn_video_list"
-        android:layout_width="wrap_content"
+    <Button
+        android:id="@+id/btn_next"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/gallery" />
+        android:text="@string/next" />
 </LinearLayout>

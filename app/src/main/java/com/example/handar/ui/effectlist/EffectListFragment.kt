@@ -9,6 +9,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.handar.databinding.FragmentEffectListBinding
 import com.example.handar.effect.EffectRepository
+import com.example.handar.utils.applySystemBarsInsetsPadding
 
 class EffectListFragment : Fragment() {
     private var _binding: FragmentEffectListBinding? = null
@@ -24,6 +25,8 @@ class EffectListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.root.applySystemBarsInsetsPadding()
+
         val adapter = EffectAdapter(EffectRepository.all) { effect ->
             val action = EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)
             findNavController().navigate(action)
