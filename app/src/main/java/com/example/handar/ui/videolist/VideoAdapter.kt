@@ -5,8 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.handar.R
 import com.example.handar.databinding.ItemVideoBinding
-import com.example.handar.utils.formatDate
-import com.example.handar.utils.formatDuration
+import com.example.handar.ui.widget.clipRoundedCorners
 
 class VideoAdapter(
     private var items: List<VideoItem>,
@@ -17,13 +16,14 @@ class VideoAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val inflater = LayoutInflater.from(parent.context)
-        return VH(ItemVideoBinding.inflate(inflater, parent, false))
+        val binding = ItemVideoBinding.inflate(inflater, parent, false)
+        val radiusPx = parent.resources.getDimension(R.dimen.card_corner_radius)
+        binding.imgThumbnail.clipRoundedCorners(radiusPx)
+        return VH(binding)
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
-        holder.binding.textDuration.text = formatDuration(item.durationMs)
-        holder.binding.textDate.text = formatDate(item.createdAt)
         holder.binding.root.setOnClickListener { onClick(item) }
 
         if (item.thumbnail != null) {

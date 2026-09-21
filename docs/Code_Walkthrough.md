@@ -29,8 +29,13 @@ ui/effectlist/EffectListFragment.kt
     → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(query) cho
       ô search real-time — filter theo displayName.contains(ignoreCase = true))
     → ui/effectlist/EffectAdapter.kt (RecyclerView, có updateItems() để nạp lại kết quả search)
-    → ui/effectlist/EffectGridSpacingDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột,
-      không thêm margin ở 2 mép ngoài — xem AGENTS.md mục 5 về quy ước padding đáy dưới bottom_nav)
+    → ui/widget/GridSpacingItemDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột, không
+      thêm margin ở 2 mép ngoài — dùng chung với VideoListFragment, xem AGENTS.md mục 5)
+
+ui/videolist/VideoListFragment.kt
+    → ui/videolist/VideoRepository.kt (liệt kê file .mp4, đọc metadata/thumbnail)
+    → ui/videolist/VideoAdapter.kt (RecyclerView, item chỉ có ảnh + nút play giữa, không tên/thời lượng)
+    → ui/widget/GridSpacingItemDecoration.kt (dùng chung với EffectListFragment)
 
 ui/camera/CameraRecordFragment.kt   ★ file trung tâm, "nhạc trưởng" của 1 phiên quay
     → effect/EffectRepository.kt          (tra EffectDefinition theo args.effectId)

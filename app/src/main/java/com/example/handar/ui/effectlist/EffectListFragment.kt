@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.example.handar.databinding.FragmentEffectListBinding
 import com.example.handar.effect.EffectRepository
 import com.example.handar.utils.applySystemBarsInsetsPadding
+import com.example.handar.ui.widget.GridSpacingItemDecoration
 
 class EffectListFragment : Fragment() {
     private var _binding: FragmentEffectListBinding? = null
@@ -32,7 +33,7 @@ class EffectListFragment : Fragment() {
             findNavController().navigate(action)
         }
         binding.recyclerEffect.layoutManager = GridLayoutManager(requireContext(), 2)
-        binding.recyclerEffect.addItemDecoration(EffectGridSpacingDecoration(requireContext()))
+        binding.recyclerEffect.addItemDecoration(GridSpacingItemDecoration(requireContext()))
         binding.recyclerEffect.adapter = adapter
         // paddingBottom trong xml tính chiều cao thanh nav cong + inset động của thanh nav hệ thống ở đây
         // để hàng cuối luôn cuộn lên được trên cả hai thanh, không bị che mất.

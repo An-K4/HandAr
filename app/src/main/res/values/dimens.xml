@@ -8,4 +8,9 @@
          để hàng cuối cùng luôn cuộn lên tới trước mép thanh nav,
           không bị nó che mất. -->
     <dimen name="bottom_nav_curve_height">76dp</dimen>
+
+    <!-- bo góc dùng chung cho item_effect.xml/item_video.xml: vừa là radius của
+         bg_effect_item_shape/border_effect_decorative, vừa là radius cho ViewOutlineProvider
+         clip ảnh thumbnail bên trong (ui/widget/RoundedOutline.kt) — dùng chung 1 dimen để 2 lớp bo khớp nhau. -->
+    <dimen name="card_corner_radius">16dp</dimen>
 </resources>

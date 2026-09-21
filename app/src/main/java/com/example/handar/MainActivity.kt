@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -42,12 +43,17 @@ class MainActivity : AppCompatActivity() {
 
         val topBar = findViewById<View>(R.id.top_bar)
         topBar.applySystemBarsInsetsMargin(top = true)
+        val topBarTitle = topBar.findViewById<TextView>(R.id.text_top_bar_title)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             val visibility =
                 if (destination.id in destinationsWithMainChrome) View.VISIBLE else View.GONE
             bottomNav.visibility = visibility
             topBar.visibility = visibility
+            // top bar dùng chung cho cả 2 tab: màn home hiện tên app, collection đổi sang "Collection".
+            topBarTitle.setText(
+                if (destination.id == R.id.videoListFragment) R.string.nav_collection else R.string.app_name
+            )
         }
 
         setupBottomNavTabs(navController, bottomNav)

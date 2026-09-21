@@ -8,8 +8,10 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.example.handar.databinding.FragmentVideoListBinding
+import com.example.handar.ui.widget.GridSpacingItemDecoration
+import com.example.handar.utils.applySystemBarsInsetsPadding
 import kotlinx.coroutines.launch
 
 class VideoListFragment : Fragment() {
@@ -31,8 +33,13 @@ class VideoListFragment : Fragment() {
             val action = VideoListFragmentDirections.actionVideoListToVideoPlayer(videoItem.file.absolutePath)
             findNavController().navigate(action)
         }
-        binding.recyclerVideos.layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerVideos.layoutManager = GridLayoutManager(requireContext(), 2)
+        binding.recyclerVideos.addItemDecoration(GridSpacingItemDecoration(requireContext()))
         binding.recyclerVideos.adapter = adapter
+        // áp padding giống recycler_effect ở EffectListFragment.
+        binding.recyclerVideos.applySystemBarsInsetsPadding(
+            left = false, top = false, right = false, bottom = true
+        )
 
         viewLifecycleOwner.lifecycleScope.launch {
             binding.progress.isVisible = true

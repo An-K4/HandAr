@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.handar.R
 import com.example.handar.databinding.ItemEffectBinding
 import com.example.handar.effect.model.EffectDefinition
+import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.FavouriteManager
 
 class EffectAdapter(
@@ -17,7 +18,10 @@ class EffectAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val inflater = LayoutInflater.from(parent.context)
-        return VH(ItemEffectBinding.inflate(inflater, parent, false))
+        val binding = ItemEffectBinding.inflate(inflater, parent, false)
+        val radiusPx = parent.resources.getDimension(R.dimen.card_corner_radius)
+        binding.imgThumbnail.clipRoundedCorners(radiusPx)
+        return VH(binding)
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
