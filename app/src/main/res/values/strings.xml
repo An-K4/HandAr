@@ -32,4 +32,8 @@
     <string name="permission_camera">Camera</string>
     <string name="permission_notification">Allow notification</string>
     <string name="get_started">Get Started</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_collection">Collection</string>
+    <string name="effect_favourite">Favourite</string>
+    <string name="search_hint">Search effects, styles, or moods…</string>
 </resources>

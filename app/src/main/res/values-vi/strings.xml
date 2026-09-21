@@ -32,4 +32,8 @@
     <string name="permission_camera">Máy ảnh</string>
     <string name="permission_notification">Cho phép thông báo</string>
     <string name="get_started">Bắt đầu ngay</string>
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_collection">Bộ sưu tập</string>
+    <string name="effect_favourite">Yêu thích</string>
+    <string name="search_hint">Tìm hiệu ứng, phong cách hoặc cảm xúc…</string>
 </resources>
