@@ -10,7 +10,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.handar.databinding.FragmentVideoListBinding
-import com.example.handar.utils.applySystemBarsInsetsPadding
 import kotlinx.coroutines.launch
 
 class VideoListFragment : Fragment() {
@@ -27,8 +26,6 @@ class VideoListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        binding.recyclerVideos.applySystemBarsInsetsPadding(left = false, right = false)
 
         val adapter = VideoAdapter(emptyList()) { videoItem ->
             val action = VideoListFragmentDirections.actionVideoListToVideoPlayer(videoItem.file.absolutePath)

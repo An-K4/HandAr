@@ -26,8 +26,11 @@ nav_graph.xml điều hướng qua các Fragment trong ui/*
                                               └──────────────→ videoList → videoPlayer
 
 ui/effectlist/EffectListFragment.kt
-    → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị)
-    → ui/effectlist/EffectAdapter.kt (RecyclerView)
+    → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(query) cho
+      ô search real-time — filter theo displayName.contains(ignoreCase = true))
+    → ui/effectlist/EffectAdapter.kt (RecyclerView, có updateItems() để nạp lại kết quả search)
+    → ui/effectlist/EffectGridSpacingDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột,
+      không thêm margin ở 2 mép ngoài — xem AGENTS.md mục 5 về quy ước padding đáy dưới bottom_nav)
 
 ui/camera/CameraRecordFragment.kt   ★ file trung tâm, "nhạc trưởng" của 1 phiên quay
     → effect/EffectRepository.kt          (tra EffectDefinition theo args.effectId)
@@ -769,7 +772,7 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | File | Vai trò |
 |---|---|
 | `FormatUtils.kt` | `formatDuration`/`formatDate` — chỉ hiển thị, không có logic phức tạp |
-| `ViewInsetsUtils.kt` | `applySystemBarsInsetsPadding`/`applySystemBarsInsetsMargin` — 2 extension function xử lý edge-to-edge (status bar/nav bar che nội dung), đọc kỹ docstring trong file để biết khi nào dùng padding vs margin. **Không** dùng cho root của `CameraRecordFragment` (đọc comment trong file, trỏ tới `HandAr_Plan.md` Phase F) |
+| `ViewInsetsUtils.kt` | `applySystemBarsInsetsPadding`/`applySystemBarsInsetsMargin`/`matchSystemBarsBottomInsetHeight` — 3 extension function xử lý edge-to-edge (status bar/nav bar che nội dung); hàm thứ 3 dùng để co 1 View (scrim) đúng bằng inset đáy thanh hệ thống — xem `bottom_system_bar_scrim` trong `activity_main.xml`. Đọc kỹ docstring trong file để biết khi nào dùng padding vs margin vs match-height. **Không** dùng cho root của `CameraRecordFragment` (đọc comment trong file, trỏ tới `HandAr_Plan.md` Phase F) |
 | `RecordingPerfLogger.kt` | TẠM — công cụ đo fps/GC/nhiệt độ khi ghi hình, log qua `adb logcat -s RecPerf:I`. Gắn với 3 lời gọi trong `CameraRecordFragment` (đánh dấu `// TẠM`) — README nói rõ sẽ gỡ khi dự án dừng phát triển, đừng "dọn dẹp" nó giữa chừng |
 | `VideoStatsLogger.kt` | `logRecordingStats()` — chỉ chạy khi `BuildConfig.DEBUG`, in + Toast thống kê file MP4 vừa ghi (size, fps trung bình...). Gọi 1 lần duy nhất trong `stopRecordingAndGoToPreview()` |
 

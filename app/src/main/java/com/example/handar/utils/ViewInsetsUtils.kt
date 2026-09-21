@@ -68,3 +68,18 @@ fun View.applySystemBarsInsetsMargin(
         insets
     }
 }
+
+/**
+ * co chiều cao view bằng đúng inset dưới của thanh hệ thống (gesture bar/3-nút).
+ * dùng làm 1 lớp nền chắn ngang đúng vùng đó khi layout kiểu edge-to-edge để content
+ * (ví dụ recyclerview) tràn hết xuống đáy màn hình phía sau thanh nav của app.
+ */
+fun View.matchSystemBarsBottomInsetHeight() {
+    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+        val bottomInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+        view.updateLayoutParams<ViewGroup.LayoutParams> {
+            height = bottomInset
+        }
+        insets
+    }
+}

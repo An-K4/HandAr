@@ -24,11 +24,13 @@
 ## Tính năng
 
 - **Nhận diện cử chỉ tay thời gian thực** (1 tay hoặc 2 tay) bằng MediaPipe Hand Landmarker.
-- **Hiệu ứng AR** vẽ đè lên preview camera: GIF động, ảnh PNG tĩnh, và sprite sheet — bám theo tâm lòng bàn tay, tự co giãn theo khoảng cách tay–camera.
+- **Hiệu ứng AR** vẽ đè lên preview camera: GIF động, ảnh PNG tĩnh, sprite sheet, và hiệu ứng vẽ bằng code (canvas thuần, ghi nét theo ngón trỏ, ghép 2 quả cầu khi 2 tay chạm nhau...) — bám theo tâm lòng bàn tay hoặc điểm mốc khác (đầu ngón trỏ, điểm nhón, trung điểm 2 tay), tự co giãn theo khoảng cách tương ứng.
+- **Nền & nhạc nền riêng cho từng hiệu ứng** (màu/ảnh/GIF nền thay cho camera thật, nhạc nền được trộn thẳng vào video) — dùng cho các hiệu ứng như vẽ canvas, đổi nền theo cử chỉ.
 - **Âm thanh hiệu ứng** phát ra loa khi live, đồng thời được trộn thẳng vào track audio của video ghi ra (không dùng mic).
 - **Ghi video MP4** bằng `MediaCodec` + `MediaMuxer`, độ phân giải và bitrate tính động theo khung hình.
 - **Xem lại ngay sau khi quay**: Xong / Xoá / Chia sẻ (qua `FileProvider`).
 - **Thư viện video**: danh sách video đã quay kèm thumbnail, thời lượng, ngày quay; phát lại bằng ExoPlayer (Media3).
+- **Da ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
 
 ## Công nghệ
 
@@ -99,16 +101,25 @@ EffectDefinition            1 hiệu ứng người dùng chọn được ở m�
 ├── id / displayName / thumbnailRes
 ├── requiredNumHands        1 hoặc 2 — quyết định cấu hình HandLandmarker
 ├── states: List<EffectState>   KHÔNG giới hạn số trạng thái
-│   └── EffectState = gesture + asset + soundRes
-└── idleAsset?              vẽ gì khi không cử chỉ nào khớp
+│   └── EffectState = gesture + asset? + soundRes? + background? riêng + sizeSource + anchorSource
+├── background?             nền mặc định (Solid/Image/Animated) khi không state nào có nền riêng
+├── bgm?                    nhạc nền (resId + gainPercent) được TRỘN VÀO VIDEO khi ghi
+└── stateMode               Momentary (mặc định, mất tay là tắt) | Latched (giữ nguyên state)
 
-EffectAsset (sealed class)  StaticImage | AnimatedGif | SpriteSheet
-EffectVisual (interface)    StaticImageVisual | AnimatedGifVisual | SpriteSheetVisual
+EffectAsset (sealed class)  StaticImage | AnimatedGif | SpriteSheet | Procedural (vẽ bằng code)
+AnchorSource / SizeSource   quyết định tâm/kích thước vẽ: PalmCenter+PalmRadius (mặc định),
+                            PinchMidpoint+PinchDistance, IndexFingertip, TwoHandMidpoint+TwoHandDistance
+EffectVisual (interface)    3 nhóm: ảnh có sẵn (Static/AnimatedGif/SpriteSheet)Visual,
+                            vẽ canvas thủ công (StrokeVisual, GojoVisual...), nền riêng (BackgroundRenderer)
 GestureRecognizer (fun interface)  Gestures.singleHandPalmOpen, twoHandsHeart, ...
 ```
 
 `OverlayView` chỉ làm việc với interface `EffectVisual`, chọn trạng thái bằng
-`states.firstOrNull { it.gesture.recognize(hands) }` — **thứ tự khai báo trong `states` chính là độ ưu tiên**.
+`states.indexOfFirst { it.gesture.recognize(hands) }` — **thứ tự khai báo trong `states` chính là độ ưu tiên**.
+
+⚠️ `CameraRecordFragment` tự chạy **một bộ nhận diện cử chỉ thứ hai, độc lập** với `OverlayView`
+để quyết định phát/trộn âm thanh nào (có debounce 200ms) — sửa gesture logic ở 1 nơi không tự ảnh
+hưởng nơi còn lại, xem `docs/Code_Walkthrough.md` mục 12.
 
 `HandLandmarkerProvider` là singleton cache `HandLandmarker` theo `requiredNumHands` và phân phối kết quả
 qua `SharedFlow` (không dùng `setResultListener` trỏ thẳng vào Fragment — tránh leak khi vào/ra màn camera).
@@ -116,15 +127,29 @@ qua `SharedFlow` (không dùng `setResultListener` trỏ thẳng vào Fragment �
 ### Luồng màn hình
 
 ```text
-effectListFragment (start)  ──chọn effectId──>  cameraRecordFragment
+splashFragment (start, delay ~1s)
+      │ popUpTo+inclusive
+      ▼
+languageFragment (chọn vi/en)
+      │ popUpTo+inclusive
+      ▼
+onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
+                                                        │ popUpTo+inclusive
+                                                        ▼
+                                                  surveyFragment
+                                                        │ popUpTo+inclusive
+                                                        ▼
+effectListFragment  ──chọn effectId──>  cameraRecordFragment
         │                                              │ Stop
         │ nút Thư viện                                 ▼
         ▼                                       recordedPreviewFragment  (Xong / Xoá / Chia sẻ)
 videoListFragment ──chọn video──> videoPlayerFragment
 ```
 
-Action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"`
-để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
+Cụm màn mở app lần đầu (splash/language/onboarding/survey) chạy **một chiều**, mỗi bước đều
+`popUpTo` + `popUpToInclusive="true"` về điểm đầu cụm đó — không back ngược lại được. Tương tự,
+action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` +
+`popUpToInclusive="true"` để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
 
 Tham số giữa các màn (`effectId`, `videoPath`) được truyền bằng **Safe Args**, ví dụ:
 
@@ -141,38 +166,47 @@ Mọi tham số phải được khai `<argument>` trong `nav_graph.xml` thì cá
 app/src/main/java/com/example/handar/
 ├── MainActivity.kt              NavHost thuần; release HandLandmarkerProvider ở onDestroy
 ├── effect/
-│   ├── EffectAsset.kt           sealed class: StaticImage / AnimatedGif / SpriteSheet
-│   ├── EffectVisual.kt          interface + factory createEffectVisual()
-│   ├── StaticImageVisual.kt · AnimatedGifVisual.kt · SpriteSheetVisual.kt
-│   ├── GestureRecognizer.kt     fun interface + object Gestures (các công thức cử chỉ)
-│   ├── EffectState.kt · EffectDefinition.kt · EffectRepository.kt
-│   └── HandLandmarkerProvider.kt
+│   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp từ khai trực tiếp + catalog/
+│   ├── HandLandmarkerProvider.kt
+│   ├── model/                   EffectDefinition / EffectState / EffectAsset / EffectBackground /
+│   │                            EffectBgm / AnchorSource / SizeSource / StateMode
+│   ├── gesture/                 Gesture.kt (object Gestures) · GestureRecognizer · GestureUtils
+│   ├── visual/                  EffectVisual + factory createEffectVisual() · HandFrame · EffectScope · ProceduralVisual
+│   │   ├── image/                StaticImageVisual · AnimatedGifVisual · SpriteSheetVisual
+│   │   └── canvas/
+│   │       ├── drawcanvas/       StrokeModel/StrokeVisual/ClearOnActivate/SkeletonOnlyVisual/HandSkeleton
+│   │       └── gojo/             GojoModel/GojoVisual
+│   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
+│   └── catalog/                 factory cho hiệu ứng phức tạp (CameraShutter, TestEffectBackground,
+│                                CanvasDraw, Earth, BlackHole, Gojo)
 ├── recording/                    toàn bộ pipeline ghi hình, không đụng vào nếu không bắt buộc (xem cuối file)
 │   ├── VideoRecorder.kt         điều phối ghi hình (nhạc trưởng)
 │   ├── MuxerCoordinator.kt      chờ đủ 2 track mới muxer.start()
 │   ├── AudioMixer.kt · EffectAudioClock.kt
 │   └── VideoEncoderWrapper.kt · AudioEncoderWrapper.kt   bọc MediaCodec
+├── audio/                        BgmPlayer (MediaPlayer) · SoundEffectPlayer (SoundPool) — cả hai chỉ
+│                                phát ra loa, TÁCH RIÊNG khỏi track ghi hình (xem `AudioMixer`)
 ├── ui/
+│   ├── splash/ · language/ · onboarding/ · survey/   luồng mở app lần đầu, 1 chiều
 │   ├── effectlist/   EffectListFragment, EffectAdapter
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
 │   ├── preview/      RecordedPreviewFragment       (xem lại ngay sau khi quay)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository
 │   └── player/       VideoPlayerFragment           (ExoPlayer)
-├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình
-├── SoundEffectPlayer.kt          phát trực tiếp ra loa — TÁCH RIÊNG khỏi recording/ (xem kiến trúc)
-└── utils/                        AudioUtils, FormatUtils, GestureUtils,
-                                 RecordingPerfLogger, VideoStatsLogger
+├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
+└── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge),
+                                RecordingPerfLogger, VideoStatsLogger
 
 app/src/main/res/
 ├── drawable/  ảnh & GIF hiệu ứng      raw/  file .wav tiếng hiệu ứng
-├── layout/    navigation/ nav_graph.xml    values/  xml/file_paths.xml
+├── navigation/ nav_graph.xml    values/  · values-vi/   xml/file_paths.xml · xml/locales_config.xml
 app/src/main/assets/hand_landmarker.task   model MediaPipe (~7.5 MB)
 docs/                                      tài liệu thiết kế & vận hành
 ```
 
 ## Danh sách hiệu ứng
 
-Khai báo tập trung trong `effect/EffectRepository.kt` — hiện có 10 hiệu ứng:
+Khai báo trong `effect/EffectRepository.kt` (một phần lấy từ `effect/catalog/`) — hiện có **16 hiệu ứng**:
 
 | id | Tên hiển thị | Số tay | Các trạng thái (cử chỉ → asset) |
 |---|---|---|---|
@@ -180,12 +214,21 @@ Khai báo tập trung trong `effect/EffectRepository.kt` — hiện có 10 hiệ
 | `egg` | Trứng | 1 | xoè tay → trứng · nắm tay → trứng nứt |
 | `weather` | Thời tiết | 1 | xoè tay → nắng · nắm tay → sét |
 | `stranger_things` | Stranger things | 1 | xoè tay → quái vật · nắm tay → đồng hồ |
+| `black_background_with_monster` | Quái vật bóng đêm với tiếng đồng hồ kêu | 1 | giống `stranger_things` nhưng có **nền GIF riêng** (`background`) + **nhạc nền** (`bgm`) trộn vào video |
 | `rock_on_ily` | Rock on / I love you | 1 | rock on · I-love-you |
-| `camera_shutter` | Chụp ảnh | 2 | 6 cử chỉ (khung máy ảnh 2 tay, OK, peace, like, rock on, call) |
+| `camera_shutter` | Chụp ảnh | 2 | 5 cử chỉ (OK, peace, like, rock on, call) đều ra cùng 1 GIF chụp ảnh |
 | `cat_meme_2` | Meme mèo 2 | 1 | peace → hello · chỉ tay → you · call → call |
 | `mood_meter` | Đo tâm trạng | 1 | like · nắm tay → sad · xoè tay → neutral |
 | `absolute_cinema_two_hand` | Absolute cinema | 2 | 2 tay xoè · 2 tay nắm |
 | `heart_or_cross` | Trái tim và dấu X | 2 | trái tim · dấu X |
+| `test_effect_background` | Thay đổi nền | 1 | 4 cử chỉ đổi nền (Solid/Image/Animated) khác nhau, dùng `StateMode.Latched` — giữ nền khi mất tay |
+| `canvas_draw` | Vẽ canvas | 1 | chỉ tay → vẽ nét theo đầu ngón trỏ · nắm tay → xoá nét · khác → chỉ hiện khung xương tay (nền đen, dùng `EffectAsset.Procedural` + `EffectScope`) |
+| `earth` | Trái đất | 1 | có tay → quả đất to/nhỏ theo khoảng nhón ngón tay cái-trỏ (`AnchorSource.PinchMidpoint`) |
+| `black_hole` | Hố đen | 2 | có tay → hố đen to/nhỏ theo khoảng cách 2 tay (`AnchorSource.TwoHandMidpoint`) |
+| `gojo` | Gojo | 2 | chỉ tay → quả cầu ở đầu ngón trỏ mỗi tay, chạm 2 đầu ngón trỏ → phát animation sáp nhập rồi hiện quả cầu tím |
+
+Giải thích chi tiết cách từng loại hoạt động (Procedural, AnchorSource/SizeSource, EffectScope...):
+xem `docs/Code_Walkthrough.md` mục 1 và 3.
 
 ## Thêm một hiệu ứng mới
 
@@ -258,6 +301,7 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 | `Perf_Notes.md` | Kết quả điều tra hiệu năng, quy trình đo chuẩn, thí nghiệm GIF vs sprite sheet |
 | `App_Size_Optimization_16KB_Compliance.md` | Hành trình 90 MB → 33.8 MB và cách xử lý cảnh báo 16 KB |
 | `Test_Checklist.md` | Kịch bản test thủ công A–H |
+| `Code_Walkthrough.md` | Giải thích code chi tiết từng file/hàm + sơ đồ quan hệ giữa các file trong package `effect/`, `recording/`, `ui/camera/` — đọc khi cần hiểu đoạn code cụ thể làm gì thay vì chỉ biết kiến trúc tổng quát |
 
 ## Quy ước & bài học quan trọng
 

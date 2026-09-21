@@ -10,14 +10,18 @@
     android:layout_margin="24dp"
     tools:context=".ui.effectlist.EffectListFragment">
 
+    <include
+        android:id="@+id/search_bar"
+        layout="@layout/view_search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_effect"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
-
-    <Button android:id="@+id/btn_video_list"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/gallery" />
+        android:layout_weight="1"
+        android:paddingBottom="@dimen/bottom_nav_curve_height"
+        android:clipToPadding="false" />
 </LinearLayout>
