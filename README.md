@@ -234,11 +234,11 @@ xem `docs/Code_Walkthrough.md` mục 1 và 3.
 ## Thêm một hiệu ứng mới
 
 1. Chuẩn bị asset theo đúng `docs/Asset_Format_Guidelines.md`:
-   - **PNG**: có alpha, cạnh dài 512–768px, vuông/gần vuông.
-   - **GIF**: ≤ 256×256, vuông, ≤ 20 frame, ≤ 500 KB, nền trong suốt, loop mượt.
+   - **Ảnh tĩnh (`.webp`)**: có alpha, cạnh dài 512–768px, vuông/gần vuông.
+   - **Ảnh động (`.webp`)**: ≤ 256×256, vuông, ≤ 20 frame, ≤ 500 KB, nền trong suốt, loop mượt.
    - **Sprite sheet**: lưới chia hết, ghi rõ `columns` / `rows` / `frameCount` / `frameDurationMs`.
    - **WAV**: **PCM 16-bit / Mono / 44100 Hz**, dài 0.3–3s (sai thông số không crash, chỉ ra tiếng rè/lệch tốc độ).
-   - Đặt sprite sheet và PNG hiệu ứng trong `res/drawable-nodpi/` để tránh bị phóng theo mật độ màn hình.
+   - Đặt sprite sheet và ảnh tĩnh hiệu ứng trong `res/drawable-nodpi/` để tránh bị phóng theo mật độ màn hình.
 2. Thêm cử chỉ mới vào `object Gestures` nếu cần (thiết kế các công thức loại trừ lẫn nhau rõ ràng).
 3. Thêm một `EffectDefinition` vào `EffectRepository.all`, khai đúng `requiredNumHands`.
 4. Chạy lại Checklist **B** (live preview) và **D** (chống regression) trong `docs/Test_Checklist.md`.
@@ -296,9 +296,9 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 | `Camera_X_Hand_Landmarker.md` | Tài liệu gốc & đầy đủ nhất: 21 điểm mốc bàn tay, toàn bộ công thức hình học, CameraX, Canvas, kiến trúc mix audio/video, refactor hiệu năng, nhận diện cử chỉ 2 tay — kèm danh sách **cạm bẫy** đã gặp thật |
 | `HandAr_Refactor_Plan.md` | Kế hoạch Phase 0–5 của pipeline ghi hình (resolution, bitrate, bỏ mic, tách thread, PTS baseline) |
 | `HandAr_Plan.md` | Kế hoạch Phase A–N gộp thành một mạch: **Phần I** (A–F) đưa app từ 1 màn thành 5 màn + thiết kế `EffectDefinition` & nav graph; **Phần II** (G–N) nền theo hiệu ứng/state, nhạc nền, an toàn dữ liệu khi quay, hiệu ứng vẽ bằng canvas, và đợt cấu trúc lại package sắp tới |
-| `Design_App_HandAr.md` | Tài liệu thiết kế sản phẩm: app tham khảo, danh sách màn hình còn thiếu, 10 hiệu ứng đề xuất |
+| `Design_App_HandAr.md` | Tài liệu thiết kế sản phẩm: app tham khảo, danh sách màn hình còn thiếu, 10 hiệu ứng đề xuất và bảng asset cần chuẩn bị cho 10 hiệu ứng (mục 5) |
 | `Fragment_Review_Checklist.md` | Checklist tự soát mỗi khi thêm/sửa Fragment: bảng cấp phát ↔ giải phóng, 3 câu hỏi cho mỗi khối code, thứ tự trong `onDestroyView` |
-| `Asset_Format_Guidelines.md` | Quy chuẩn PNG / GIF / sprite sheet / WAV, mỗi quy tắc gắn với dòng code sinh ra nó |
+| `Asset_Format_Guidelines.md` | Quy chuẩn ảnh tĩnh / ảnh động (`.webp`) / sprite sheet / WAV, mỗi quy tắc gắn với dòng code sinh ra nó |
 | `Perf_Notes.md` | Kết quả điều tra hiệu năng, quy trình đo chuẩn, thí nghiệm GIF vs sprite sheet |
 | `App_Size_Optimization_16KB_Compliance.md` | Hành trình 90 MB → 33.8 MB và cách xử lý cảnh báo 16 KB |
 | `Test_Checklist.md` | Kịch bản test thủ công A–H |

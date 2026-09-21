@@ -39,4 +39,6 @@
     <string name="back">Back</string>
     <string name="camera_effect">Effect</string>
     <string name="camera_action">Action</string>
+    <string name="effect_picker_title">Template</string>
+    <string name="create">Create</string>
 </resources>

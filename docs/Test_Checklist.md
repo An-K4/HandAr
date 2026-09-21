@@ -131,6 +131,12 @@ git checkout main && git stash pop
 | G7b | Back, vào camera lại | Hệ thống **vẫn hỏi quyền** lần thứ 2 |
 | G7c | Từ chối lần 2, Back, vào camera lại lần nữa | **Không còn dialog nào** — đây là hành vi đúng của Android, không phải bug (xem ghi chú dưới). App phải hiện hướng dẫn mở Settings, tuyệt đối không im lặng hoặc kẹt ở màn đen |
 | G7d | Vào Settings hệ thống cấp lại quyền Camera → quay lại app | Camera hoạt động bình thường (trùng ca A3) |
+| G8 | *(màn chọn effect)* Ở màn camera bấm nút **Effect** | Mở màn "Template": top bar riêng (back, tiêu đề có gạch chân, tick cyan) và lưới 2 cột; **top bar/bottom nav chung không hiện**; effect đang dùng có viền cyan, các item khác không viền |
+| G9 | Ở màn chọn: chọn 1 effect **khác** → bấm tick | Sang camera mới đúng effect vừa chọn (tên trên top bar, thumbnail nút Effect, hiệu ứng + tiếng đúng). Bấm Back ở camera mới thì về **màn danh sách**, không quay lại màn chọn hay camera cũ |
+| G10 | Ở màn chọn: không đổi gì → bấm tick | Quay về camera cũ giữ nguyên effect (không tạo lại camera mới) |
+| G11 | Ở màn chọn: chọn effect khác rồi **huỷ** bằng nút back trên top bar; lặp lại bằng back hệ thống | Cả 2 cách đều về camera cũ với effect **cũ** (lựa chọn bị bỏ) |
+| G12 | Ở màn chọn: bấm đúp thật nhanh nút tick, rồi lặp lại với nút back | Không crash, không pop luôn cả camera bên dưới (chỉ đi đúng 1 bước) |
+| G13 | Ở màn chọn: chọn qua lại nhiều item liên tiếp | Viền chuyển đúng sang item vừa chọn, không nháy cả item, luôn đúng 1 item có viền; lưới căn đều lề 16dp, item tỉ lệ đều trên mọi cỡ màn |
 
 > **Về G7c — hành vi hệ thống, không phải lỗi app:** từ Android 11 (API 30), sau **2 lần từ chối**, hệ thống chuyển quyền sang trạng thái *permanently denied*: `launch()` vẫn chạy, callback vẫn trả kết quả "denied", nhưng **không dialog nào hiện ra**. Không có API nào bắt hệ thống hỏi lại được — chỉ người dùng tự cấp trong Settings. Vì vậy app bắt buộc phải phân biệt 3 trạng thái bằng `shouldShowRequestPermissionRationale()`:
 >
@@ -162,8 +168,12 @@ git checkout main && git stash pop
 | H10 | Đang quay → nhấn Home → đợi 10s → mở lại app | Không crash; hoặc video dừng sạch sẽ, hoặc tiếp tục quay bình thường — miễn là file không hỏng | |
 | H11 | *(từ Phase C)* Quay xong → sang màn Preview → Back → chọn hiệu ứng → vào camera lại | Log `LC_Camera` hiện đủ `onAttach → onCreate → onCreateView`, tức fragment được tạo mới hoàn toàn | Thiếu `onAttach/onCreate` = camera vẫn nằm trong back stack → `popUpToInclusive` chưa đúng, camera không được giải phóng |
 | H12 | *(từ Phase C)* Quay xong → sang màn Preview → ở lại đó 30s, quan sát chỉ báo camera của hệ thống + heap trong Profiler | Chỉ báo camera **tắt**; heap không còn giữ bitmap full-size của camera | Còn sáng / heap không giảm = camera fragment chưa bị pop, hoặc `latestCameraBitmap` chưa được null hoá |
+| H13 | *(màn chọn effect — camera **nằm lại** back stack)* Camera → Effect → Back, **lặp 5 lần**, rồi đưa tay vào làm cử chỉ có tiếng | Preview lên cả 5 lần; hiệu ứng + tiếng phát đúng 1 lần cho mỗi cử chỉ | Preview đen = executor/camera bị huỷ sai chỗ. Nhiều lớp tiếng = collector `HandLandmarkerProvider.results` nhân đôi |
+| H14 | Camera: giơ cử chỉ có tiếng và **giữ nguyên tay** → bấm Effect → Back (tay vẫn giơ) | Tiếng của cử chỉ **phát lại** sau khoảng 200ms debounce (state đã được reset) | Không có tiếng cho tới khi đổi cử chỉ = thiếu `resetGestureState()` (`lastStateId` cũ còn sót lại) |
+| H15 | Camera: giơ cử chỉ có tiếng → bấm Effect → Back → **hạ tay xuống**, bấm Record ngay, quay ~5s, xem video | Video **không** có tiếng/hiệu ứng của cử chỉ cũ (loa live đã release, không được cài vào video) | Video có tiếng cử chỉ cũ ngay từ đầu = `activeEffect` cũ không được reset |
+| H16 | Camera → Effect, ở lại màn chọn 30s, quan sát chỉ báo camera hệ thống + heap trong Profiler | Chỉ báo camera **tắt**; heap không giữ bitmap full-size của camera | Còn sáng / heap không giảm = `latestCameraBitmap`/`latestHandResult` chưa được null hoá ở `onDestroyView` |
 
-> ⚠️ H11-H12 giả định action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"` (phương án đã chốt). Nếu về sau đổi cách khai `popUpTo`, `CameraRecordFragment` sẽ nằm lại trong back stack — khi đó phải test thêm: state debounce (`lastStateId`, `pendingState`) có được reset khi quay lại không, và `latestCameraBitmap`/`latestHandResult` có bị giữ lì trong RAM không.
+> ⚠️ H11-H12 giả định action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"` (phương án đã chốt). Nếu về sau đổi cách khai `popUpTo`, `CameraRecordFragment` sẽ nằm lại trong back stack — khi đó phải test thêm: state debounce (`lastStateId`, `pendingState`) có được reset khi quay lại không, và `latestCameraBitmap`/`latestHandResult` có bị giữ lì trong RAM không. **Đã có trường hợp thật:** action `cameraRecord → effectPicker` cố ý không `popUpTo` nên camera nằm lại — xem H13–H16.
 
 ### Công cụ hỗ trợ cho mục H
 

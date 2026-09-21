@@ -16,11 +16,11 @@
 - Chỉ chữ thường, chữ số, dấu gạch dưới (`_`). Không dấu cách, không gạch ngang, không chữ hoa.
 - Không bắt đầu bằng chữ số.
 - Tên phải mô tả đúng effect + trạng thái, khớp cách đặt trong `EffectRepository`, ví dụ:
-  `happy_happy_happy_cat.gif`, `egg_cracked.png`, `stranger_things_monster.png`.
+  `fire_ball_small.webp`, `gojo_purple_ball.webp`, `room_teleport_bg_kitchen.webp`. Mẫu chung là `<effect_id>_<trạng thái hoặc vai trò>.webp|wav` (chi tiết ở `Design_App_HandAr.md` mục 5.1).
 
 ---
 
-## 1. PNG tĩnh — dùng cho `EffectAsset.StaticImage`
+## 1. Ảnh tĩnh (.webp) — dùng cho `EffectAsset.StaticImage`
 
 `StaticImageVisual` decode bằng `BitmapFactory.decodeResource` (giữ nguyên độ phân giải gốc), rồi scale
 để vừa bán kính `r` lúc vẽ — không có bước resize/nén nào ở code, ảnh nặng bao nhiêu là load nguyên bấy
@@ -28,7 +28,7 @@ nhiêu vào RAM.
 
 | Thuộc tính | Yêu cầu | Vì sao |
 |---|---|---|
-| Định dạng file | `.png`, có kênh alpha (RGBA) | Hiệu ứng vẽ đè lên video preview trong suốt; ảnh không có alpha sẽ hiện nền trắng/đen hình chữ nhật đè lên tay |
+| Định dạng file | `.webp`, có kênh alpha (RGBA) | Hiệu ứng vẽ đè lên video preview trong suốt; ảnh không có alpha sẽ hiện nền trắng/đen hình chữ nhật đè lên tay |
 | Kích thước cạnh dài | **512–768px** | `draw()` scale theo `r` (bán kính lòng bàn tay trên khung hình, thường 100–300px). Ảnh gốc lớn hơn nhiều lần không tăng chất lượng hiển thị nhưng tốn RAM decode — mỗi `EffectDefinition` load ảnh 1 lần và giữ suốt vòng đời effect |
 | Tỉ lệ khung | Vuông hoặc gần vuông (1:1 → 4:3) | `draw()` scale theo `max(width, height)` rồi giữ nguyên tỉ lệ khung hình gốc — ảnh quá dẹt (ví dụ 16:9) sẽ bị thu nhỏ quá mức theo cạnh dài, phần còn lại trông bé so với bán kính bàn tay |
 | Nền | Trong suốt xung quanh chủ thể, không viền cứng | Ảnh được vẽ đè trực tiếp lên video, viền hình chữ nhật/nền đặc sẽ lộ rõ |
@@ -38,7 +38,9 @@ Windows đôi khi hiện nền trắng giả), xác nhận nền thật sự tro
 
 ---
 
-## 2. GIF động — dùng cho `EffectAsset.AnimatedGif`
+## 2. Ảnh động (.webp) — dùng cho `EffectAsset.AnimatedGif`
+
+> Từ 09/2026 dự án dùng `.webp` (động) thay cho `.gif`. Các quy tắc trong mục này vẫn áp dụng nguyên vẹn vì ảnh động vẫn đi qua `ImageDecoder` → `AnimatedImageDrawable`; chữ "GIF" trong mục này (và tên class `AnimatedGifVisual`) hiểu là "ảnh động".
 
 Đây là loại asset có nhiều ràng buộc ẩn nhất vì `AnimatedGifVisual` render GIF vào **1 buffer cố định
 256×256** (`GIF_BUFFER_SIZE = 256`) mỗi frame, dùng `ImageDecoder` với `ALLOCATOR_SOFTWARE` bắt buộc
@@ -46,10 +48,10 @@ Windows đôi khi hiện nền trắng giả), xác nhận nền thật sự tro
 
 | Thuộc tính | Yêu cầu | Vì sao |
 |---|---|---|
-| Định dạng file | `.gif` thật (không phải video đổi đuôi) | `ImageDecoder.decodeDrawable` ép kiểu `as AnimatedImageDrawable` — file không phải GIF hợp lệ sẽ crash lúc load, không phải lỗi mượt |
+| Định dạng file | `.webp` động thật (không phải video đổi đuôi) | `ImageDecoder.decodeDrawable` ép kiểu `as AnimatedImageDrawable` — file không phải ảnh động hợp lệ sẽ crash lúc load, không phải lỗi mượt |
 | Kích thước gốc | **≤ 256×256px**, khuyến nghị đúng 256×256 | Mọi GIF đều bị vẽ vào buffer 256×256 cố định (`renderToBuffer()`), GIF lớn hơn chỉ tốn thời gian decode + bộ nhớ mà không tăng chất lượng hiển thị — GIF nhỏ hơn 256 vẫn ổn (được scale lên) nhưng sẽ hơi mờ |
 | Tỉ lệ khung | Vuông (1:1) | `renderToBuffer()` dùng `uniformScale = min(256/w, 256/h)` rồi căn giữa — GIF không vuông sẽ để lại viền trong suốt 2 bên trong buffer, làm chủ thể trông nhỏ hơn thực tế so với bán kính bàn tay |
-| Nền | Trong suốt (GIF hỗ trợ alpha nhị phân, không mượt như PNG) | `buffer.eraseColor(Color.TRANSPARENT)` mỗi frame — nếu GIF nguồn có nền đặc (trắng/xanh lá) nó sẽ hiện y nguyên, không tự động xoá được bằng code |
+| Nền | Trong suốt (WebP động hỗ trợ alpha 8-bit, mượt hơn GIF) | `buffer.eraseColor(Color.TRANSPARENT)` mỗi frame — nếu ảnh nguồn có nền đặc (trắng/xanh lá) nó sẽ hiện y nguyên, không tự động xoá được bằng code |
 | Số frame / dung lượng | Không giới hạn cứng trong code, nhưng nên **≤ 20 frame, ≤ 500KB** | `renderToBuffer()` chạy lại mỗi lần `draw()` được gọi — tức **mỗi frame video ghi hình** (25fps) lẫn mỗi lần `onDraw` của live preview đều decode lại 1 frame GIF; GIF nặng/nhiều frame làm tăng nguy cơ tụt fps khi ghi hình (đúng loại vấn đề `RecordingPerfLogger` trong `CameraRecordFragment` đang đo) |
 | Vòng lặp | Nên tự loop mượt (frame cuối nối liền frame đầu) | `repeatCount = REPEAT_INFINITE` luôn set trong code — GIF không tự loop mượt sẽ bị giật ở mỗi chu kỳ lặp |
 
@@ -155,13 +157,13 @@ là một GIF" khi nhìn file gốc.
 
 | Loại | Định dạng | Kích thước/Thông số | Nền/Kênh |
 |---|---|---|---|
-| Ảnh tĩnh (hiệu ứng) | `.png` | 512–768px, vuông/gần vuông | Alpha trong suốt |
-| GIF (hiệu ứng) | `.gif` | ≤256×256, vuông, ≤20 frame, ≤500KB | Alpha trong suốt |
-| Sprite sheet | `.png` | Lưới chia hết, ô đồng đều, ghi rõ columns/rows/frameCount/frameDurationMs | Alpha trong suốt |
+| Ảnh tĩnh (hiệu ứng) | `.webp` | 512–768px, vuông/gần vuông | Alpha trong suốt |
+| Ảnh động (hiệu ứng) | `.webp` | ≤256×256, vuông, ≤20 frame, ≤500KB | Alpha trong suốt |
+| Sprite sheet | `.webp` | Lưới chia hết, ô đồng đều, ghi rõ columns/rows/frameCount/frameDurationMs | Alpha trong suốt |
 | Âm thanh | `.wav` | PCM 16-bit, Mono, 44100Hz, 0.3–3s | — |
 | Nền — Solid | `colors.xml` | — | Không dùng hex trần |
 | Nền — Image | `.webp`, `drawable-nodpi/` | ~9:19.5, cạnh ngắn ≥720px | Không cần alpha |
-| Nền — Animated | ảnh động (WebP/GIF động) | ≤720p, loop ≤3s, ≤1.5MB | Không cần alpha, decode 2 lần |
+| Nền — Animated | ảnh động `.webp` | ≤720p, loop ≤3s, ≤1.5MB | Không cần alpha, decode 2 lần |
 
 > Nếu sau này thêm loại `EffectAsset` mới (ví dụ Lottie như đề cập trong
 > `HandAr_Plan.md` Phần I), bổ sung thêm 1 mục vào file này theo đúng format trên: nêu yêu cầu +

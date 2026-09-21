@@ -1584,18 +1584,19 @@ việc đổi package không ảnh hưởng R8. Kiểm tra lại file này nếu
 
 ---
 
-## 10. Việc đã bàn nhưng cố ý hoãn
+## 10. Việc đã bàn nhưng cố ý hoãn / không làm
 
-Ghi lại để lần sau không phải bàn lại từ đầu:
+Ghi lại để lần sau không phải bàn lại từ đầu. Trạng thái: ✅ đã xong · ⏳ sẽ làm (chờ điều kiện) ·
+🚫 khả năng rất cao không làm · ⏸ hoãn.
 
-| Việc | Vì sao hoãn |
-|---|---|
-| Xuất video ra Gallery (MediaStore) | Đơn giản về kỹ thuật; làm sau khi giao diện đã chốt để không phải sửa hai lần |
-| Xoá / chia sẻ / **đổi tên** ngay trong màn thư viện | Phần lớn là di chuyển logic xoá + chia sẻ **đã có** ở `RecordedPreviewFragment` sang; chỉ đổi tên là mới |
-| Lưới (grid) + nhóm cho màn chọn hiệu ứng | 10 hiệu ứng vẫn vừa với 1 cột; làm khi số hiệu ứng thực sự vượt |
-| Màn Settings | Chưa có đủ tuỳ chọn để xứng một màn riêng |
-| Hướng dẫn cử chỉ cho người dùng | Đã cân nhắc và quyết định không làm |
-| Đổi camera trước/sau, zoom, tap-to-focus, pause/resume, giới hạn thời lượng | Không nằm trong hướng đi hiện tại của app |
+| Việc | Trạng thái | Ghi chú |
+|---|---|---|
+| Xuất video ra Gallery (MediaStore) | 🚫 Khả năng rất cao không làm | Lý do hoãn ban đầu: đơn giản về kỹ thuật, làm sau khi giao diện đã chốt. Nay không nằm trong hướng đi của app (video chỉ lưu trong `getExternalFilesDir(Environment.DIRECTORY_MOVIES)`, code chưa dùng `MediaStore`) |
+| Xoá / chia sẻ / **đổi tên** ngay trong màn thư viện | 🚫 Khả năng không làm ở màn thư viện | Dự kiến chuyển thành chức năng của màn xem video (`VideoPlayerFragment`) sau khi bấm vào từ thư viện. Phần lớn là di chuyển logic xoá + chia sẻ **đã có** ở `RecordedPreviewFragment` sang; chỉ đổi tên là mới |
+| Lưới (grid) + nhóm cho màn chọn hiệu ứng | ✅ Xong phần lưới, dừng ở đó | Đã có lưới 2 cột (`GridLayoutManager(…, 2)` trong `EffectListFragment`, dùng chung `GridSpacingItemDecoration` với thư viện video). Phần "nhóm" (section/header) không làm: hiện có 10 hiệu ứng, không cần chia nhóm |
+| Màn Settings | ⏸ Hoãn | Chưa có đủ tuỳ chọn để xứng một màn riêng |
+| Hướng dẫn cử chỉ cho người dùng | ⏳ Sẽ làm trong tương lai (có thể vài phase tới) | Trước đây đã cân nhắc và quyết định không làm. Nay màn camera đã có nút Action (`btn_action`, hiện mới có UI, chưa gắn logic) — chờ design xong sẽ nối vào. Chưa có design thì không tự nối |
+| Đổi camera trước/sau, zoom, tap-to-focus, pause/resume, giới hạn thời lượng | 🚫 Khả năng rất cao không làm | Không nằm trong hướng đi hiện tại của app |
 
 ---
 

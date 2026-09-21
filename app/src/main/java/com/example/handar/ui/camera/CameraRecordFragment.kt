@@ -147,6 +147,7 @@ class CameraRecordFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        resetGestureState()
 
         backCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
@@ -156,7 +157,7 @@ class CameraRecordFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
         // inset áp lên 2 khối bọc ngoài, không áp lên từng nút
-        binding.layoutCameraTopBar.applySystemBarsInsetsMargin(top = true)
+        binding.layoutCameraTopBar.root.applySystemBarsInsetsMargin(top = true)
         binding.layoutCameraBottomContainer.applySystemBarsInsetsMargin(bottom = true)
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
@@ -182,7 +183,8 @@ class CameraRecordFragment : Fragment() {
             }
 
             bindEffectInfo(currentEffect)
-            btnBack.setOnClickListener { navigateBack() }
+            layoutCameraTopBar.btnBack.setOnClickListener { navigateBack() }
+            btnEffect.setOnClickListener { openEffectPicker() }
 
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()
@@ -224,6 +226,10 @@ class CameraRecordFragment : Fragment() {
 
         overlayView = null
         handLandmarker = null
+        // camera nằm lại back stack khi sang màn chọn effect (instance sống, view chết): không để bitmap và kết quả
+        // detect nặng nằm lì trong RAM suốt thời gian đó (Fragment_Review_Checklist mục 0)
+        latestHandResult = null
+        latestCameraBitmap = null
         _binding = null
     }
 
@@ -235,9 +241,33 @@ class CameraRecordFragment : Fragment() {
         }
     }
 
+    /**
+     * mở màn chọn effect (EffectPickerFragment). camera nằm lại trong back stack nên instance này sống tiếp
+     * và có thể được quay lại (đóng màn chọn mà không đổi) → xem resetGestureState().
+     * nút này bị ẩn (INVISIBLE) khi đang ghi hình nên không thể bấm giữa lúc quay; còn chốt cửa
+     * currentDestination là để chống bấm đúp (navigate lần 2 sẽ ném IllegalArgumentException).
+     */
+    private fun openEffectPicker() {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.cameraRecordFragment) return
+        nav.navigate(CameraRecordFragmentDirections.actionCameraRecordToEffectPicker(currentEffect.id))
+    }
+
+    /**
+     * reset state nhận diện cử chỉ mỗi khi view được tạo (kể cả khi quay lại từ màn chọn effect trên cùng instance).
+     * không reset thì: cử chỉ đang giơ lúc quay lại bị debounce coi là “đã kích hoạt rồi” nên không phát lại tiếng;
+     * và activeEffect cũ (loa live đã bị release) sẽ bị cài vào video nếu bấm Record ngay sau đó.
+     */
+    private fun resetGestureState() {
+        lastStateId = null
+        pendingState = null
+        pendingStateSince = 0
+        activeEffect = null
+    }
+
     private fun bindEffectInfo(effect: EffectDefinition?) {
         val context = requireContext()
-        binding.textEffectName.text = effect?.displayName.orEmpty()
+        binding.layoutCameraTopBar.textEffectName.text = effect?.displayName.orEmpty()
 
         val thumbnail = effect?.thumbnailRes?.takeIf { it != 0 }?.let { res ->
             runCatching { ContextCompat.getDrawable(context, res) }.getOrNull()
@@ -259,7 +289,7 @@ class CameraRecordFragment : Fragment() {
      */
     private fun hideChromeWhileRecording() {
         with(binding) {
-            layoutCameraTopBar.visibility = View.GONE
+            layoutCameraTopBar.root.visibility = View.GONE
             layoutCameraEffectColumn.visibility = View.INVISIBLE
             layoutCameraActionColumn.visibility = View.INVISIBLE
         }
@@ -551,7 +581,7 @@ class CameraRecordFragment : Fragment() {
         val recorderToStop = videoRecorder
         videoRecorder = null
         binding.btnToggleRecord.isEnabled = false
-        binding.btnBack.isEnabled = false // tránh bấm back lần 2 khi đang dừng: lúc này isRecording đã false nên sẽ pop thẳng, mất video
+        binding.layoutCameraTopBar.btnBack.isEnabled = false // tránh bấm back lần 2 khi đang dừng: lúc này isRecording đã false nên sẽ pop thẳng, mất video
 
         recorderToStop?.stop {
             if (!isAdded) return@stop

@@ -22,6 +22,8 @@ MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
     splash → language → onboarding1-3 → survey → effectList → cameraRecord → recordedPreview
+                                              │                     ⇅ (nút Effect / tick / back)
+                                              │                effectPicker
                                               └──────────────→ videoList → videoPlayer
 
 ui/effectlist/EffectListFragment.kt
@@ -30,6 +32,12 @@ ui/effectlist/EffectListFragment.kt
     → ui/effectlist/EffectAdapter.kt (RecyclerView, có updateItems() để nạp lại kết quả search)
     → ui/widget/GridSpacingItemDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột, không
       thêm margin ở 2 mép ngoài — dùng chung với VideoListFragment, xem AGENTS.md mục 5)
+
+ui/effectpicker/EffectPickerFragment.kt   (màn chọn effect, mở từ nút Effect của camera — mục 6.1)
+    → effect/EffectRepository.kt (EffectRepository.all; không có search/yêu thích)
+    → ui/effectpicker/EffectPickerAdapter.kt (chọn đúng 1 item, viền cyan qua state_selected)
+    → ui/widget/GridSpacingItemDecoration.kt
+    → trả kết quả về camera bằng Safe Args (actionEffectPickerToCameraRecord), không dùng result API
 
 ui/videolist/VideoListFragment.kt
     → ui/videolist/VideoRepository.kt (liệt kê file .mp4, đọc metadata/thumbnail)
@@ -525,10 +533,31 @@ giật do I/O:
   - `navigateBack()`: logic chung của nút back trên top bar **và** `backCallback` (back hệ thống). Đang ghi →
     `stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)`; không ghi → `popBackStack()`.
     `btnBack` bị disable cùng lúc với `btnToggleRecord` khi đang dừng ghi (tránh pop thẳng làm mất video).
-  - `btn_effect` / `btn_action` hiện mới có UI, **chưa gắn logic**.
+  - `btn_effect` → `openEffectPicker()`: `navigate(actionCameraRecordToEffectPicker(currentEffect.id))`, chốt cửa
+    `currentDestination` để chống bấm đúp. Action này **không** `popUpTo` nên camera nằm lại back stack ở trạng thái
+    "instance sống, view chết" → `resetGestureState()` (`onViewCreated`) reset `lastStateId`/`pendingState`/
+    `pendingStateSince`/`activeEffect`, còn `onDestroyView` null hoá `latestCameraBitmap`/`latestHandResult` để không
+    giữ bitmap nặng trong RAM. Không reset thì quay lại từ màn chọn (huỷ) sẽ: (1) không phát lại tiếng của cử chỉ
+    đang giơ (debounce coi là đã kích hoạt), (2) cài `activeEffect` cũ vào video nếu bấm Record ngay.
+  - `btn_action` hiện mới có UI, **chưa gắn logic** (chờ design, xem `HandAr_Plan.md` mục 10).
 - Nếu `currentEffect.background != null`: ẩn `PreviewView` (`binding.preview.visibility =
   View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `testEffectBackgroundEffect`)
   thì không cần thấy hình camera thật phía sau, `OverlayView` tự vẽ nền đè lên.
+
+**`EffectPickerFragment`** (`ui/effectpicker/`, layout `fragment_effect_picker.xml`, item `item_effect_picker.xml`):
+- Top bar riêng (back + tiêu đề có gạch chân `horizontal_divider` + nút tick `ic_confirm`); vì không nằm trong
+  `MainActivity.destinationsWithMainChrome` nên top bar/bottom nav chung tự ẩn. Tiêu đề căn giữa bằng constraint
+  vào cả 2 mép (không phụ thuộc bề rộng 2 nút). Inset: `applySystemBarsInsetsMargin(top)` cho top bar,
+  `applySystemBarsInsetsPadding(bottom)` cho RecyclerView.
+- `selectedEffectId` (field của instance, khởi tạo từ `args.currentEffectId`, `null` nếu id rỗng/không có trong
+  repository → tick bị khoá + mờ). Adapter tự cập nhật viền bằng payload (`notifyItemChanged(pos, payload)`)
+  để không bind lại ảnh và không bị cross-fade nháy.
+- Item cao theo tỉ lệ cột (`H,20:21`) thay vì 180dp cố định như `item_effect.xml`; viền là `foreground`
+  `selector_effect_picker_border` (chỉ `state_selected` mới có viền, dùng lại `border_effect_decorative`).
+- Tick (`confirm()`): id == `currentEffectId` → `popBackStack()` (camera cũ còn ở dưới, không tạo lại); khác →
+  `navigate(actionEffectPickerToCameraRecord(id))` với `popUpTo` camera inclusive. Back (nút/hệ thống) = huỷ.
+  Cả `cancel()` và `confirm()` đều chốt cửa `currentDestination`: bấm đúp mà không chốt thì `popBackStack()` lần 2
+  sẽ pop luôn camera bên dưới.
 
 ### 6.2 Xin quyền → khởi tạo MediaPipe → mở camera
 
