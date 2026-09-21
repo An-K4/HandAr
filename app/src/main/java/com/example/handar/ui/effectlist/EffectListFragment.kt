@@ -29,7 +29,7 @@ class EffectListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val adapter = EffectAdapter(EffectRepository.all) { effect ->
-            val action = EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)
+            val action = EffectListFragmentDirections.actionEffectListToEffectPreview(effect.id)
             findNavController().navigate(action)
         }
         binding.recyclerEffect.layoutManager = GridLayoutManager(requireContext(), 2)

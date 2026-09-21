@@ -30,8 +30,9 @@
 - **Ghi video MP4** bằng `MediaCodec` + `MediaMuxer`, độ phân giải và bitrate tính động theo khung hình.
 - **Xem lại ngay sau khi quay**: Xong / Xoá / Chia sẻ (qua `FileProvider`).
 - **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3).
+- **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
-- **Da ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
+- **Đa ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
 
 ## Công nghệ
 
@@ -50,7 +51,7 @@
 ## Yêu cầu & cách chạy
 
 - **minSdk 28** (Android 9) · **targetSdk / compileSdk 37** · Java 11
-- Quyền cần cấp: **CAMERA** (app **không** dùng mic — xem [Kiến trúc](#kiến-trúc))
+- Quyền cần cấp: **CAMERA** (bắt buộc) và **POST_NOTIFICATIONS** (Android 13+), đều xin qua màn cấp quyền lần đầu mở app; app **không** dùng mic — xem [Kiến trúc](#kiến-trúc)
 - Video được lưu tại `getExternalFilesDir(Environment.DIRECTORY_MOVIES)` của app
 
 ```bash
@@ -140,22 +141,32 @@ onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
                                                   surveyFragment
                                                         │ popUpTo+inclusive
                                                         ▼
-effectListFragment  ──chọn effectId──>  cameraRecordFragment
-        ↕ bottom nav (tab Home / Collection)          │ Stop
-        │                                              ▼
+                                                  welcomeFragment
+                                                        │ popUpTo+inclusive
+                                                        ▼
+                                                  permissionFragment (switch Camera / Thông báo)
+                                                        │ popUpTo+inclusive
+                                                        ▼
+effectListFragment ──chọn effectId──> effectPreviewFragment ──Create──> cameraRecordFragment ──Stop──> recordedPreviewFragment
+        ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Xong/Xoá/Chia sẻ)
+        │                                         └── tick effect khác ── effectPickerFragment ◄┘
 videoListFragment ──chọn video──> videoPlayerFragment
-                              (song song: recordedPreviewFragment — Xong/Xoá/Chia sẻ)
 ```
 
-Cụm màn mở app lần đầu (splash/language/onboarding/survey) chạy **một chiều**, mỗi bước đều
+Cụm màn mở app lần đầu (splash/language/onboarding/survey/welcome/permission) chạy **một chiều**, mỗi bước đều
 `popUpTo` + `popUpToInclusive="true"` về điểm đầu cụm đó — không back ngược lại được. Tương tự,
 action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` +
 `popUpToInclusive="true"` để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
 
-Tham số giữa các màn (`effectId`, `videoPath`) được truyền bằng **Safe Args**, ví dụ:
+Màn xem trước (`effectPreviewFragment`) là cửa vào camera duy nhất: action `effectPreview → cameraRecord` khai
+`popUpTo` **chính màn preview** inclusive nên back ở camera vẫn về `effectListFragment`. Ở camera, nút Effect mở
+`effectPickerFragment` mà **không** `popUpTo` (camera nằm lại back stack); tick effect khác → `effectPreviewFragment` mới
+với `popUpTo` camera inclusive, còn tick cùng effect hoặc back thì chỉ pop về camera cũ.
+
+Tham số giữa các màn (`effectId`, `currentEffectId`, `videoPath`) được truyền bằng **Safe Args**, ví dụ:
 
 ```kotlin
-val action = EffectListFragmentDirections.actionEffectListToCameraRecord(effect.id)
+val action = EffectListFragmentDirections.actionEffectListToEffectPreview(effect.id)
 findNavController().navigate(action)
 ```
 
@@ -190,8 +201,11 @@ app/src/main/java/com/example/handar/
 ├── audio/                        BgmPlayer (MediaPlayer) · SoundEffectPlayer (SoundPool) — cả hai chỉ
 │                                phát ra loa, TÁCH RIÊNG khỏi track ghi hình (xem `AudioMixer`)
 ├── ui/
-│   ├── splash/ · language/ · onboarding/ · survey/   luồng mở app lần đầu, 1 chiều
+│   ├── splash/ · language/ · onboarding/ · survey/ · welcome/ · permission/   luồng mở app lần đầu, 1 chiều
+│   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo)
 │   ├── effectlist/   EffectListFragment (có ô search real-time), EffectAdapter
+│   ├── effectpreview/ EffectPreviewFragment       (xem trước effect + nút Create, mở từ effectlist/effectpicker)
+│   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
 │   ├── preview/      RecordedPreviewFragment       (xem lại ngay sau khi quay)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)

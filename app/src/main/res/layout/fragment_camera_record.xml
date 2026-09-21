@@ -16,47 +16,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-    <LinearLayout
+    <include
         android:id="@+id/layout_camera_top_bar"
+        layout="@layout/view_effect_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="16dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@null"
-            android:contentDescription="@string/back"
-            android:scaleType="fitStart"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:id="@+id/text_effect_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="4"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:shadowColor="@color/black"
-            android:shadowDx="0"
-            android:shadowDy="1"
-            android:shadowRadius="4"
-            android:textColor="@color/white"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-    </LinearLayout>
+        android:layout_marginTop="16dp" />
 
     <LinearLayout
         android:id="@+id/layout_camera_bottom_container"

@@ -32,6 +32,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|start"
             android:layout_margin="14dp"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:shadowColor="@color/black"
             android:shadowDx="0"
             android:shadowDy="1"

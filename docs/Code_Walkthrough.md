@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `229de45`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `77ee486`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -21,10 +21,18 @@
 MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
-    splash → language → onboarding1-3 → survey → effectList → cameraRecord → recordedPreview
-                                              │                     ⇅ (nút Effect / tick / back)
-                                              │                effectPicker
-                                              └──────────────→ videoList → videoPlayer
+    splash → language → onboarding1-3 → survey → welcome → permission → effectList → effectPreview → cameraRecord → recordedPreview
+                                                                        │                  ▲                 ⇅ (nút Effect / back)
+                                                                        │                  └─ (tick, effect khác) ─ effectPicker
+                                                                        └──────────────→ videoList → videoPlayer
+
+ui/welcome/WelcomeFragment.kt · ui/permission/PermissionFragment.kt   (2 màn cuối của cụm mở app 1 lần, nằm giữa survey và effectList)
+    → WelcomeFragment: chỉ có 1 nút → action_welcome_to_permission (popUpTo inclusive)
+    → PermissionFragment: 2 SwitchMaterial (Camera = CAMERA, Thông báo = POST_NOTIFICATIONS — Android < 13 không có quyền này
+      nên luôn coi là granted). Switch chỉ phản ánh trạng thái quyền thật (`refreshSwitchStates()` ở onViewCreated + onResume để
+      cập nhật khi user vừa cấp tay trong Settings): bật khi chưa cấp → xin quyền; tắt khi đã cấp → trả về bật (Android không
+      cho app tự thu hồi quyền). Nút bắt đầu → action_permission_to_effectList (popUpTo inclusive), **không chặn** khi chưa
+      cấp quyền — màn camera có nhánh xin lại (mục 6.2)
 
 ui/effectlist/EffectListFragment.kt
     → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(query) cho
@@ -33,11 +41,16 @@ ui/effectlist/EffectListFragment.kt
     → ui/widget/GridSpacingItemDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột, không
       thêm margin ở 2 mép ngoài — dùng chung với VideoListFragment, xem AGENTS.md mục 5)
 
+ui/effectpreview/EffectPreviewFragment.kt   (xem trước effect + nút Create, luôn mở từ effectList/effectPicker — mục 6.1)
+    → effect/EffectRepository.kt (findById(args.effectId) → tên hiển thị trên top bar)
+    → res/layout/view_effect_top_bar.xml (top bar dùng chung với màn camera, qua <include>)
+    → Create → cameraRecord bằng Safe Args (actionEffectPreviewToCameraRecord)
+
 ui/effectpicker/EffectPickerFragment.kt   (màn chọn effect, mở từ nút Effect của camera — mục 6.1)
     → effect/EffectRepository.kt (EffectRepository.all; không có search/yêu thích)
     → ui/effectpicker/EffectPickerAdapter.kt (chọn đúng 1 item, viền cyan qua state_selected)
     → ui/widget/GridSpacingItemDecoration.kt
-    → trả kết quả về camera bằng Safe Args (actionEffectPickerToCameraRecord), không dùng result API
+    → trả kết quả bằng Safe Args (actionEffectPickerToEffectPreview → màn xem trước), không dùng result API
 
 ui/videolist/VideoListFragment.kt
     → ui/videolist/VideoRepository.kt (liệt kê file .mp4, đọc metadata/thumbnail)
@@ -181,7 +194,7 @@ xem mục 6.3 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên b�
 
 `findById(id)` dùng `.first { it.id == id }` — **crash nếu không tìm thấy id**. An toàn trong thực tế
 vì `id` luôn đến từ chính `EffectRepository.all` qua Safe Args (`EffectListFragmentDirections
-.actionEffectListToCameraRecord(effect.id)`), không có đường nào truyền `id` tuỳ ý vào.
+.actionEffectListToEffectPreview(effect.id)`, rồi `EffectPreviewFragmentDirections.actionEffectPreviewToCameraRecord(effect.id)`), không có đường nào truyền `id` tuỳ ý vào.
 
 ---
 
@@ -518,7 +531,7 @@ giật do I/O:
   toàn tách biệt** dùng cùng 1 file tài nguyên, xem mục 7.2.
 - `overlay.setEffect(currentEffect)` — trigger mục 5.1.
 - **Chrome UI của màn quay** (`fragment_camera_record.xml`, `FrameLayout`: camera/overlay nằm dưới, 2 thanh `LinearLayout`
-  nổi lên trên): top bar (`btn_back` + `text_effect_name`, không có nút đổi camera — app cố ý không làm)
+  nổi lên trên): top bar (layout chung `view_effect_top_bar` qua `<include>`, gồm `btn_back` + `text_effect_name`, không có nút đổi camera — app cố ý không làm; truy cập qua `binding.layoutCameraTopBar.root/.btnBack/.textEffectName`)
   và bottom bar 3 nút `[btn_effect] [btn_toggle_record] [btn_action]`. Inset hệ thống được áp lên **2 thanh bọc
   ngoài** (`layoutCameraTopBar` top, `layoutCameraBottomContainer` bottom), không áp lên từng nút bên trong.
   `layoutCameraBottomContainer` là khối dọc neo đáy chứa `tvRecordingTimer` (ẩn mặc định) rồi tới hàng nút
@@ -554,10 +567,26 @@ giật do I/O:
   để không bind lại ảnh và không bị cross-fade nháy.
 - Item cao theo tỉ lệ cột (`H,20:21`) thay vì 180dp cố định như `item_effect.xml`; viền là `foreground`
   `selector_effect_picker_border` (chỉ `state_selected` mới có viền, dùng lại `border_effect_decorative`).
+  Tên effect (`text_name`) hiện 1 dòng, `ellipsize=end` (`maxLines=1`): tên dài bị cắt bằng “…”. Ở `item_effect.xml` (màn danh sách)
+  tên còn chừa `layout_marginEnd=52dp` (14dp lề + 26dp icon tim + 12dp cách) để “…” không nằm dưới icon tim — phải khai margin
+  từng cạnh (`Start/Top/End/Bottom`), không dùng chung `layout_margin` vì `layout_margin` ghi đè các margin riêng lẻ.
 - Tick (`confirm()`): id == `currentEffectId` → `popBackStack()` (camera cũ còn ở dưới, không tạo lại); khác →
-  `navigate(actionEffectPickerToCameraRecord(id))` với `popUpTo` camera inclusive. Back (nút/hệ thống) = huỷ.
+  `navigate(actionEffectPickerToEffectPreview(id))` với `popUpTo` camera inclusive (camera mới chỉ được tạo khi bấm Create ở màn xem trước). Back (nút/hệ thống) = huỷ.
   Cả `cancel()` và `confirm()` đều chốt cửa `currentDestination`: bấm đúp mà không chốt thì `popBackStack()` lần 2
   sẽ pop luôn camera bên dưới.
+
+**`EffectPreviewFragment`** (`ui/effectpreview/`, layout `fragment_effect_preview.xml`):
+- Luôn được mở từ `effectListFragment` (bấm 1 effect) hoặc `effectPickerFragment` (tick effect khác). Nhận `effectId` qua Safe
+  Args, `onCreate` tra `EffectRepository.findById`. Không nằm trong `destinationsWithMainChrome` nên top bar/bottom nav chung tự ẩn.
+- Media minh hoạ phủ kín cả màn (`ImageView` `centerCrop`, nền root đen) nằm dưới cùng; top bar dùng `view_effect_top_bar` (chung với
+  màn quay); nút Create (`btn_create`, nền `bg_create_button` cyan, chữ đen) nổi góc dưới phải, lề 24dp + inset thanh điều hướng.
+- **Media hiện là TẠM**: `DEMO_PREVIEW_RES = R.drawable.black_hole` cho mọi effect. Decode bằng `ImageDecoder.decodeDrawable` →
+  `AnimatedImageDrawable` (`REPEAT_INFINITE`), `start()` ở `onStart`, `stop()` ở `onStop`; `previewDrawable` **phải null hoá ở
+  `onDestroyView`** vì drawable giữ callback về ImageView (giữ lại = leak cả cây view). Khi có media thật theo từng effect thì
+  khai vào `EffectDefinition`; nếu là video (mp4) thì đổi sang Media3/ExoPlayer như `RecordedPreviewFragment`.
+- Create → `actionEffectPreviewToCameraRecord(effect.id)` với `popUpTo` **chính màn này** inclusive: màn xem trước bị gỡ, nên back ở
+  camera vẫn về `effectList` và các luồng sau camera (recordedPreview, H11...) không đổi. Back ở màn này = `popBackStack()`.
+  Cả `goBack()` và `create()` chốt cửa `currentDestination` (cùng lý do picker).
 
 ### 6.2 Xin quyền → khởi tạo MediaPipe → mở camera
 
@@ -846,6 +875,7 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | Đổi độ phân giải/bitrate/fps ghi hình | `ui/camera/CameraRecordFragment.kt` (`computeRecordingSize`, tham số `VideoRecorder(...)`) + `recording/VideoEncoderWrapper.kt` (`computeBitrate`) |
 | Thêm màn hình mới vào flow khởi động | `res/navigation/nav_graph.xml` + Fragment mới trong `ui/` theo mẫu `ui/onboarding/` |
 | Đổi ngôn ngữ / thêm bản dịch | `ui/language/LanguageFragment.kt` + `res/values-xx/strings.xml` |
+| Đổi top bar (back + tên effect) của màn camera/xem trước | `res/layout/view_effect_top_bar.xml` — dùng chung qua `<include>`, đừng nhân bản vào thư mục qualifier (xem `docs/AGENTS.md` mục 5) |
 
 ---
 

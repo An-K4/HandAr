@@ -96,7 +96,7 @@ class EffectPickerFragment : Fragment() {
         if (id == args.currentEffectId) {
             nav.popBackStack()
         } else {
-            nav.navigate(EffectPickerFragmentDirections.actionEffectPickerToCameraRecord(id))
+            nav.navigate(EffectPickerFragmentDirections.actionEffectPickerToEffectPreview(id))
         }
     }
 }

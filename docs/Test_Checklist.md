@@ -16,7 +16,7 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app lần đầu | Chỉ hiện đúng 1 popup xin quyền **Camera**, **không còn** popup xin quyền Mic |
+| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash → ngôn ngữ → onboarding 1–3 → khảo sát → chào mừng tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, 2 switch (Camera, Thông báo) đang tắt (Android < 13: switch Thông báo luôn bật, không có popup). Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
 | A2 | Từ chối quyền Camera | App hiện Toast từ chối, không crash |
 | A3 | Vào Settings hệ thống → cấp lại quyền Camera → mở lại app | App hoạt động bình thường, live preview hiện đúng |
 
@@ -121,8 +121,8 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| G1 | Mở app | Vào đúng màn **danh sách hiệu ứng** (start destination), không phải màn camera |
-| G2 | Chọn 1 hiệu ứng → vào màn camera | Preview lên bình thường, hiệu ứng hiển thị đúng **hiệu ứng vừa chọn** (không phải hiệu ứng mặc định) |
+| G1 | Mở app (cold start), đi hết luồng: splash (~1s, tự chuyển) → ngôn ngữ → onboarding 1–3 → khảo sát → chào mừng → xin quyền → bấm nút bắt đầu | Bắt đầu ở **splash** (start destination), kết thúc ở màn **danh sách hiệu ứng** (không phải màn camera). Ở danh sách bấm Back thì thoát app, không quay lại xin quyền/chào mừng/khảo sát (mỗi bước `popUpTo` inclusive). Hiện chưa có cờ "đã xem onboarding" nên **mỗi lần** mở app đều chạy lại luồng này |
+| G2 | Chọn 1 hiệu ứng → sang màn xem trước → bấm **Create** → vào màn camera | Preview lên bình thường, hiệu ứng hiển thị đúng **hiệu ứng vừa chọn** (không phải hiệu ứng mặc định) |
 | G3 | Bấm Back từ màn camera | Quay lại màn danh sách, **không** thoát app (nếu thoát app: thiếu `app:defaultNavHost="true"`) |
 | G4 | Back tiếp ở màn danh sách | Thoát app bình thường, không crash |
 | G5 | Vào camera → Back → vào lại → Back, **lặp 5 lần** | Cả 5 lần preview đều lên. Lần nào preview đen/không có frame → executor hoặc camera đã bị huỷ sai chỗ (xem `Fragment_Review_Checklist.md` mục 1) |
@@ -132,11 +132,17 @@ git checkout main && git stash pop
 | G7c | Từ chối lần 2, Back, vào camera lại lần nữa | **Không còn dialog nào** — đây là hành vi đúng của Android, không phải bug (xem ghi chú dưới). App phải hiện hướng dẫn mở Settings, tuyệt đối không im lặng hoặc kẹt ở màn đen |
 | G7d | Vào Settings hệ thống cấp lại quyền Camera → quay lại app | Camera hoạt động bình thường (trùng ca A3) |
 | G8 | *(màn chọn effect)* Ở màn camera bấm nút **Effect** | Mở màn "Template": top bar riêng (back, tiêu đề có gạch chân, tick cyan) và lưới 2 cột; **top bar/bottom nav chung không hiện**; effect đang dùng có viền cyan, các item khác không viền |
-| G9 | Ở màn chọn: chọn 1 effect **khác** → bấm tick | Sang camera mới đúng effect vừa chọn (tên trên top bar, thumbnail nút Effect, hiệu ứng + tiếng đúng). Bấm Back ở camera mới thì về **màn danh sách**, không quay lại màn chọn hay camera cũ |
+| G9 | Ở màn chọn: chọn 1 effect **khác** → bấm tick | Sang **màn xem trước** đúng effect vừa chọn (tên trên top bar). Bấm **Create** → camera mới đúng effect đó (tên trên top bar, thumbnail nút Effect, hiệu ứng + tiếng đúng). Bấm Back ở camera mới thì về **màn danh sách**, không quay lại màn xem trước, màn chọn hay camera cũ |
 | G10 | Ở màn chọn: không đổi gì → bấm tick | Quay về camera cũ giữ nguyên effect (không tạo lại camera mới) |
 | G11 | Ở màn chọn: chọn effect khác rồi **huỷ** bằng nút back trên top bar; lặp lại bằng back hệ thống | Cả 2 cách đều về camera cũ với effect **cũ** (lựa chọn bị bỏ) |
 | G12 | Ở màn chọn: bấm đúp thật nhanh nút tick, rồi lặp lại với nút back | Không crash, không pop luôn cả camera bên dưới (chỉ đi đúng 1 bước) |
 | G13 | Ở màn chọn: chọn qua lại nhiều item liên tiếp | Viền chuyển đúng sang item vừa chọn, không nháy cả item, luôn đúng 1 item có viền; lưới căn đều lề 16dp, item tỉ lệ đều trên mọi cỡ màn |
+| G14 | *(màn xem trước)* Ở màn danh sách bấm 1 effect | Mở màn xem trước: ảnh động phủ kín màn, top bar (back + tên **đúng effect vừa chọn**), nút Create góc dưới phải không bị thanh điều hướng che; top bar/bottom nav chung không hiện |
+| G15 | Ở màn xem trước bấm Back (nút trên top bar; rồi lặp lại bằng back hệ thống) | Về màn danh sách, không crash |
+| G16 | Xem trước → Create → camera → Back | Camera đúng effect; Back về **màn danh sách** (màn xem trước đã bị gỡ khỏi back stack) |
+| G17 | Camera → Effect → chọn effect khác → tick → ở màn xem trước bấm Back | Về **màn danh sách** (camera cũ + màn chọn đã bị gỡ — cố ý, xem `nav_graph.xml`), không quay về camera cũ |
+| G18 | Ở màn xem trước: bấm đúp thật nhanh nút Create, rồi lặp lại với nút back | Không crash (không `IllegalArgumentException`), không pop luôn màn phía dưới — chỉ đi đúng 1 bước |
+| G19 | Màn danh sách + màn chọn: effect có tên dài (vd `black_background_with_monster`) | Tên chỉ 1 dòng, cắt bằng “…”; ở màn danh sách dấu “…” **không** nằm dưới icon tim |
 
 > **Về G7c — hành vi hệ thống, không phải lỗi app:** từ Android 11 (API 30), sau **2 lần từ chối**, hệ thống chuyển quyền sang trạng thái *permanently denied*: `launch()` vẫn chạy, callback vẫn trả kết quả "denied", nhưng **không dialog nào hiện ra**. Không có API nào bắt hệ thống hỏi lại được — chỉ người dùng tự cấp trong Settings. Vì vậy app bắt buộc phải phân biệt 3 trạng thái bằng `shouldShowRequestPermissionRationale()`:
 >
@@ -172,6 +178,7 @@ git checkout main && git stash pop
 | H14 | Camera: giơ cử chỉ có tiếng và **giữ nguyên tay** → bấm Effect → Back (tay vẫn giơ) | Tiếng của cử chỉ **phát lại** sau khoảng 200ms debounce (state đã được reset) | Không có tiếng cho tới khi đổi cử chỉ = thiếu `resetGestureState()` (`lastStateId` cũ còn sót lại) |
 | H15 | Camera: giơ cử chỉ có tiếng → bấm Effect → Back → **hạ tay xuống**, bấm Record ngay, quay ~5s, xem video | Video **không** có tiếng/hiệu ứng của cử chỉ cũ (loa live đã release, không được cài vào video) | Video có tiếng cử chỉ cũ ngay từ đầu = `activeEffect` cũ không được reset |
 | H16 | Camera → Effect, ở lại màn chọn 30s, quan sát chỉ báo camera hệ thống + heap trong Profiler | Chỉ báo camera **tắt**; heap không giữ bitmap full-size của camera | Còn sáng / heap không giảm = `latestCameraBitmap`/`latestHandResult` chưa được null hoá ở `onDestroyView` |
+| H17 | *(màn xem trước)* Danh sách → xem trước → Back, **lặp 10 lần** (bật LeakCanary); rồi vào xem trước, nhấn Home / tắt màn hình | Không có cảnh báo leak `EffectPreviewFragment`/`ImageView`; ảnh động dừng khi màn ẩn và chạy lại khi quay lại | Có leak = `previewDrawable` chưa null hoá ở `onDestroyView` (drawable giữ callback về ImageView) |
 
 > ⚠️ H11-H12 giả định action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"` (phương án đã chốt). Nếu về sau đổi cách khai `popUpTo`, `CameraRecordFragment` sẽ nằm lại trong back stack — khi đó phải test thêm: state debounce (`lastStateId`, `pendingState`) có được reset khi quay lại không, và `latestCameraBitmap`/`latestHandResult` có bị giữ lì trong RAM không. **Đã có trường hợp thật:** action `cameraRecord → effectPicker` cố ý không `popUpTo` nên camera nằm lại — xem H13–H16.
 
