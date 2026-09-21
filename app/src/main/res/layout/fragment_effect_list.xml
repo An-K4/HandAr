@@ -7,7 +7,8 @@
     android:layout_gravity="center"
     android:gravity="center"
     android:orientation="vertical"
-    android:layout_margin="24dp"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="16dp"
     tools:context=".ui.effectlist.EffectListFragment">
 
     <include
