@@ -29,7 +29,8 @@
 - **Âm thanh hiệu ứng** phát ra loa khi live, đồng thời được trộn thẳng vào track audio của video ghi ra (không dùng mic).
 - **Ghi video MP4** bằng `MediaCodec` + `MediaMuxer`, độ phân giải và bitrate tính động theo khung hình.
 - **Xem lại ngay sau khi quay**: Xong / Xoá / Chia sẻ (qua `FileProvider`).
-- **Thư viện video**: danh sách video đã quay kèm thumbnail, thời lượng, ngày quay; phát lại bằng ExoPlayer (Media3).
+- **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3).
+- **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
 - **Da ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
 
 ## Công nghệ
@@ -140,10 +141,10 @@ onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
                                                         │ popUpTo+inclusive
                                                         ▼
 effectListFragment  ──chọn effectId──>  cameraRecordFragment
-        │                                              │ Stop
-        │ nút Thư viện                                 ▼
-        ▼                                       recordedPreviewFragment  (Xong / Xoá / Chia sẻ)
+        ↕ bottom nav (tab Home / Collection)          │ Stop
+        │                                              ▼
 videoListFragment ──chọn video──> videoPlayerFragment
+                              (song song: recordedPreviewFragment — Xong/Xoá/Chia sẻ)
 ```
 
 Cụm màn mở app lần đầu (splash/language/onboarding/survey) chạy **một chiều**, mỗi bước đều
@@ -164,7 +165,9 @@ Mọi tham số phải được khai `<argument>` trong `nav_graph.xml` thì cá
 
 ```text
 app/src/main/java/com/example/handar/
-├── MainActivity.kt              NavHost thuần; release HandLandmarkerProvider ở onDestroy
+├── MainActivity.kt              NavHost + quản lý chrome (top bar đổi chữ theo tab, bottom nav đè
+│                              nổi lên nav_host, chuyển tab Home↔Collection); release
+│                              HandLandmarkerProvider ở onDestroy
 ├── effect/
 │   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp từ khai trực tiếp + catalog/
 │   ├── HandLandmarkerProvider.kt
@@ -188,13 +191,17 @@ app/src/main/java/com/example/handar/
 │                                phát ra loa, TÁCH RIÊNG khỏi track ghi hình (xem `AudioMixer`)
 ├── ui/
 │   ├── splash/ · language/ · onboarding/ · survey/   luồng mở app lần đầu, 1 chiều
-│   ├── effectlist/   EffectListFragment, EffectAdapter
+│   ├── effectlist/   EffectListFragment (có ô search real-time), EffectAdapter
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
 │   ├── preview/      RecordedPreviewFragment       (xem lại ngay sau khi quay)
-│   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository
+│   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)
+│   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),
+│   │                 CurvedNavBackgroundView, RoundedOutline (bo góc ảnh bằng ViewOutlineProvider —
+│   │                 clipToOutline trên parent không tự cắt View con)
 │   └── player/       VideoPlayerFragment           (ExoPlayer)
 ├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
-└── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge),
+└── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
+                                3 hàm: padding/margin/match-height cho status bar & nav bar),
                                 RecordingPerfLogger, VideoStatsLogger
 
 app/src/main/res/
