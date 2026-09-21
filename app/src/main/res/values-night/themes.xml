@@ -1,6 +1,6 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- app luôn để dark theme ở values/themes.xml, file này phải khớp để tránh lệch khi device ở night mode. -->
-    <style name="Base.Theme.HandAr" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="android:windowBackground">@color/black</item>
-    </style>
+<resources>
+    <!-- CỐ Ý ĐỂ TRỐNG. App luôn dark: Base.Theme.HandAr ở values/themes.xml đã có parent Material3.Dark
+         nên night mode dùng đúng file đó. Không khai lại style cùng tên ở đây: style trong thư mục có
+         qualifier thay thế HOÀN TOÀN style gốc (không gộp thuộc tính), nên nếu thiếu fontFamily +
+         15 textAppearance* thì device đang bật night mode sẽ mất font Noto Serif. Có thể xoá file này. -->
 </resources>

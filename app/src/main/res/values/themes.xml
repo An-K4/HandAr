@@ -2,6 +2,23 @@
     <!-- Base application theme. app luôn hiển thị dark theme, không theo hệ thống. -->
     <style name="Base.Theme.HandAr" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:windowBackground">@color/black</item>
+        <item name="android:fontFamily">@font/noto_serif</item>
+
+        <item name="textAppearanceDisplayLarge">@style/TextAppearance.HandAr.DisplayLarge</item>
+        <item name="textAppearanceDisplayMedium">@style/TextAppearance.HandAr.DisplayMedium</item>
+        <item name="textAppearanceDisplaySmall">@style/TextAppearance.HandAr.DisplaySmall</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.HandAr.HeadlineLarge</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.HandAr.HeadlineMedium</item>
+        <item name="textAppearanceHeadlineSmall">@style/TextAppearance.HandAr.HeadlineSmall</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.HandAr.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.HandAr.TitleMedium</item>
+        <item name="textAppearanceTitleSmall">@style/TextAppearance.HandAr.TitleSmall</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.HandAr.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.HandAr.BodyMedium</item>
+        <item name="textAppearanceBodySmall">@style/TextAppearance.HandAr.BodySmall</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.HandAr.LabelLarge</item>
+        <item name="textAppearanceLabelMedium">@style/TextAppearance.HandAr.LabelMedium</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.HandAr.LabelSmall</item>
     </style>
 
     <style name="Theme.HandAr" parent="Base.Theme.HandAr" />

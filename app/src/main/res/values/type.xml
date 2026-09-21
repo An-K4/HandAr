@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 15 slot chữ của Material 3, mỗi slot giữ nguyên size/spacing của m3 và chỉ đổi font sang noto serif.
+         được gắn vào theme ở values/themes.xml (textAppearance*). -->
+
+    <style name="TextAppearance.HandAr.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+
+    <style name="TextAppearance.HandAr.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+
+    <style name="TextAppearance.HandAr.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+
+    <style name="TextAppearance.HandAr.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+
+    <style name="TextAppearance.HandAr.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+    <style name="TextAppearance.HandAr.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">@font/noto_serif</item>
+    </style>
+</resources>
