@@ -213,19 +213,13 @@ docs/                                      tài liệu thiết kế & vận hàn
 
 ## Danh sách hiệu ứng
 
-Khai báo trong `effect/EffectRepository.kt` (một phần lấy từ `effect/catalog/`) — hiện có **16 hiệu ứng**:
+Khai báo trong `effect/EffectRepository.kt` (một phần lấy từ `effect/catalog/`) — hiện có **10 hiệu ứng**:
 
 | id | Tên hiển thị | Số tay | Các trạng thái (cử chỉ → asset) |
 |---|---|---|---|
-| `cat_meme_1` | Meme mèo 1 | 1 | xoè tay → mèo cười · nắm tay → chuối khóc |
-| `egg` | Trứng | 1 | xoè tay → trứng · nắm tay → trứng nứt |
-| `weather` | Thời tiết | 1 | xoè tay → nắng · nắm tay → sét |
-| `stranger_things` | Stranger things | 1 | xoè tay → quái vật · nắm tay → đồng hồ |
-| `black_background_with_monster` | Quái vật bóng đêm với tiếng đồng hồ kêu | 1 | giống `stranger_things` nhưng có **nền GIF riêng** (`background`) + **nhạc nền** (`bgm`) trộn vào video |
+| `black_background_with_monster` | Quái vật bóng đêm với tiếng đồng hồ kêu | 1 | xoè tay → quái vật · nắm tay → đồng hồ, kèm **nền GIF riêng** (`background`) + **nhạc nền** (`bgm`) trộn vào video |
 | `rock_on_ily` | Rock on / I love you | 1 | rock on · I-love-you |
 | `camera_shutter` | Chụp ảnh | 2 | 5 cử chỉ (OK, peace, like, rock on, call) đều ra cùng 1 GIF chụp ảnh |
-| `cat_meme_2` | Meme mèo 2 | 1 | peace → hello · chỉ tay → you · call → call |
-| `mood_meter` | Đo tâm trạng | 1 | like · nắm tay → sad · xoè tay → neutral |
 | `absolute_cinema_two_hand` | Absolute cinema | 2 | 2 tay xoè · 2 tay nắm |
 | `heart_or_cross` | Trái tim và dấu X | 2 | trái tim · dấu X |
 | `test_effect_background` | Thay đổi nền | 1 | 4 cử chỉ đổi nền (Solid/Image/Animated) khác nhau, dùng `StateMode.Latched` — giữ nền khi mất tay |

@@ -24,8 +24,8 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| B1 | Mở app, đưa tay vào khung hình, xòe tay | GIF con mèo cười hiện đúng vị trí lòng bàn tay, tiếng "happy" phát ra loa |
-| B2 | Nắm tay lại | Đổi sang GIF chuối khóc, tiếng tương ứng phát ra loa |
+| B1 | Mở app, chọn effect `rock_on_ily`, đưa tay vào khung hình, làm cử chỉ rock on (🤘) | GIF rock on hiện đúng vị trí lòng bàn tay, tiếng rock on phát ra loa |
+| B2 | Đổi sang cử chỉ I love you (🤟) | Đổi sang GIF I love you, tiếng tương ứng phát ra loa |
 | B3 | Đưa tay ra khỏi khung hình | GIF biến mất, không còn tiếng phát tiếp |
 | B4 | Di chuyển tay lại gần/xa camera | Kích thước GIF co giãn theo đúng khoảng cách tay-camera |
 
@@ -182,7 +182,7 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| I1 | Chọn effect có nhiều state dùng **asset khác nhau rõ rệt** (ví dụ `mood_meter`: like/dislike/neutral), lần lượt làm đúng từng cử chỉ tương ứng | Đúng gif/tiếng tương ứng hiện ra, không lẫn sang state khác — xác nhận `indexOfFirst`/`firstOrNull` vẫn chọn đúng sau khi đổi sang gọi `recognize(hands)` 1 lần |
+| I1 | Chọn effect có nhiều state dùng **asset khác nhau rõ rệt** (ví dụ `test_effect_background`: trỏ / peace / 3 ngón / nắm → 4 nền + tiếng khác nhau; hoặc `black_background_with_monster`: xoè → quái vật, nắm → đồng hồ), lần lượt làm đúng từng cử chỉ tương ứng | Đúng gif/tiếng tương ứng hiện ra, không lẫn sang state khác — xác nhận `indexOfFirst`/`firstOrNull` vẫn chọn đúng sau khi đổi sang gọi `recognize(hands)` 1 lần |
 | I2 | Chọn `camera_shutter` (effect nhiều state 1 tay dùng chung 1 asset), thử đủ cả 5-6 cử chỉ gắn vào đó | Mỗi cử chỉ đều kích hoạt được hiệu ứng, không có cử chỉ nào "im lặng" |
 | I3 | Với 1 effect 1 tay bất kỳ, đưa **2 tay** vào khung hình cùng lúc, chỉ 1 tay làm đúng cử chỉ | Hiệu ứng vẫn kích hoạt bình thường (state 1 tay chỉ cần `hands.firstOrNull()` khớp, không bị tay thứ 2 cản) |
 
@@ -232,8 +232,8 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| I20 | Chỉ ngón trỏ (☝️) trên effect dùng `singleHandFist` (vd `egg`, `weather`) | KHÔNG bị nhận nhầm là nắm tay |
-| I21 | Ba ngón (trỏ+giữa+áp út duỗi) trên effect dùng `singleHandPalmOpen` | KHÔNG bị nhận nhầm là xòe tay |
+| I20 | Chỉ ngón trỏ (☝️) trên effect dùng `singleHandFist` (vd `black_background_with_monster` — không dùng `canvas_draw` vì chỉ tay chính là state `stroke` của nó) | KHÔNG bị nhận nhầm là nắm tay |
+| I21 | Ba ngón (trỏ+giữa+áp út duỗi) trên effect dùng `singleHandPalmOpen` (vd `black_background_with_monster`) | KHÔNG bị nhận nhầm là xòe tay |
 | I22 | Nắm tay thật (cả 5 ngón kể cả ngón cái gập) | Vẫn kích hoạt đúng `singleHandFist` — xác nhận không bị thắt quá chặt tới mức không trigger được |
 | I23 | Xòe tay thật (cả 5 ngón kể cả ngón cái duỗi) | Vẫn kích hoạt đúng `singleHandPalmOpen` — nếu KHÓ trigger hơn hẳn trước đây (đặc biệt do ngón cái), xem ghi chú "công thức ngón cái chưa chặt hoàn toàn" ở `GestureUtils.kt`, cân nhắc nới ngưỡng riêng cho ngón cái thay vì quay lại kiểu đếm cũ |
 
@@ -279,7 +279,7 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| L1 | Chọn effect dùng `AnimatedGif` (`cat_meme_1`, `weather`, `rock_on_ily`, `mood_meter`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
+| L1 | Chọn effect dùng `AnimatedGif` (`rock_on_ily`, `camera_shutter`, hay `black_background_with_monster`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
 | L2 | Effect "Gojo": chạm 2 tay để trigger hoạt ảnh hợp nhất **trong lúc đang quay**, lặp lại vài lần | Hoạt ảnh phát trọn vẹn mỗi lần trong video, không bị đứng hình/giật ở khung đầu hoạt ảnh |
 | L3 | Bất kỳ effect `AnimatedGif` nào: quay 1 clip dài (~60s), đổi cử chỉ liên tục suốt clip | App không crash, không ANR — nếu crash log có `IllegalStateException`/liên quan `AnimatedImageDrawable`, đây là regression của đúng race đã sửa |
 

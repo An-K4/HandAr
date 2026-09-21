@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `b03c85d`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `229de45`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -162,10 +162,10 @@ xem mục 6.3 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên b�
 ### 1.4 `EffectRepository.all` và `effect/catalog/`
 
 `EffectRepository.all` là 1 `List<EffectDefinition>` phẳng, lắp ráp từ 2 nguồn:
-1. **Khai trực tiếp trong file** — các effect đơn giản (`cat_meme_1`, `egg`, `weather`, ...).
+1. **Khai trực tiếp trong file** — các effect đơn giản (`black_background_with_monster`, `rock_on_ily`, `absolute_cinema_two_hand`, `heart_or_cross`).
 2. **Gọi hàm factory từ `effect/catalog/*.kt`** — các effect phức tạp hơn (dùng `AnchorSource`/
    `SizeSource` khác mặc định, dùng `Procedural`, hoặc nhiều state):
-   - `cameraShutterEffect()` — 1 state nhưng khớp bởi **5 cử chỉ khác nhau** (không phải 5 state)
+   - `cameraShutterEffect()` — **5 state** (OK, peace, like, rock on, call), mỗi state 1 cử chỉ khác nhau nhưng cùng dùng chung 1 GIF + 1 tiếng chụp ảnh; `requiredNumHands = 2` dù cử chỉ là 1 tay
    - `testEffectBackgroundEffect()` — dùng `StateMode.Latched` + mỗi state đổi 1 nền khác nhau
    - `canvasDrawEffect()` — dùng `Procedural` + `EffectScope.shared()` (mục 3.3)
    - `earthEffect()`, `blackHoleEffect()` — dùng `AnchorSource`/`SizeSource` khác mặc định
