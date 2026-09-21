@@ -1,25 +1,26 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Lớp 1: Nền hình tròn màu trắng bên ngoài giữ nguyên -->
-    <item>
-        <shape android:shape="oval">
-            <solid android:color="#FFFFFF" />
-            <stroke
-                android:width="1dp"
-                android:color="#E0E0E0" />
-        </shape>
-    </item>
-
-    <!-- Lớp 2: Hình chữ nhật/vuông màu đen ở giữa (có bo góc nhẹ cho đẹp) -->
-    <item
-        android:bottom="20dp"
-        android:left="20dp"
-        android:right="20dp"
-        android:top="20dp">
-        <shape android:shape="rectangle">
-            <solid android:color="#000000" />
-            <!-- Bo góc nhẹ 4dp để tạo hình vuông hiện đại, nếu muốn vuông hẳn thì xóa dòng corners dưới đây -->
-            <corners android:radius="4dp" />
-        </shape>
-    </item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+  <path
+      android:pathData="M40,0L40,0A40,40 0,0 1,80 40L80,40A40,40 0,0 1,40 80L40,80A40,40 0,0 1,0 40L0,40A40,40 0,0 1,40 0z"
+      android:fillColor="#F0EFFE"/>
+  <path
+      android:pathData="M28,20.25L52,20.25A7.75,7.75 0,0 1,59.75 28L59.75,52A7.75,7.75 0,0 1,52 59.75L28,59.75A7.75,7.75 0,0 1,20.25 52L20.25,28A7.75,7.75 0,0 1,28 20.25z"
+      android:strokeWidth="0.5"
+      android:strokeColor="#151E33">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="20"
+          android:startY="20"
+          android:endX="60"
+          android:endY="60"
+          android:type="linear">
+        <item android:offset="0.4" android:color="#FFF14343"/>
+        <item android:offset="1" android:color="#FF7C4DFF"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+</vector>

@@ -2,6 +2,8 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- black với alpha 0.45 (0.45 * 255 ≈ 0x73): nền nút Action ở màn camera, để ic_action không che kín nút -->
+    <color name="black_alpha_45">#73000000</color>
 
     <!-- Bottom nav / floating action icon (Property 1=Effect) -->
     <color name="cyan_bright">#1DECFE</color>

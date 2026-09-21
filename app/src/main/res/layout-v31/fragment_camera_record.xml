@@ -151,8 +151,7 @@
                         android:shadowRadius="4"
                         android:text="@string/camera_effect"
                         android:textColor="@color/white"
-                        android:textSize="10sp"
-                        tools:ignore="SmallSp" />
+                        android:textSize="10sp" />
                 </LinearLayout>
             </FrameLayout>
 
@@ -188,8 +187,7 @@
                         android:maxLines="1"
                         android:text="@string/camera_action"
                         android:textSize="10sp"
-                        android:visibility="invisible"
-                        tools:ignore="SmallSp" />
+                        android:visibility="invisible" />
 
                     <FrameLayout
                         android:id="@+id/btn_action"
@@ -223,10 +221,10 @@
                         android:shadowRadius="4"
                         android:text="@string/camera_action"
                         android:textColor="@color/white"
-                        android:textSize="10sp"
-                        tools:ignore="SmallSp" />
+                        android:textSize="10sp" />
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
     </LinearLayout>
+
 </FrameLayout>

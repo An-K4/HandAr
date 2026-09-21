@@ -37,6 +37,13 @@
 | C2 | Trong lúc ghi, đổi cử chỉ tay 2-3 lần | Mỗi lần đổi, hiệu ứng âm thanh + GIF live đều đúng như phần B |
 | C3 | Bấm Stop | Nút Record **bị disable tạm thời**, sau 1-2s bật lại + Toast "Đã lưu video" hiện ra |
 | C4 | Mở video vừa quay | Phát được bình thường, không lỗi file |
+| C5 | *(UI màn quay mới)* Bấm Record | Ngay lập tức top bar (back + tên effect) và 2 nút Effect/Action biến mất; chỉ còn nút stop **đứng nguyên vị trí** nút record (không dịch ngang/dọc). Sau frame đầu tiên, đồng hồ hiện ngay trên nút stop (chữ trắng, nền đen mờ) và nút stop vẫn không nhúc nhích |
+| C6 | Bấm stop trong vòng < 1s sau khi bấm Record | Toast "không thể dừng ngay…", vẫn tiếp tục quay, UI vẫn ở trạng thái ẩn, đồng hồ vẫn chạy |
+| C7 | Bấm stop bình thường, nhìn màn hình trong 1–2s chờ lưu | **Không** thấy top bar hay nút Effect/Action hiện lại (không nháy UI) trước khi sang màn xem lại |
+| C8 | Chưa quay: bấm nút back trên top bar | Quay về màn trước, giống back hệ thống (G3) |
+| C9 | Đang quay: bấm back hệ thống | Dừng + lưu, sang màn xem lại kèm Toast "Đã lưu video" (không pop thẳng, không mất video) — trùng H1 |
+| C10 | Kiểm tra bố cục trên ít nhất 2 cỡ màn (ví dụ ~360dp và ≥ 411dp) + font scale lớn | Tên effect luôn căn giữa; nút Effect/Action cách mép 16dp; nút record ở giữa; tâm nút viền trùng tâm nút record; nhãn không bị cắt (nhãn dài quá thì hiện "…") |
+| C11 | Effect có thumbnail lỗi / không có (đổi tạm `thumbnailRes = 0`) | Nút Effect hiện nền đen trơn có viền trắng, không crash |
 
 ## D. Kịch bản đặc biệt — bug đã fix, cần test lại để chống regression
 

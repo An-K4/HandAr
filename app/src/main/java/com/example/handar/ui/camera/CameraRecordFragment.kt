@@ -37,6 +37,7 @@ import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.effect.model.StateMode
 import com.example.handar.recording.VideoRecorder
+import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.applySystemBarsInsetsMargin
 import com.example.handar.utils.loadWavPcm
@@ -149,13 +150,14 @@ class CameraRecordFragment : Fragment() {
 
         backCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
-                stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)
+                navigateBack()
             }
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
-        binding.btnToggleRecord.applySystemBarsInsetsMargin(bottom = true)
-        binding.tvRecordingTimer.applySystemBarsInsetsMargin(top = true)
+        // inset áp lên 2 khối bọc ngoài, không áp lên từng nút
+        binding.layoutCameraTopBar.applySystemBarsInsetsMargin(top = true)
+        binding.layoutCameraBottomContainer.applySystemBarsInsetsMargin(bottom = true)
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
         soundEffectPlayer = SoundEffectPlayer(
@@ -179,6 +181,9 @@ class CameraRecordFragment : Fragment() {
                 binding.preview.visibility = View.INVISIBLE
             }
 
+            bindEffectInfo(currentEffect)
+            btnBack.setOnClickListener { navigateBack() }
+
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()
 
@@ -187,6 +192,7 @@ class CameraRecordFragment : Fragment() {
                     if (isRecording) R.drawable.ic_stop_record else R.drawable.ic_record
                 )
                 backCallback?.isEnabled = isRecording
+                if (isRecording) hideChromeWhileRecording()
             }
         }
 
@@ -219,6 +225,44 @@ class CameraRecordFragment : Fragment() {
         overlayView = null
         handLandmarker = null
         _binding = null
+    }
+
+    private fun navigateBack() {
+        if (videoRecorder?.isRecording == true) {
+            stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)
+        } else {
+            findNavController().popBackStack()
+        }
+    }
+
+    private fun bindEffectInfo(effect: EffectDefinition?) {
+        val context = requireContext()
+        binding.textEffectName.text = effect?.displayName.orEmpty()
+
+        val thumbnail = effect?.thumbnailRes?.takeIf { it != 0 }?.let { res ->
+            runCatching { ContextCompat.getDrawable(context, res) }.getOrNull()
+        }
+        with(binding.imgEffectThumbnail) {
+            clipRoundedCorners(resources.getDimension(R.dimen.card_corner_radius))
+            setImageDrawable(thumbnail) // fallback nền đen của btn_effect
+        }
+    }
+
+    /**
+     * bắt đầu ghi hình thì màn chỉ còn nút stop (+ đồng hồ ngay trên nút): ẩn top bar và 2 cột Effect/Action.
+     * không có hàm hiện lại: dừng ghi hợp lệ luôn rời khỏi màn này (sang preview hoặc pop), nên hiện lại
+     * trong lúc chờ lưu file chỉ gây nháy UI; còn bấm stop quá sớm ("recording_too_short") thì vẫn đang ghi nên
+     * UI đang ẩn là đúng.
+     * 2 cột dùng INVISIBLE chứ không phải GONE: chúng là 2 ô weight 1 kẹp 2 bên nút record,
+     * GONE sẽ dồn hết chỗ và nút record bị lệch khỏi tâm. (đồng hồ do startRecordingTimerUI/
+     * stopRecordingTimerUI tự bật/tắt đúng lúc frame đầu tiên được ghi, không xử lý ở đây.)
+     */
+    private fun hideChromeWhileRecording() {
+        with(binding) {
+            layoutCameraTopBar.visibility = View.GONE
+            layoutCameraEffectColumn.visibility = View.INVISIBLE
+            layoutCameraActionColumn.visibility = View.INVISIBLE
+        }
     }
 
     private fun checkAndRequestPermission() {
@@ -507,6 +551,7 @@ class CameraRecordFragment : Fragment() {
         val recorderToStop = videoRecorder
         videoRecorder = null
         binding.btnToggleRecord.isEnabled = false
+        binding.btnBack.isEnabled = false // tránh bấm back lần 2 khi đang dừng: lúc này isRecording đã false nên sẽ pop thẳng, mất video
 
         recorderToStop?.stop {
             if (!isAdded) return@stop

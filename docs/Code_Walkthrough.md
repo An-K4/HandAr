@@ -92,7 +92,7 @@ data class EffectDefinition(
 ```
 Khối `init { require(...) }`: nếu **bất kỳ** state nào có `background` riêng thì `EffectDefinition`
 **bắt buộc** phải có `background` mặc định — lý do: `OverlayView.drawFrame()` cần một nền để fallback
-về khi không state nào khớp cử chỉ (xem mục 3.3).
+về khi không state nào khớp cử chỉ (xem mục 5.4).
 
 **`EffectState`** — 1 trạng thái trong 1 hiệu ứng (ứng với 1 cử chỉ cụ thể).
 ```kotlin
@@ -102,8 +102,8 @@ data class EffectState(
     val asset: EffectAsset?,            // hình/gif/sprite/procedural vẽ đè lên tay — null nếu state chỉ có tiếng
     val soundRes: Int?,                 // null nếu state không phát tiếng
     val background: EffectBackground? = null,   // đè nền mặc định của Definition khi state này khớp
-    val sizeSource: SizeSource = SizeSource.PalmRadius,     // xem mục 1.4
-    val anchorSource: AnchorSource = AnchorSource.PalmCenter // xem mục 1.4
+    val sizeSource: SizeSource = SizeSource.PalmRadius,     // xem mục 1.2
+    val anchorSource: AnchorSource = AnchorSource.PalmCenter // xem mục 1.2
 )
 ```
 `init { require(asset != null || soundRes != null) }` — state không hình không tiếng thì vô nghĩa,
@@ -113,7 +113,7 @@ lỗi này nổ ngay lúc `EffectRepository.all` được khởi tạo (app cras
 | Loại | Vẽ bởi | Ghi chú |
 |---|---|---|
 | `StaticImage(resId)` | `visual/image/StaticImageVisual.kt` | ảnh tĩnh |
-| `AnimatedGif(resId, oneShot=false)` | `visual/image/AnimatedGifVisual.kt` | `oneShot=true` dùng cho hiệu ứng chạy 1 lần rồi dừng (xem `GojoVisual` mục 3.6) |
+| `AnimatedGif(resId, oneShot=false)` | `visual/image/AnimatedGifVisual.kt` | `oneShot=true` dùng cho hiệu ứng chạy 1 lần rồi dừng (xem `GojoVisual` mục 3.7) |
 | `SpriteSheet(resId, columns, rows, frameCount, frameDurationMs)` | `visual/image/SpriteSheetVisual.kt` | hiện **chưa có effect nào trong `EffectRepository.all` dùng loại này** — code vẫn còn nhưng chưa được khai báo dùng ở catalog nào |
 | `Procedural(id, create: (Context, EffectScope) -> EffectVisual)` | tuỳ `create` lambda trả về gì | dùng cho hiệu ứng vẽ bằng code thay vì ảnh có sẵn — xem `CanvasDrawEffect.kt`, `GojoEffect.kt` |
 
@@ -122,12 +122,12 @@ render bởi `effect/background/*.kt` tương ứng (mục 4).
 
 **`EffectBgm(resId, gainPercent=50)`** — nhạc nền: `resId` là file `.wav`/`.mp3` trong `res/raw`,
 `gainPercent` là % âm lượng khi **trộn vào track ghi hình** (không phải âm lượng phát ra loa —
-xem `BgmPlayer` vs `AudioMixer` ở mục 5.5, đây là hai đường hoàn toàn khác nhau).
+xem `BgmPlayer` vs `AudioMixer` ở mục 7.2 và 8.3, đây là hai đường hoàn toàn khác nhau).
 
 ### 1.2 `AnchorSource` & `SizeSource` — "vẽ ở đâu, to cỡ nào"
 
 Đây là 2 enum quyết định `HandFrame.cx/cy` (tâm vẽ) và `HandFrame.r` (kích thước) được tính thế nào
-trong `OverlayView.drawFrame()` (mục 3.3) — mặc định `PalmCenter`/`PalmRadius` phù hợp phần lớn
+trong `OverlayView.drawFrame()` (mục 5.4) — mặc định `PalmCenter`/`PalmRadius` phù hợp phần lớn
 hiệu ứng bám lòng bàn tay, còn 3 cặp còn lại phục vụ hiệu ứng đặc biệt:
 
 | AnchorSource | Công thức tâm | SizeSource đi kèm thường dùng | Effect ví dụ |
@@ -147,7 +147,7 @@ nào trong `EffectRepository.all` tận dụng việc trộn nhiều anchor/size
 ```kotlin
 enum class StateMode { Momentary, Latched }
 ```
-Dùng trong `OverlayView.resolveMatchedIndex()` (mục 3.2):
+Dùng trong `OverlayView.resolveMatchedIndex()` (mục 5.3):
 - **`Momentary`** (mặc định): còn giữ cử chỉ mới còn hiển thị hiệu ứng; buông tay/đổi cử chỉ khác
   không khớp state nào → `matchedIndex = -1`, hiệu ứng biến mất.
 - **`Latched`**: một khi khớp 1 state, **giữ nguyên** state đó (`latchedIndex`) kể cả khi tay biến mất
@@ -157,7 +157,7 @@ Dùng trong `OverlayView.resolveMatchedIndex()` (mục 3.2):
 
 ⚠️ **`StateMode` chỉ ảnh hưởng `OverlayView` (chọn vẽ gì)** — không ảnh hưởng
 `CameraRecordFragment.handleGesture()` (chọn phát tiếng gì). Hai nơi này nhận diện **độc lập** nhau,
-xem mục 6.4 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên bên kia.
+xem mục 6.3 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên bên kia.
 
 ### 1.4 `EffectRepository.all` và `effect/catalog/`
 
@@ -167,9 +167,9 @@ xem mục 6.4 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên b�
    `SizeSource` khác mặc định, dùng `Procedural`, hoặc nhiều state):
    - `cameraShutterEffect()` — 1 state nhưng khớp bởi **5 cử chỉ khác nhau** (không phải 5 state)
    - `testEffectBackgroundEffect()` — dùng `StateMode.Latched` + mỗi state đổi 1 nền khác nhau
-   - `canvasDrawEffect()` — dùng `Procedural` + `EffectScope.shared()` (mục 3.5)
+   - `canvasDrawEffect()` — dùng `Procedural` + `EffectScope.shared()` (mục 3.3)
    - `earthEffect()`, `blackHoleEffect()` — dùng `AnchorSource`/`SizeSource` khác mặc định
-   - `gojoEffect()` — dùng `Procedural` + composition (mục 3.6)
+   - `gojoEffect()` — dùng `Procedural` + composition (mục 3.7)
 
 `findById(id)` dùng `.first { it.id == id }` — **crash nếu không tìm thấy id**. An toàn trong thực tế
 vì `id` luôn đến từ chính `EffectRepository.all` qua Safe Args (`EffectListFragmentDirections
@@ -300,7 +300,7 @@ Cả 3 state đều gọi `scope.shared("stroke_model") { StrokeModel() }` — *
 `OverlayView.setEffect()` chạy (tức mỗi lần vào màn quay với 1 effect). Nghĩa là: `StrokeModel` của
 `liveVisuals` và `StrokeModel` của `recordingVisuals` là **2 instance khác nhau, độc lập hoàn
 toàn**. Chúng chỉ "giống nhau" trên thực tế vì cùng nhận cùng 1 luồng `onHandFrame()` input (xem
-mục 6.3) — không phải vì chia sẻ bộ nhớ.
+mục 5.2) — không phải vì chia sẻ bộ nhớ.
 
 ### 3.4 `ProceduralVisual` — lớp cha cho hiệu ứng vẽ bằng code có "thời gian đã active"
 
@@ -467,8 +467,8 @@ Thứ tự trong hàm, theo đúng thứ tự code:
 4. **Đảo trái/phải `handedness`** nếu `mirrorX=true` — vì camera trước bị lật gương, "tay trái thật"
    hiện lên màn hình ở phía tay phải người xem, MediaPipe trả nhãn theo ảnh gốc (chưa lật) nên phải
    tự đảo lại nếu muốn nhãn khớp với cảm giác trực quan của người dùng.
-5. **Tính `frame.cx/cy`** theo `anchorSource` của state đang khớp (4 nhánh `when`, xem mục 1.4).
-6. **Tính `frame.r`** theo `sizeSource` của state đang khớp (3 nhánh `when`, xem mục 1.4).
+5. **Tính `frame.cx/cy`** theo `anchorSource` của state đang khớp (4 nhánh `when`, xem mục 1.2).
+6. **Tính `frame.r`** theo `sizeSource` của state đang khớp (3 nhánh `when`, xem mục 1.2).
 7. Gọi `visuals.getOrNull(matchedIndex)?.draw(canvas, frame)`.
 
 `mirrorX` luôn được truyền `true` từ cả `onDraw()` (live) lẫn `CameraRecordFragment` (recording,
@@ -509,6 +509,23 @@ giật do I/O:
   `BgmPlayer` (để phát ra loa ngay lúc đứng ở màn quay, trước khi bấm nút ghi) — **2 đường hoàn
   toàn tách biệt** dùng cùng 1 file tài nguyên, xem mục 7.2.
 - `overlay.setEffect(currentEffect)` — trigger mục 5.1.
+- **Chrome UI của màn quay** (`fragment_camera_record.xml`, `FrameLayout`: camera/overlay nằm dưới, 2 thanh `LinearLayout`
+  nổi lên trên): top bar (`btn_back` + `text_effect_name`, không có nút đổi camera — app cố ý không làm)
+  và bottom bar 3 nút `[btn_effect] [btn_toggle_record] [btn_action]`. Inset hệ thống được áp lên **2 thanh bọc
+  ngoài** (`layoutCameraTopBar` top, `layoutCameraBottomContainer` bottom), không áp lên từng nút bên trong.
+  `layoutCameraBottomContainer` là khối dọc neo đáy chứa `tvRecordingTimer` (ẩn mặc định) rồi tới hàng nút
+  `layoutCameraBottomBar` — nhờ vậy đồng hồ luôn nằm ngay trên nút record mà không hard-code chiều cao nút,
+  và khi nó hiện ra thì chỉ đẩy chính nó lên, nút record đứng yên.
+  - `hideChromeWhileRecording()`: gọi ngay khi bắt đầu ghi — ẩn top bar (`GONE`) và 2 cột Effect/Action
+    (`INVISIBLE`, không phải `GONE`, vì chúng là 2 ô weight 1 kẹp 2 bên nút record; `GONE` sẽ làm nút record
+    lệch tâm). Cố ý **không có hàm hiện lại**: dừng ghi hợp lệ luôn rời màn (preview/pop), hiện lại chỉ gây nháy.
+    Đồng hồ vẫn do `startRecordingTimerUI()`/`stopRecordingTimerUI()` bật/tắt như cũ.
+  - `bindEffectInfo(effect: EffectDefinition?)`: đổ tên + thumbnail; nhận `null` / thumbnail lỗi thì rơi về nền đen
+    của `btn_effect` (chuẩn bị cho trường hợp vào màn camera khi chưa có effect nào).
+  - `navigateBack()`: logic chung của nút back trên top bar **và** `backCallback` (back hệ thống). Đang ghi →
+    `stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)`; không ghi → `popBackStack()`.
+    `btnBack` bị disable cùng lúc với `btnToggleRecord` khi đang dừng ghi (tránh pop thẳng làm mất video).
+  - `btn_effect` / `btn_action` hiện mới có UI, **chưa gắn logic**.
 - Nếu `currentEffect.background != null`: ẩn `PreviewView` (`binding.preview.visibility =
   View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `testEffectBackgroundEffect`)
   thì không cần thấy hình camera thật phía sau, `OverlayView` tự vẽ nền đè lên.
@@ -524,7 +541,7 @@ viewLifecycleOwner.lifecycleScope.launch {
     HandLandmarkerProvider.results.collect { (result, inputImage) ->
         latestHandResult = result
         overlayView?.setResult(result, inputImage.width, inputImage.height)  // → OverlayView mục 5.2
-        handleGesture(result)   // → mục 6.4, ĐỘC LẬP với OverlayView
+        handleGesture(result)   // → mục 6.3, ĐỘC LẬP với OverlayView
     }
 }
 ```
@@ -619,7 +636,7 @@ khỏi thread ghi hình" nhắc trong README/`HandAr_Refactor_Plan.md`. Nếu `e
 có nền riêng, như `canvasDrawEffect`) thì **không vẽ bitmap camera** — chỉ vẽ nền + hiệu ứng, camera
 thật không xuất hiện trong video (khớp với việc ẩn `PreviewView` ở mục 6.1).
 
-`stopRecordingAndGoToPreview()`: gọi `recorder.stop { ... }` (callback bất đồng bộ, xem
+`stopRecordingAndGoToPreview()`: khoá `btnToggleRecord` **và** `btnBack` (`isEnabled = false`, nút back đã bị ẩn khi ghi nhưng vẫn khoá cho chắc) rồi gọi `recorder.stop { ... }` (callback bất đồng bộ, xem
 `VideoRecorder.stop()` mục 8.1) — trong callback, nếu `!recorderToStop.hadValidOutput()` (muxer
 chưa từng `start()` được, tức là chưa nhận đủ audio+video track — ghi quá ngắn hoặc lỗi) thì
 **xoá file rác** và quay lại màn trước thay vì điều hướng sang preview với file hỏng.

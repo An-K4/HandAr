@@ -36,4 +36,7 @@
     <string name="nav_collection">Bộ sưu tập</string>
     <string name="effect_favourite">Yêu thích</string>
     <string name="search_hint">Tìm hiệu ứng, phong cách hoặc cảm xúc…</string>
+    <string name="back">Quay lại</string>
+    <string name="camera_effect">Hiệu ứng</string>
+    <string name="camera_action">Hành động</string>
 </resources>

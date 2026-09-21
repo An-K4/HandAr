@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- nền nút effect ở màn camera: đen đặc, dùng làm fallback khi không load được thumbnail
+     (ảnh thumbnail được imageview bên trong vẽ đè lên). bo góc dùng chung card_corner_radius. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/card_corner_radius" />
+    <solid android:color="@color/black" />
+</shape>
