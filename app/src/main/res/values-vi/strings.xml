@@ -40,4 +40,5 @@
     <string name="camera_action">Hành động</string>
     <string name="effect_picker_title">Mẫu</string>
     <string name="create">Tạo</string>
+    <string name="expand_video">Phóng to video</string>
 </resources>
