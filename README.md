@@ -28,7 +28,7 @@
 - **Nền & nhạc nền riêng cho từng hiệu ứng** (màu/ảnh/GIF nền thay cho camera thật, nhạc nền được trộn thẳng vào video) — dùng cho các hiệu ứng như vẽ canvas, đổi nền theo cử chỉ.
 - **Âm thanh hiệu ứng** phát ra loa khi live, đồng thời được trộn thẳng vào track audio của video ghi ra (không dùng mic).
 - **Ghi video MP4** bằng `MediaCodec` + `MediaMuxer`, độ phân giải và bitrate tính động theo khung hình.
-- **Xem lại ngay sau khi quay**: Xong / Xoá / Chia sẻ (qua `FileProvider`).
+- **Xem lại ngay sau khi quay**: nút Save giữ file rồi thoát; back/nút back trên top bar mở dialog xác nhận (`ConfirmDialog`) — Thoát trong dialog sẽ xoá file rồi thoát, Save trong dialog thì giữ file. Không có nút Xoá/Chia sẻ trực tiếp trên màn này.
 - **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3).
 - **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
@@ -148,7 +148,7 @@ onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
                                                         │ popUpTo+inclusive
                                                         ▼
 effectListFragment ──chọn effectId──> effectPreviewFragment ──Create──> cameraRecordFragment ──Stop──> recordedPreviewFragment
-        ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Xong/Xoá/Chia sẻ)
+        ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Save giữ file; back/Thoát qua ConfirmDialog xoá file)
         │                                         └── tick effect khác ── effectPickerFragment ◄┘
 videoListFragment ──chọn video──> videoPlayerFragment
 ```
@@ -207,11 +207,12 @@ app/src/main/java/com/example/handar/
 │   ├── effectpreview/ EffectPreviewFragment       (xem trước effect + nút Create, mở từ effectlist/effectpicker)
 │   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
-│   ├── preview/      RecordedPreviewFragment       (xem lại ngay sau khi quay)
+│   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save giữ file, back/Thoát qua ConfirmDialog xoá file)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)
 │   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),
 │   │                 CurvedNavBackgroundView, RoundedOutline (bo góc ảnh bằng ViewOutlineProvider —
-│   │                 clipToOutline trên parent không tự cắt View con)
+│   │                 clipToOutline trên parent không tự cắt View con), ConfirmDialog (dialog xác nhận
+│   │                 dùng chung, dùng bởi RecordedPreviewFragment)
 │   └── player/       VideoPlayerFragment           (ExoPlayer)
 ├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,

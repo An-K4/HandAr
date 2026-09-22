@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `77ee486`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `40f2ba0`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -831,16 +831,17 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 
 ---
 
-## 9. Danh sách & phát lại video — `ui/videolist/`, `ui/player/`, `ui/preview/`
+## 9. Danh sách & phát lại video — `ui/videolist/`, `ui/player/`, `ui/recordedpreview/`
 
 - **`VideoRepository.loadAll(context)`**: liệt kê file `.mp4` trong `getExternalFilesDir(DIRECTORY_MOVIES)`
   (đúng thư mục `VideoRecorder.start()` ghi vào), lọc `length() > 0` (bỏ file rỗng do ghi lỗi giữa
   chừng chưa bị dọn), đọc `duration`+`thumbnail` qua `MediaMetadataRetriever` trên `Dispatchers.IO`.
   `coroutineContext.ensureActive()` giữa vòng lặp — cho phép huỷ sớm nếu Fragment bị đóng khi đang
   load danh sách dài.
-- **`RecordedPreviewFragment`** (sau khi vừa ghi xong) vs **`VideoPlayerFragment`** (từ danh sách) —
-  2 Fragment riêng biệt dù đều dùng `ExoPlayer` phát cùng 1 file, vì `RecordedPreviewFragment` có
-  thêm nút Xong/Xoá/Chia sẻ (`FileProvider`) mà `VideoPlayerFragment` không cần. `VideoPlayerFragment`
+- **`RecordedPreviewFragment`** (`ui/recordedpreview/`, sau khi vừa ghi xong) vs **`VideoPlayerFragment`** (`ui/player/`, từ danh sách) —
+  2 Fragment riêng biệt dù đều dùng `ExoPlayer` phát cùng 1 file. `RecordedPreviewFragment` chỉ có
+  **1 nút Save** (`btnSave`) — luôn giữ file, chỉ đóng vai trò điều hướng vì file MP4 đã
+  được ghi sẵn từ lúc dừng quay. Back (top bar hoặc hệ thống) không thoát thẳng mà mở `ConfirmDialog` hỏi xác nhận: nút Thoát xoá file rồi thoát, nút Save giữ file — không còn nút Xoá/Chia sẻ riêng, không dùng `FileProvider` ở màn này nữa (đổi từ commit `40f2ba0`). `VideoPlayerFragment`
   có thêm `onSaveInstanceState`/khôi phục `playbackPosition` (giữ vị trí phát khi xoay màn hình) —
   `RecordedPreviewFragment` không có, chấp nhận phát lại từ đầu nếu xoay màn hình ngay sau khi ghi.
 

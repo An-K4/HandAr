@@ -1,0 +1,200 @@
+package com.example.handar.ui.recordedpreview
+
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.SeekBar
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
+import androidx.annotation.OptIn
+import androidx.fragment.app.Fragment
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
+import com.example.handar.R
+import com.example.handar.databinding.FragmentRecordedPreviewBinding
+import com.example.handar.ui.widget.ConfirmDialog
+import com.example.handar.utils.applySystemBarsInsetsMargin
+import com.example.handar.utils.formatDuration
+import java.io.File
+
+@OptIn(UnstableApi::class)
+class RecordedPreviewFragment : Fragment() {
+    private var _binding: FragmentRecordedPreviewBinding? = null
+    private val binding get() = _binding!!
+
+    private var player: ExoPlayer? = null
+    private var confirmDialog: ConfirmDialog? = null
+    private var isUserSeeking = false
+
+    private val args: RecordedPreviewFragmentArgs by navArgs()
+    private val videoPath: String get() = args.videoPath
+
+    // đồng bộ seekbar + nhãn thời gian theo player.currentPosition, cùng mẫu với timerRunnable
+    // ở CameraRecordFragment. dừng đồng bộ khi người dùng đang kéo tay (isUserSeeking).
+    private val seekHandler = Handler(Looper.getMainLooper())
+    private val seekRunnable = object : Runnable {
+        override fun run() {
+            val b = _binding ?: return
+            val p = player ?: return
+            if (!isUserSeeking) {
+                val position = p.currentPosition.coerceAtLeast(0)
+                b.seekBar.progress = position.toInt()
+                b.textPosition.text = formatDuration(position)
+            }
+            seekHandler.postDelayed(this, 200)
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentRecordedPreviewBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.layoutPreviewTopBar.root.applySystemBarsInsetsMargin(top = true)
+        binding.layoutBottomContainer.applySystemBarsInsetsMargin(bottom = true)
+
+        binding.layoutPreviewTopBar.textEffectName.text = getString(R.string.preview)
+        binding.layoutPreviewTopBar.btnBack.setOnClickListener { showExitConfirm() }
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = showExitConfirm()
+            }
+        )
+
+        setupPlayer()
+        setupSeekBar()
+
+        binding.btnSave.setOnClickListener { save() }
+
+        seekHandler.post(seekRunnable)
+    }
+
+    private fun setupPlayer() {
+        player = ExoPlayer.Builder(requireContext()).build().also { p ->
+            p.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        val b = _binding ?: return
+                        val duration = p.duration.coerceAtLeast(0)
+                        b.seekBar.max = duration.toInt()
+                        b.textDuration.text = formatDuration(duration)
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    Log.e("Preview", "Lỗi phát video: ${error.errorCodeName}", error)
+                    val ctx = context ?: return
+                    Toast.makeText(ctx, getString(R.string.can_not_play_video), Toast.LENGTH_SHORT).show()
+                }
+            })
+            binding.playerView.player = p
+            p.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(videoPath))))
+            p.prepare()
+            p.playWhenReady = true
+        }
+
+        // design không có nút play/pause riêng: chạm vào video để tạm dừng/tiếp tục.
+        // hết video thì chạm để phát lại từ đầu.
+        binding.playerView.setOnClickListener {
+            val p = player ?: return@setOnClickListener
+            if (p.playbackState == Player.STATE_ENDED) {
+                p.seekTo(0)
+                p.play()
+            } else {
+                p.playWhenReady = !p.playWhenReady
+            }
+        }
+    }
+
+    private fun setupSeekBar() {
+        binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    binding.textPosition.text = formatDuration(progress.toLong())
+                    player?.seekTo(progress.toLong())
+                }
+            }
+
+            // seek liên tục trong lúc kéo thì không cần đúng từng khung hình (EXACT phải decode từ keyframe
+            // gần nhất tới đúng khung được yêu cầu, gọi liên tục sẽ dồn hàng đợi decode gây giật) — đổi sang
+            // CLOSEST_SYNC để seek tới keyframe gần nhất cho mượt, chấp nhận lệch vài chục ms.
+            override fun onStartTrackingTouch(seekBar: SeekBar) {
+                isUserSeeking = true
+                player?.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+                player?.volume = 0f
+            }
+
+            // thả tay: seek lại một lần cho đúng khung hình, rồi trả âm thanh về bình thường.
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                isUserSeeking = false
+                player?.setSeekParameters(SeekParameters.EXACT)
+                player?.seekTo(seekBar.progress.toLong())
+                player?.volume = 1f
+            }
+        })
+    }
+
+    // tạm dừng video và hỏi xác nhận thoát.
+    private fun showExitConfirm() {
+        if (confirmDialog?.isShowing == true) return
+        player?.pause()
+        confirmDialog = ConfirmDialog(
+            context = requireContext(),
+            message = getString(R.string.exit_without_save_message),
+            negativeText = getString(R.string.exit),
+            positiveText = getString(R.string.save),
+            onNegative = { discardAndExit() },
+            onPositive = { save() }
+        ).apply {
+            setOnDismissListener { player?.play() }
+            show()
+        }
+    }
+
+    // nhấn exit/thoát (không phải dấu x) trong dialog: người dùng cố tình bỏ video chưa lưu → xóa file rồi thoát.
+    private fun discardAndExit() {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
+        player?.pause()
+        File(videoPath).delete()
+        nav.popBackStack()
+    }
+
+    // video đã lưu sẵn từ lúc dừng ghi, save chỉ đóng vai trò điều hướng.
+    private fun save() {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
+        nav.popBackStack()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        seekHandler.removeCallbacks(seekRunnable)
+        confirmDialog?.setOnDismissListener(null)
+        confirmDialog?.dismiss()
+        confirmDialog = null
+        binding.playerView.player = null
+        player?.release()
+        player = null
+        _binding = null
+    }
+}

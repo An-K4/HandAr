@@ -1,19 +1,18 @@
 <resources>
     <string name="app_name">HandAr</string>
     <string name="record_button">Nút ghi hình</string>
-    <string name="delete">Xóa</string>
     <string name="done">Xong</string>
-    <string name="share">Chia sẻ</string>
-    <string name="delete_confirm">Xác nhận xóa?</string>
-    <string name="delete_warning">Video này sẽ bị xóa vĩnh viễn.</string>
-    <string name="cancel">Hủy</string>
+    <string name="exit">Thoát</string>
+    <string name="save">Lưu</string>
+    <string name="close">Đóng</string>
+    <string name="preview">Xem trước</string>
+    <string name="exit_without_save_message">Bạn có chắc muốn thoát?\nVideo sẽ không được lưu</string>
     <string name="permission_denied">Quyền truy cập bị từ chối</string>
     <string name="denied_permission_message">Tính năng này không thể hoạt động khi chưa được cấp quyền.
         Vui lòng truy cập Cài đặt -> HandAr -> Cho phép quyền Máy ảnh để tiếp tục sử dụng.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Không phát được video</string>
-    <string name="can_not_delete_video">Không thể xóa video</string>
     <string name="video_thumbnail">ảnh xem trước video</string>
     <string name="no_video">Chưa có video nào.</string>
     <string name="gallery">Thư viện</string>

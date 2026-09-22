@@ -1,19 +1,18 @@
 <resources>
     <string name="app_name">HandAr</string>
     <string name="record_button">Record Button</string>
-    <string name="delete">Delete</string>
     <string name="done">Done</string>
-    <string name="share">Share</string>
-    <string name="delete_confirm">Confirm delete?</string>
-    <string name="delete_warning">This video will be permanently deleted.</string>
-    <string name="cancel">Cancel</string>
+    <string name="exit">Exit</string>
+    <string name="save">Save</string>
+    <string name="close">Close</string>
+    <string name="preview">Preview</string>
+    <string name="exit_without_save_message">Do you really want to exit?\nYour video will not be saved</string>
     <string name="permission_denied">Permission denied</string>
     <string name="denied_permission_message">This feature can\'t work without the required permission.
-        Please go to Settings -> HandAr -> allow Camera permission to keep using it.
+        Please go to Settings → HandAr → allow Camera permission to keep using it.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Couldn\'t play video</string>
-    <string name="can_not_delete_video">Couldn\'t delete video</string>
     <string name="video_thumbnail">video thumbnail</string>
     <string name="no_video">No videos yet.</string>
     <string name="gallery">Gallery</string>

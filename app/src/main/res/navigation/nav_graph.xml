@@ -154,7 +154,7 @@
     </fragment>
 
     <fragment android:id="@+id/recordedPreviewFragment"
-        android:name="com.example.handar.ui.preview.RecordedPreviewFragment"
+        android:name="com.example.handar.ui.recordedpreview.RecordedPreviewFragment"
         android:label="Xem lại"
         tools:layout="@layout/fragment_recorded_preview">
         <argument
