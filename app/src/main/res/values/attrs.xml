@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- custom attr cho ui/widget/VideoThumbnailView.kt -->
+    <declare-styleable name="VideoThumbnailView">
+        <!-- hiện/ẩn nút mở rộng góc dưới-phải. Mặc định false;
+             card thu gọn ở ShareFragment bật true. -->
+        <attr name="showExpandButton" format="boolean" />
+    </declare-styleable>
+</resources>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- nội dung của VideoThumbnailView (ui/widget/): ảnh + nút play giữa + nút mở rộng. -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <ImageView
+        android:id="@+id/img_thumbnail"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/video_thumbnail"
+        android:scaleType="centerCrop" />
+
+    <View
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_gravity="center"
+        android:alpha="0.45"
+        android:background="@drawable/bg_play_button_circle" />
+
+    <ImageView
+        android:layout_width="22dp"
+        android:layout_height="24dp"
+        android:layout_gravity="center"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_play" />
+
+    <ImageButton
+        android:id="@+id/btn_expand"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_icon_overlay_button"
+        android:contentDescription="@string/expand_video"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_zoom_in"
+        android:visibility="gone" />
+
+</merge>
