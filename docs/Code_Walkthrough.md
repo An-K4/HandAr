@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `40f2ba0`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `1011121`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -21,10 +21,15 @@
 MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
-    splash → language → onboarding1-3 → survey → welcome → permission → effectList → effectPreview → cameraRecord → recordedPreview
+    splash → language → onboarding1-3 → survey → welcome → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
                                                                         │                  ▲                 ⇅ (nút Effect / back)
                                                                         │                  └─ (tick, effect khác) ─ effectPicker
                                                                         └──────────────→ videoList → videoPlayer
+
+ui/share/ShareFragment.kt   (mở từ recordedPreview.save(), popUpTo recordedPreview inclusive)
+    → ui/widget/VideoSeekBarController.kt   (dùng lại y hệt recordedPreview, xem mục 9)
+    → nút Trang chủ: popBackStack(effectListFragment, inclusive=false)
+    → nút Thử lại: actionShareToCameraRecord(effectId), popUpTo chính shareFragment inclusive (camera mới)
 
 ui/welcome/WelcomeFragment.kt · ui/permission/PermissionFragment.kt   (2 màn cuối của cụm mở app 1 lần, nằm giữa survey và effectList)
     → WelcomeFragment: chỉ có 1 nút → action_welcome_to_permission (popUpTo inclusive)
@@ -838,12 +843,37 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
   chừng chưa bị dọn), đọc `duration`+`thumbnail` qua `MediaMetadataRetriever` trên `Dispatchers.IO`.
   `coroutineContext.ensureActive()` giữa vòng lặp — cho phép huỷ sớm nếu Fragment bị đóng khi đang
   load danh sách dài.
+- **`VideoAdapter`** (`ui/videolist/`) không tự vẽ thumbnail nữa — root của `item_video.xml` **chính là**
+  `ui/widget/VideoThumbnailView.kt` (custom `FrameLayout`), nên `onBindViewHolder` chỉ gọi
+  `holder.binding.root.setThumbnail(item.thumbnail)`. `VideoThumbnailView` tự bo góc ảnh (dùng
+  `clipRoundedCorners()`, xem lý do ở `RoundedOutline.kt`) và có sẵn `showExpandButton`
+  (`R.styleable.VideoThumbnailView_showExpandButton`, `btn_expand`) — hiện `item_video.xml` **không**
+  bật cờ này (thuộc về danh sách video, không cần nút expand).
 - **`RecordedPreviewFragment`** (`ui/recordedpreview/`, sau khi vừa ghi xong) vs **`VideoPlayerFragment`** (`ui/player/`, từ danh sách) —
   2 Fragment riêng biệt dù đều dùng `ExoPlayer` phát cùng 1 file. `RecordedPreviewFragment` chỉ có
-  **1 nút Save** (`btnSave`) — luôn giữ file, chỉ đóng vai trò điều hướng vì file MP4 đã
-  được ghi sẵn từ lúc dừng quay. Back (top bar hoặc hệ thống) không thoát thẳng mà mở `ConfirmDialog` hỏi xác nhận: nút Thoát xoá file rồi thoát, nút Save giữ file — không còn nút Xoá/Chia sẻ riêng, không dùng `FileProvider` ở màn này nữa (đổi từ commit `40f2ba0`). `VideoPlayerFragment`
+  **1 nút Save** (`btnSave`) — file MP4 đã được ghi sẵn từ lúc dừng quay nên Save không phải thao tác
+  ghi đĩa, mà điều hướng sang **`ShareFragment`** (`actionRecordedPreviewToShare(videoPath, effectId)`,
+  `popUpTo` chính `recordedPreviewFragment` inclusive — từ commit `1011121`, trước đó Save thoát
+  thẳng khỏi app). Back (top bar hoặc hệ thống) không thoát thẳng mà mở `ConfirmDialog` hỏi xác
+  nhận: nút Thoát xoá file rồi pop, nút Save (trong dialog) gọi lại đúng hàm `save()` — không còn nút Xoá/Chia sẻ riêng, không dùng `FileProvider` ở màn này nữa (đổi từ commit `40f2ba0`). `VideoPlayerFragment`
   có thêm `onSaveInstanceState`/khôi phục `playbackPosition` (giữ vị trí phát khi xoay màn hình) —
   `RecordedPreviewFragment` không có, chấp nhận phát lại từ đầu nếu xoay màn hình ngay sau khi ghi.
+- **`ShareFragment`** (`ui/share/`, mở từ `RecordedPreviewFragment.save()`) — xem lại **cùng file** vừa
+  ghi, không nhận video mới. 2 trạng thái UI: **card** thu gọn (mặc định, `groupCard`) và
+  **fullscreen** (`groupFullscreen`, mở bằng `btnExpand`) — chuyển qua lại bằng cách **dời chính
+  `binding.playerView`** giữa 2 container (`removeView` rồi `addView` sang container kia, giữ
+  nguyên index 0 khi về card để nằm dưới icon play trang trí + nút expand), **không tạo lại
+  `ExoPlayer`** nên video không giật/phát lại khi expand/collapse. Dùng chung **`VideoSeekBarController`**
+  (tách từ `RecordedPreviewFragment` ra `ui/widget/`, xem đoạn `ui/share/ShareFragment.kt` ở mục 0)
+  cho thanh seek ở cả 2 trạng thái.
+  Nút Trang chủ → `popBackStack(effectListFragment, inclusive=false)`; nút Thử lại →
+  `actionShareToCameraRecord(effectId)` với `popUpTo` chính `shareFragment` inclusive — tạo
+  **camera mới** (không quay lại camera cũ, giữ đúng bất biến "camera luôn nằm ngay trên
+  effectList", xem `AGENTS.md` mục 3). Back hệ thống tự xử lý theo `isFullscreen`: đang fullscreen
+  thì thu nhỏ trước, đang ở card thì về thẳng Trang chủ (không có `ConfirmDialog` ở màn này —
+  file đã chắc chắn được giữ từ bước trước). **4 nút MXH (Facebook/Instagram/TikTok/YouTube) hiện
+  rỗng** (comment `TODO` trong code, trỏ tới `HandAr_Plan.md` mục 7.4, sẽ làm ở commit riêng) —
+  đừng coi đó là bug chưa làm xong khi review code.
 
 ---
 

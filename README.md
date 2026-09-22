@@ -28,7 +28,13 @@
 - **Nền & nhạc nền riêng cho từng hiệu ứng** (màu/ảnh/GIF nền thay cho camera thật, nhạc nền được trộn thẳng vào video) — dùng cho các hiệu ứng như vẽ canvas, đổi nền theo cử chỉ.
 - **Âm thanh hiệu ứng** phát ra loa khi live, đồng thời được trộn thẳng vào track audio của video ghi ra (không dùng mic).
 - **Ghi video MP4** bằng `MediaCodec` + `MediaMuxer`, độ phân giải và bitrate tính động theo khung hình.
-- **Xem lại ngay sau khi quay**: nút Save giữ file rồi thoát; back/nút back trên top bar mở dialog xác nhận (`ConfirmDialog`) — Thoát trong dialog sẽ xoá file rồi thoát, Save trong dialog thì giữ file. Không có nút Xoá/Chia sẻ trực tiếp trên màn này.
+- **Xem lại ngay sau khi quay**: nút Save điều hướng sang **màn Chia sẻ** (xem bên dưới), không thoát
+  thẳng khỏi app nữa; back/nút back trên top bar mở dialog xác nhận (`ConfirmDialog`) — Thoát trong
+  dialog sẽ xoá file rồi thoát, Save trong dialog thì chạy đúng luồng Save. Không có nút Xóa/Chia sẻ trực tiếp trên màn này.
+- **Màn Chia sẻ** (mở sau khi bấm Save, xem lại **cùng video** vừa ghi): dạng card thu gọn hoặc toàn màn
+  hình (chuyển qua lại không tạo lại player, không giật hình); nút Trang chủ về danh sách hiệu ứng,
+  nút Thử lại mở camera mới với cùng effect. **4 nút chia sẻ Facebook/Instagram/TikTok/YouTube hiện
+  mới có UI, chưa gắn logic mở app tương ứng** (đang trong kế hoạch, xem `docs/HandAr_Plan.md` mục 7.4).
 - **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3).
 - **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
@@ -147,16 +153,26 @@ onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
                                                   permissionFragment (switch Camera / Thông báo)
                                                         │ popUpTo+inclusive
                                                         ▼
-effectListFragment ──chọn effectId──> effectPreviewFragment ──Create──> cameraRecordFragment ──Stop──> recordedPreviewFragment
-        ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Save giữ file; back/Thoát qua ConfirmDialog xoá file)
+effectListFragment ──chọn effectId──> effectPreviewFragment ──Create──> cameraRecordFragment ──Stop──> recordedPreviewFragment ──Save──> shareFragment
+        ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Save điều hướng sang shareFragment, popUpTo inclusive; back/Thoát qua ConfirmDialog xoá file)
         │                                         └── tick effect khác ── effectPickerFragment ◄┘
 videoListFragment ──chọn video──> videoPlayerFragment
+
+      shareFragment: nút Trang chủ → về effectListFragment; nút Thử lại → cameraRecordFragment MỚI
+      (popUpTo share inclusive, không quay lại camera cũ)
 ```
 
 Cụm màn mở app lần đầu (splash/language/onboarding/survey/welcome/permission) chạy **một chiều**, mỗi bước đều
 `popUpTo` + `popUpToInclusive="true"` về điểm đầu cụm đó — không back ngược lại được. Tương tự,
 action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` +
 `popUpToInclusive="true"` để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
+
+Nút Save ở `recordedPreviewFragment` **không còn giữ file rồi thoát** — action
+`recordedPreview → share` khai `popUpTo="@id/recordedPreviewFragment"` inclusive, điều hướng sang
+`shareFragment` để xem lại cùng video + mở icon chia sẻ. Từ `shareFragment`, action `share →
+cameraRecord` (nút Thử lại) khai `popUpTo="@id/shareFragment"` inclusive để tạo **camera mới** —
+giữ nguyên bất biến "camera luôn nằm ngay trên `effectListFragment` trong back stack" giống mọi
+lối vào camera khác.
 
 Màn xem trước (`effectPreviewFragment`) là cửa vào camera duy nhất: action `effectPreview → cameraRecord` khai
 `popUpTo` **chính màn preview** inclusive nên back ở camera vẫn về `effectListFragment`. Ở camera, nút Effect mở
@@ -207,12 +223,17 @@ app/src/main/java/com/example/handar/
 │   ├── effectpreview/ EffectPreviewFragment       (xem trước effect + nút Create, mở từ effectlist/effectpicker)
 │   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
-│   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save giữ file, back/Thoát qua ConfirmDialog xoá file)
+│   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save điều hướng sang share/, back/Thoát qua ConfirmDialog xoá file)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)
 │   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),
 │   │                 CurvedNavBackgroundView, RoundedOutline (bo góc ảnh bằng ViewOutlineProvider —
 │   │                 clipToOutline trên parent không tự cắt View con), ConfirmDialog (dialog xác nhận
-│   │                 dùng chung, dùng bởi RecordedPreviewFragment)
+│   │                 dùng chung, dùng bởi RecordedPreviewFragment), VideoSeekBarController (đồng bộ SeekBar + nhãn
+│   │                 thời gian với ExoPlayer, tách từ recordedpreview để dùng lại ở share/),
+│   │                 VideoThumbnailView (ảnh thumbnail + nút expand tùy chọn, root của item_video.xml)
+│   ├── share/         ShareFragment  (mở sau khi bấm Save ở recordedpreview; card thu gọn/fullscreen
+│   │                 dùng chung 1 ExoPlayer, không tạo lại khi chuyển qua lại; nút Trang chủ về
+│   │                 effectlist, nút Thử lại mở camera mới; icon MXH chưa gắn logic)
 │   └── player/       VideoPlayerFragment           (ExoPlayer)
 ├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
