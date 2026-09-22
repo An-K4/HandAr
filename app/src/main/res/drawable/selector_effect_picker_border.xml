@@ -2,7 +2,7 @@
 <!-- viền của item ở màn chọn hiệu ứng: chỉ item đang được chọn mới có viền. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:drawable="@drawable/border_effect_decorative"
+        android:drawable="@drawable/border_effect_decorative_square"
         android:state_selected="true" />
     <item android:drawable="@android:color/transparent" />
 </selector>

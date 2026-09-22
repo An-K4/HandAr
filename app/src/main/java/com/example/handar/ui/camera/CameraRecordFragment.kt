@@ -599,7 +599,7 @@ class CameraRecordFragment : Fragment() {
             if (showSavedToast) {
                 Toast.makeText(requireContext(), getString(R.string.recording_saved_on_back), Toast.LENGTH_SHORT).show()
             }
-            val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path)
+            val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path, currentEffect.id)
             nav.navigate(action)
         }
     }

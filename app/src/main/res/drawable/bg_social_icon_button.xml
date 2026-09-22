@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- nền nút icon mạng xã hội (facebook/instagram/tikTok/youtube) ở màn share. Các ic_facebook.xml/...
+     đã có sẵn nền màu thương hiệu riêng bên trong; đây là lớp nền ngoài cùng theo design. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/card_corner_radius" />
+    <solid android:color="@color/social_icon_bg" />
+</shape>

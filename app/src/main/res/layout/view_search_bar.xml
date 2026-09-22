@@ -8,7 +8,7 @@
     android:paddingHorizontal="16dp"
     android:paddingVertical="14dp"
     android:background="@drawable/bg_effect_item_shape"
-    android:foreground="@drawable/border_effect_decorative"
+    android:foreground="@drawable/border_effect_decorative_rectangle"
     android:clipToOutline="true">
 
     <ImageView

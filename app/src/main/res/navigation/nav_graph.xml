@@ -160,6 +160,32 @@
         <argument
             android:name="videoPath"
             app:argType="string"/>
+        <!-- chỉ để chuyển tiếp cho share fragment. -->
+        <argument
+            android:name="effectId"
+            app:argType="string"/>
+
+        <action android:id="@+id/action_recordedPreview_to_share"
+            app:destination="@id/shareFragment"
+            app:popUpTo="@id/recordedPreviewFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+    <fragment android:id="@+id/shareFragment"
+        android:name="com.example.handar.ui.share.ShareFragment"
+        android:label="Chia sẻ"
+        tools:layout="@layout/fragment_share">
+        <argument
+            android:name="videoPath"
+            app:argType="string"/>
+        <argument
+            android:name="effectId"
+            app:argType="string"/>
+
+        <action android:id="@+id/action_share_to_cameraRecord"
+            app:destination="@id/cameraRecordFragment"
+            app:popUpTo="@id/shareFragment"
+            app:popUpToInclusive="true"/>
     </fragment>
 
     <fragment android:id="@+id/videoListFragment"
