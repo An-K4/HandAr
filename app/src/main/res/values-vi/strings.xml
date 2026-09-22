@@ -41,4 +41,12 @@
     <string name="effect_picker_title">Mẫu</string>
     <string name="create">Tạo</string>
     <string name="expand_video">Phóng to video</string>
+    <string name="save_successfully">Lưu thành công</string>
+    <string name="try_again">Thử lại</string>
+    <string name="share_to">Chia sẻ tới</string>
+    <string name="collapse_video">Thu nhỏ video</string>
+    <string name="facebook">Facebook</string>
+    <string name="instagram">Instagram</string>
+    <string name="tiktok">Tiktok</string>
+    <string name="youtube">Youtube</string>
 </resources>

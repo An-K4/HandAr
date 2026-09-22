@@ -35,6 +35,7 @@ class RecordedPreviewFragment : Fragment() {
 
     private val args: RecordedPreviewFragmentArgs by navArgs()
     private val videoPath: String get() = args.videoPath
+    private val effectId: String get() = args.effectId
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -125,11 +126,12 @@ class RecordedPreviewFragment : Fragment() {
         nav.popBackStack()
     }
 
-    // video đã lưu sẵn từ lúc dừng ghi, save chỉ đóng vai trò điều hướng.
+    // video đã lưu sẵn từ lúc dừng ghi, save chỉ đóng vai trò điều hướng sang màn share.
+    // popUpTo chính màn này tự gỡ recordedPreview khỏi back stack.
     private fun save() {
         val nav = findNavController()
         if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
-        nav.popBackStack()
+        nav.navigate(RecordedPreviewFragmentDirections.actionRecordedPreviewToShare(videoPath, effectId))
     }
 
     override fun onDestroyView() {

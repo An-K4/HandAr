@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- nền chung cho các nút icon "nổi" trên ảnh/video (mở rộng, thu nhỏ...) ở màn share.
+     không dùng cho nút back: ic_back.xml đã tự vẽ sẵn nền riêng (xem view_effect_top_bar.xml). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="@color/icon_overlay_bg" />
+</shape>

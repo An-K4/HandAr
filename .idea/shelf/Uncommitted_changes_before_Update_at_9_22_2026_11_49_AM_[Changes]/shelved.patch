@@ -1,0 +1,238 @@
+Index: app/src/main/res/drawable/decorate_line.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/decorate_line.xml b/app/src/main/res/drawable/decorate_line.xml
+new file mode 100644
+--- /dev/null	(date 1790049684182)
++++ b/app/src/main/res/drawable/decorate_line.xml	(date 1790049684182)
+@@ -0,0 +1,21 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:aapt="http://schemas.android.com/aapt"
++    android:width="101dp"
++    android:height="1dp"
++    android:viewportWidth="101"
++    android:viewportHeight="1">
++  <path
++      android:pathData="M100,0C100.13,-0 100.26,0.05 100.35,0.15C100.45,0.24 100.5,0.37 100.5,0.5C100.5,0.63 100.45,0.76 100.35,0.85C100.26,0.95 100.13,1 100,1C98.33,0.99 96.67,0.98 95,0.98C65,0.82 35,0.68 5,0.52C3.33,0.52 1.67,0.51 0,0.5C1.67,0.49 3.33,0.48 5,0.47C35,0.32 65,0.17 95,0.03C96.67,0.02 98.33,0.01 100,0Z">
++    <aapt:attr name="android:fillColor">
++      <gradient
++          android:startX="100"
++          android:startY="1"
++          android:endX="0"
++          android:endY="1"
++          android:type="linear">
++        <item android:offset="0" android:color="#FF35E7FF"/>
++        <item android:offset="1" android:color="#FF7C4DFF"/>
++      </gradient>
++    </aapt:attr>
++  </path>
++</vector>
+Index: app/src/main/res/drawable/ic_facebook.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/ic_facebook.xml b/app/src/main/res/drawable/ic_facebook.xml
+new file mode 100644
+--- /dev/null	(date 1790049700453)
++++ b/app/src/main/res/drawable/ic_facebook.xml	(date 1790049700453)
+@@ -0,0 +1,12 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="32dp"
++    android:height="32dp"
++    android:viewportWidth="32"
++    android:viewportHeight="32">
++  <path
++      android:pathData="M24.5,0H7.5C3.358,0 0,3.358 0,7.5V24.5C0,28.642 3.358,32 7.5,32H24.5C28.642,32 32,28.642 32,24.5V7.5C32,3.358 28.642,0 24.5,0Z"
++      android:fillColor="#1877F2"/>
++  <path
++      android:pathData="M17.796,32V20.444H21.727L22.315,15.941H17.796V13.066C17.796,11.763 18.164,10.873 20.058,10.873H22.476V6.838C21.305,6.718 20.129,6.661 18.951,6.667C15.471,6.667 13.073,8.76 13.073,12.62V15.941H9.143V20.444H13.073V32H17.796Z"
++      android:fillColor="#ffffff"/>
++</vector>
+Index: app/src/main/res/values/colors.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<resources>\r\n    <color name=\"black\">#FF000000</color>\r\n    <color name=\"white\">#FFFFFFFF</color>\r\n    <!-- black với alpha 0.45 (0.45 * 255 ≈ 0x73): nền nút Action ở màn camera, để ic_action không che kín nút -->\r\n    <color name=\"black_alpha_45\">#73000000</color>\r\n\r\n    <!-- Bottom nav / floating action icon (Property 1=Effect) -->\r\n    <color name=\"cyan_bright\">#1DECFE</color>\r\n    <color name=\"cyan_deep\">#01C8DD</color>\r\n    <color name=\"navy_darkest\">#01060B</color>\r\n    <color name=\"nav_bg\">#0A1020</color>\r\n    <color name=\"nav_bg_light\">#151E33</color>\r\n\r\n    <!-- linear-gradient(90deg, #19C7D8 0%, #35E7FF 100%) -->\r\n    <color name=\"gradient_action_start\">#19C7D8</color>\r\n    <color name=\"gradient_action_end\">#35E7FF</color>\r\n\r\n    <color name=\"text_primary_light\">#F0EFFE</color>\r\n    <color name=\"text_secondary\">#A3A5C0</color>\r\n    <color name=\"text_disabled\">#5A5E7A</color>\r\n    <color name=\"purple_accent\">#7541FD</color>\r\n    <color name=\"gold_accent\">#F7C666</color>\r\n\r\n    <!-- linear-gradient(90deg, #35E7FF 34%, #7C4DFF 100%) -->\r\n    <color name=\"gradient_glow_start\">#35E7FF</color>\r\n    <color name=\"gradient_glow_end\">#7C4DFF</color>\r\n</resources>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+--- a/app/src/main/res/values/colors.xml	(revision 626b6ca00247dc7a0134d88c79c27646380d267f)
++++ b/app/src/main/res/values/colors.xml	(date 1790052016475)
+@@ -25,4 +25,10 @@
+     <!-- linear-gradient(90deg, #35E7FF 34%, #7C4DFF 100%) -->
+     <color name="gradient_glow_start">#35E7FF</color>
+     <color name="gradient_glow_end">#7C4DFF</color>
++
++    <!-- màu màn share. màu figma xuất theo RRGGBBAA, android dùng AARRGGBB nên đảo alpha trước khi khai. -->
++    <!-- figma #F0EFFE57 -> nền các nút icon nổi (mở rộng/thu nhỏ) đè lên video. -->
++    <color name="icon_overlay_bg">#57F0EFFE</color>
++    <!-- nền nút icon mạng xã hội (facebook/instagram/tiktok/youtube). -->
++    <color name="social_icon_bg">#F6F5FE</color>
+ </resources>
+\ No newline at end of file
+Index: app/src/main/res/drawable/ic_youtube.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/ic_youtube.xml b/app/src/main/res/drawable/ic_youtube.xml
+new file mode 100644
+--- /dev/null	(date 1790049736884)
++++ b/app/src/main/res/drawable/ic_youtube.xml	(date 1790049736884)
+@@ -0,0 +1,12 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="32dp"
++    android:height="32dp"
++    android:viewportWidth="32"
++    android:viewportHeight="32">
++  <path
++      android:pathData="M31.331,8.3C30.962,6.925 29.881,5.837 28.5,5.469C26.006,4.8 16,4.8 16,4.8C16,4.8 5.994,4.8 3.5,5.469C2.125,5.837 1.038,6.919 0.669,8.3C0,10.794 0,16 0,16C0,16 0,21.206 0.669,23.7C1.038,25.075 2.119,26.162 3.5,26.531C5.994,27.2 16,27.2 16,27.2C16,27.2 26.006,27.2 28.5,26.531C29.875,26.162 30.962,25.081 31.331,23.7C32,21.206 32,16 32,16C32,16 32,10.794 31.331,8.3Z"
++      android:fillColor="#FF0000"/>
++  <path
++      android:pathData="M12.801,20.8L21.113,16L12.801,11.2V20.8Z"
++      android:fillColor="#ffffff"/>
++</vector>
+Index: app/src/main/res/drawable/ic_try_again.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/ic_try_again.xml b/app/src/main/res/drawable/ic_try_again.xml
+new file mode 100644
+--- /dev/null	(date 1790049715783)
++++ b/app/src/main/res/drawable/ic_try_again.xml	(date 1790049715783)
+@@ -0,0 +1,43 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:aapt="http://schemas.android.com/aapt"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:pathData="M17,9.5L17.658,9.171C19.604,8.198 20.578,7.711 21.288,8.151C22,8.591 22,9.679 22,11.854V12.146C22,14.322 22,15.409 21.289,15.849C20.577,16.289 19.604,15.802 17.659,14.829L17,14.5V9.5Z"
++      android:strokeWidth="1.5"
++      android:strokeColor="#01060B">
++    <aapt:attr name="android:fillColor">
++      <gradient
++          android:startX="17"
++          android:startY="7.988"
++          android:endX="24.203"
++          android:endY="12.476"
++          android:type="linear">
++        <item android:offset="0.4" android:color="#FFF14343"/>
++        <item android:offset="1" android:color="#FF7C4DFF"/>
++      </gradient>
++    </aapt:attr>
++  </path>
++  <path
++      android:pathData="M2.908,5.462C2,6.57 2,8.212 2,11.5V12.5C2,15.787 2,17.431 2.908,18.538C3.074,18.74 3.26,18.926 3.462,19.092C4.57,20 6.212,20 9.5,20C12.787,20 14.431,20 15.538,19.092C15.741,18.925 15.925,18.741 16.092,18.538C17,17.43 17,15.788 17,12.5V11.5C17,8.213 17,6.569 16.092,5.462C15.926,5.26 15.74,5.074 15.538,4.908C14.43,4 12.788,4 9.5,4C6.213,4 4.569,4 3.462,4.908C3.26,5.074 3.074,5.26 2.908,5.462Z"
++      android:strokeWidth="1.5"
++      android:fillType="evenOdd"
++      android:strokeColor="#01060B">
++    <aapt:attr name="android:fillColor">
++      <gradient
++          android:startX="2"
++          android:startY="4"
++          android:endX="17.967"
++          android:endY="18.969"
++          android:type="linear">
++        <item android:offset="0.4" android:color="#FFF14343"/>
++        <item android:offset="1" android:color="#FF7C4DFF"/>
++      </gradient>
++    </aapt:attr>
++  </path>
++  <path
++      android:pathData="M14,8.5C14,8.697 13.961,8.892 13.886,9.074C13.81,9.256 13.7,9.421 13.561,9.561C13.421,9.7 13.256,9.81 13.074,9.886C12.892,9.961 12.697,10 12.5,10C12.303,10 12.108,9.961 11.926,9.886C11.744,9.81 11.579,9.7 11.439,9.561C11.3,9.421 11.19,9.256 11.114,9.074C11.039,8.892 11,8.697 11,8.5C11,8.102 11.158,7.721 11.439,7.439C11.721,7.158 12.102,7 12.5,7C12.898,7 13.279,7.158 13.561,7.439C13.842,7.721 14,8.102 14,8.5Z"
++      android:fillColor="#F6F5FE"/>
++</vector>
+Index: app/src/main/res/drawable/ic_tiktok.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/ic_tiktok.xml b/app/src/main/res/drawable/ic_tiktok.xml
+new file mode 100644
+--- /dev/null	(date 1790049765512)
++++ b/app/src/main/res/drawable/ic_tiktok.xml	(date 1790049765512)
+@@ -0,0 +1,25 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="32dp"
++    android:height="32dp"
++    android:viewportWidth="32"
++    android:viewportHeight="32">
++  <group>
++    <clip-path
++        android:pathData="M0,0h32v32h-32z"/>
++    <path
++        android:pathData="M24.5,0H7.5C3.358,0 0,3.358 0,7.5V24.5C0,28.642 3.358,32 7.5,32H24.5C28.642,32 32,28.642 32,24.5V7.5C32,3.358 28.642,0 24.5,0Z"
++        android:fillColor="#000000"/>
++    <path
++        android:pathData="M20.09,4C20.474,7.3 22.452,9.629 25.653,9.836V12.967H25.635V10.309C22.433,10.103 20.596,8.134 20.207,4.834H16.818V18.718C17.306,24.966 12.44,25.153 10.575,22.782C12.759,24.146 16.307,23.26 15.885,17.883V4H20.09ZM10.987,27.014C9.075,26.621 7.331,25.477 6.309,23.803C3.825,19.74 6.066,13.117 13.27,12.437V16.351H13.256V13.417C6.576,14.481 5.906,21.652 7.758,24.638C8.47,25.786 9.642,26.597 10.987,27.014Z"
++        android:fillColor="#26F4EE"
++        android:fillType="evenOdd"/>
++    <path
++        android:pathData="M21.06,4.834C21.313,6.991 22.185,8.823 23.648,9.892C21.665,9.128 20.507,7.375 20.207,4.834H21.06ZM25.63,10.773C25.902,10.829 26.188,10.872 26.483,10.89V14.603C24.627,14.781 23.006,14.171 21.112,13.032L21.403,19.388C21.403,21.437 21.412,22.374 20.31,24.258C17.845,28.486 13.406,28.819 10.402,26.808C14.33,28.43 20.273,26.461 20.259,19.388V12.451C22.153,13.59 23.774,14.2 25.63,14.017V10.773ZM13.256,13.454C13.645,13.375 14.053,13.314 14.479,13.271V17.185C12.919,17.443 11.93,17.921 11.466,18.807C10.008,21.596 11.887,23.808 13.987,24.141C11.545,24.549 8.681,22.069 10.388,18.807C10.852,17.921 11.695,17.443 13.256,17.185V13.454Z"
++        android:fillColor="#FB2C53"
++        android:fillType="evenOdd"/>
++    <path
++        android:pathData="M20.207,4.834C20.591,8.134 22.433,10.103 25.63,10.309V14.017C23.774,14.2 22.152,13.59 20.258,12.451V19.388C20.272,28.439 10.537,29.128 7.753,24.638C5.901,21.652 6.572,14.481 13.251,13.417V17.185C11.69,17.443 10.846,17.921 10.382,18.807C7.518,24.282 17.507,27.539 16.813,18.718V4.834H20.207Z"
++        android:fillColor="#ffffff"
++        android:fillType="evenOdd"/>
++  </group>
++</vector>
+Index: app/src/main/res/drawable/ic_instagram.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/res/drawable/ic_instagram.xml b/app/src/main/res/drawable/ic_instagram.xml
+new file mode 100644
+--- /dev/null	(date 1790049750079)
++++ b/app/src/main/res/drawable/ic_instagram.xml	(date 1790049750079)
+@@ -0,0 +1,43 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:aapt="http://schemas.android.com/aapt"
++    android:width="32dp"
++    android:height="32dp"
++    android:viewportWidth="32"
++    android:viewportHeight="32">
++  <group>
++    <clip-path
++        android:pathData="M0,0h32v32h-32z"/>
++    <path
++        android:pathData="M24.5,0H7.5C3.358,0 0,3.358 0,7.5V24.5C0,28.642 3.358,32 7.5,32H24.5C28.642,32 32,28.642 32,24.5V7.5C32,3.358 28.642,0 24.5,0Z">
++      <aapt:attr name="android:fillColor">
++        <gradient
++            android:centerX="8.5"
++            android:centerY="34.465"
++            android:gradientRadius="31.714"
++            android:type="radial">
++          <item android:offset="0" android:color="#FFFFDD55"/>
++          <item android:offset="0.1" android:color="#FFFFDD55"/>
++          <item android:offset="0.5" android:color="#FFFF543E"/>
++          <item android:offset="1" android:color="#FFC837AB"/>
++        </gradient>
++      </aapt:attr>
++    </path>
++    <path
++        android:pathData="M24.5,0H7.5C3.358,0 0,3.358 0,7.5V24.5C0,28.642 3.358,32 7.5,32H24.5C28.642,32 32,28.642 32,24.5V7.5C32,3.358 28.642,0 24.5,0Z">
++      <aapt:attr name="android:fillColor">
++        <gradient
++            android:centerX="-5.36"
++            android:centerY="2.305"
++            android:gradientRadius="14.177"
++            android:type="radial">
++          <item android:offset="0" android:color="#FF3771C8"/>
++          <item android:offset="0.128" android:color="#FF3771C8"/>
++          <item android:offset="1" android:color="#006600FF"/>
++        </gradient>
++      </aapt:attr>
++    </path>
++    <path
++        android:pathData="M16.001,3.5C12.606,3.5 12.18,3.515 10.847,3.576C9.516,3.636 8.608,3.847 7.813,4.156C6.991,4.476 6.293,4.903 5.599,5.598C4.903,6.293 4.476,6.99 4.156,7.812C3.846,8.607 3.635,9.516 3.575,10.846C3.516,12.179 3.5,12.605 3.5,16C3.5,19.395 3.515,19.82 3.576,21.153C3.637,22.484 3.847,23.392 4.156,24.187C4.476,25.009 4.903,25.706 5.598,26.401C6.293,27.097 6.99,27.525 7.812,27.844C8.607,28.153 9.515,28.364 10.846,28.425C12.179,28.485 12.605,28.5 16,28.5C19.395,28.5 19.819,28.485 21.153,28.425C22.483,28.364 23.393,28.153 24.188,27.844C25.01,27.525 25.706,27.097 26.401,26.401C27.096,25.706 27.523,25.009 27.844,24.187C28.151,23.392 28.362,22.483 28.424,21.153C28.484,19.82 28.5,19.395 28.5,16C28.5,12.605 28.484,12.179 28.424,10.846C28.362,9.515 28.151,8.607 27.844,7.812C27.523,6.99 27.096,6.293 26.401,5.598C25.706,4.902 25.01,4.475 24.188,4.156C23.391,3.847 22.482,3.636 21.151,3.576C19.818,3.515 19.393,3.5 15.997,3.5H16.001ZM14.88,5.753C15.213,5.752 15.584,5.753 16.001,5.753C19.339,5.753 19.734,5.765 21.052,5.825C22.271,5.88 22.933,6.084 23.373,6.255C23.956,6.482 24.372,6.752 24.81,7.19C25.247,7.628 25.518,8.044 25.745,8.627C25.916,9.068 26.12,9.729 26.176,10.948C26.235,12.266 26.248,12.661 26.248,15.997C26.248,19.333 26.235,19.729 26.176,21.047C26.12,22.265 25.916,22.927 25.745,23.367C25.518,23.951 25.247,24.366 24.81,24.803C24.372,25.241 23.957,25.511 23.373,25.738C22.933,25.91 22.271,26.113 21.052,26.169C19.735,26.229 19.339,26.242 16.001,26.242C12.663,26.242 12.268,26.229 10.95,26.169C9.731,26.112 9.07,25.909 8.629,25.738C8.046,25.511 7.629,25.24 7.191,24.803C6.754,24.365 6.483,23.95 6.256,23.366C6.085,22.926 5.881,22.264 5.826,21.046C5.766,19.728 5.754,19.332 5.754,15.994C5.754,12.656 5.766,12.262 5.826,10.945C5.881,9.726 6.085,9.064 6.256,8.624C6.483,8.04 6.754,7.624 7.192,7.186C7.629,6.749 8.046,6.478 8.629,6.251C9.07,6.079 9.731,5.876 10.95,5.82C12.103,5.768 12.55,5.752 14.88,5.749V5.753ZM22.674,7.828C21.846,7.828 21.174,8.499 21.174,9.328C21.174,10.156 21.846,10.828 22.674,10.828C23.502,10.828 24.174,10.156 24.174,9.328C24.174,8.5 23.502,7.828 22.674,7.828V7.828ZM16.001,9.581C12.456,9.581 9.582,12.455 9.582,16C9.582,19.545 12.456,22.418 16.001,22.418C19.546,22.418 22.42,19.545 22.42,16C22.42,12.455 19.546,9.581 16.001,9.581H16.001ZM16.001,11.833C18.302,11.833 20.168,13.699 20.168,16C20.168,18.301 18.302,20.167 16.001,20.167C13.7,20.167 11.835,18.301 11.835,16C11.835,13.699 13.7,11.833 16.001,11.833Z"
++        android:fillColor="#ffffff"/>
++  </group>
++</vector>

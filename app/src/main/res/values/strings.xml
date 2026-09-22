@@ -41,4 +41,12 @@
     <string name="effect_picker_title">Template</string>
     <string name="create">Create</string>
     <string name="expand_video">Expand video</string>
+    <string name="save_successfully">Save Successfully</string>
+    <string name="try_again">Try Again</string>
+    <string name="share_to">Share to</string>
+    <string name="collapse_video">Collapse video</string>
+    <string name="facebook">Facebook</string>
+    <string name="instagram">Instagram</string>
+    <string name="tiktok">Tiktok</string>
+    <string name="youtube">Youtube</string>
 </resources>
