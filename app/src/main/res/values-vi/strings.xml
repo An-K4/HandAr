@@ -80,4 +80,22 @@
     <string name="onboarding_3_subtitle">Chọn một hiệu ứng và thổi phép thuật vào đời thực</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt\n</string>
+
+    <string name="got_it">Đã hiểu</string>
+    <string name="gesture_any_hand">Đưa tay vào khung hình</string>
+    <string name="gesture_open_palm">Xòe tay</string>
+    <string name="gesture_fist">Nắm tay</string>
+    <string name="gesture_one_finger">Một ngón tay</string>
+    <string name="gesture_two_finger">Hai ngón tay</string>
+    <string name="gesture_three_fingers">Ba ngón tay</string>
+    <string name="gesture_thumbs_up">Ngón cái</string>
+    <string name="gesture_rock_on">Rock On</string>
+    <string name="gesture_call">Gọi điện</string>
+    <string name="gesture_ok_sign">Ký hiệu OK</string>
+    <string name="gesture_i_love_you">I Love You</string>
+    <string name="gesture_both_hands_open">Xòe hai tay</string>
+    <string name="gesture_both_hands_fist">Nắm hai tay</string>
+    <string name="gesture_two_hands_heart">Trái tim</string>
+    <string name="gesture_crossed_fingers">Bắt chéo ngón tay</string>
+    <string name="gesture_unknown">Cử chỉ</string>
 </resources>

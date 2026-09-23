@@ -185,6 +185,7 @@ class CameraRecordFragment : Fragment() {
             bindEffectInfo(currentEffect)
             layoutCameraTopBar.btnBack.setOnClickListener { navigateBack() }
             btnEffect.setOnClickListener { openEffectPicker() }
+            btnAction.setOnClickListener { GestureGuideDialog(requireContext(), currentEffect).show() }
 
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()

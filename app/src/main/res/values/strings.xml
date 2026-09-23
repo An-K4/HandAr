@@ -80,4 +80,22 @@
     <string name="onboarding_3_subtitle">Choose an effect and bring your magic to life</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt</string>
+
+    <string name="got_it">Got it</string>
+    <string name="gesture_any_hand">Show Your Hand</string>
+    <string name="gesture_open_palm">Open Palm</string>
+    <string name="gesture_fist">Fist</string>
+    <string name="gesture_one_finger">One Finger</string>
+    <string name="gesture_two_finger">Two Finger Touch</string>
+    <string name="gesture_three_fingers">Three Fingers</string>
+    <string name="gesture_thumbs_up">Thumbs Up</string>
+    <string name="gesture_rock_on">Rock On</string>
+    <string name="gesture_call">Call Me</string>
+    <string name="gesture_ok_sign">OK Sign</string>
+    <string name="gesture_i_love_you">I Love You</string>
+    <string name="gesture_both_hands_open">Both Hands Open</string>
+    <string name="gesture_both_hands_fist">Both Fists</string>
+    <string name="gesture_two_hands_heart">Heart</string>
+    <string name="gesture_crossed_fingers">Crossed Fingers</string>
+    <string name="gesture_unknown">Gesture</string>
 </resources>
