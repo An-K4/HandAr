@@ -31,11 +31,15 @@
 - **Xem lại ngay sau khi quay**: nút Save điều hướng sang **màn Chia sẻ** (xem bên dưới), không thoát
   thẳng khỏi app nữa; back/nút back trên top bar mở dialog xác nhận (`ConfirmDialog`) — Thoát trong
   dialog sẽ xoá file rồi thoát, Save trong dialog thì chạy đúng luồng Save. Không có nút Xóa/Chia sẻ trực tiếp trên màn này.
-- **Màn Chia sẻ** (mở sau khi bấm Save, xem lại **cùng video** vừa ghi): dạng card thu gọn hoặc toàn màn
-  hình (chuyển qua lại không tạo lại player, không giật hình); nút Trang chủ về danh sách hiệu ứng,
-  nút Thử lại mở camera mới với cùng effect. **4 nút chia sẻ Facebook/Instagram/TikTok/YouTube hiện
-  mới có UI, chưa gắn logic mở app tương ứng** (đang trong kế hoạch, xem `docs/HandAr_Plan.md` mục 7.4).
-- **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3).
+- **Màn Chia sẻ** (mở từ recordedpreview.save() **hoặc** từ menu ⋮ ở màn phát video trong thư viện,
+  xem lại **cùng video** vừa chọn): dạng card thu gọn hoặc toàn màn hình (chuyển qua lại không tạo lại
+  player, không giật hình); nút Trang chủ về danh sách hiệu ứng; nút Thử lại (mở camera mới với cùng
+  effect) **chỉ hiện khi vào từ màn quay xong**, ẩn khi vào từ thư viện video (không có effect gốc để
+  mở lại). **4 nút chia sẻ Facebook/Instagram/TikTok/YouTube** đã gọi thẳng app tương ứng kèm sẵn file
+  video (qua `FileProvider`), app chưa cài thì mở Play Store — xem `utils/SocialShare.kt`. Giới hạn
+  đã biết trước (không phải bug): không app nào prefill được caption qua Intent, Instagram không mở
+  được Story composer qua đường này.
+- **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3). Màn phát video có menu ⋮ ở top bar: **Đổi tên** (dialog nhập tên mới, đổi thẳng tên file `.mp4`), **Xoá** (có `ConfirmDialog` xác nhận), **Chia sẻ** (mở lại đúng màn Chia sẻ nói trên, không có nút Thử lại).
 - **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
 - **Đa ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
@@ -231,10 +235,12 @@ app/src/main/java/com/example/handar/
 │   │                 dùng chung, dùng bởi RecordedPreviewFragment), VideoSeekBarController (đồng bộ SeekBar + nhãn
 │   │                 thời gian với ExoPlayer, tách từ recordedpreview để dùng lại ở share/),
 │   │                 VideoThumbnailView (ảnh thumbnail + nút expand tùy chọn, root của item_video.xml)
-│   ├── share/         ShareFragment  (mở sau khi bấm Save ở recordedpreview; card thu gọn/fullscreen
-│   │                 dùng chung 1 ExoPlayer, không tạo lại khi chuyển qua lại; nút Trang chủ về
-│   │                 effectlist, nút Thử lại mở camera mới; icon MXH chưa gắn logic)
-│   └── player/       VideoPlayerFragment           (ExoPlayer)
+│   ├── share/         ShareFragment  (mở từ recordedpreview.save() HOẶC từ menu ⋮ của videoPlayer;
+│   │                 card thu gọn/fullscreen dùng chung 1 ExoPlayer, không tạo lại khi chuyển qua lại;
+│   │                 nút Trang chủ về effectlist; nút Thử lại chỉ hiện khi `fromRecordedPreview=true`;
+│   │                 4 icon MXH gọi `shareVideoToSocialApp()` — utils/SocialShare.kt)
+│   └── player/       VideoPlayerFragment  (ExoPlayer; menu ⋮ ở top bar: Đổi tên qua `RenameDialog`,
+│                     Xoá qua `ConfirmDialog`, Chia sẻ mở `shareFragment` với `fromRecordedPreview=false`)
 ├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
                                 3 hàm: padding/margin/match-height cho status bar & nav bar),

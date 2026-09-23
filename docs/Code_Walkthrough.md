@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `1011121`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `64cf7f0`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -61,6 +61,13 @@ ui/videolist/VideoListFragment.kt
     → ui/videolist/VideoRepository.kt (liệt kê file .mp4, đọc metadata/thumbnail)
     → ui/videolist/VideoAdapter.kt (RecyclerView, item chỉ có ảnh + nút play giữa, không tên/thời lượng)
     → ui/widget/GridSpacingItemDecoration.kt (dùng chung với EffectListFragment)
+
+ui/player/VideoPlayerFragment.kt   (mở từ videoList khi chọn 1 video; menu ⋮ thêm từ commit `64cf7f0`)
+    → ui/widget/VideoSeekBarController.kt   (dùng lại y hệt recordedPreview/share, xem mục 9)
+    → ui/widget/RenameDialog.kt   (menu ⋮ → Đổi tên; File.renameTo tại chỗ, không đổi extension)
+    → ui/widget/ConfirmDialog.kt   (menu ⋮ → Xoá; xác nhận rồi File.delete() + popBackStack)
+    → action_videoPlayer_to_share (menu ⋮ → Chia sẻ; KHÔNG popUpTo — videoPlayer vẫn nằm trong back
+      stack; effectId truyền "" và fromRecordedPreview=false nên shareFragment ẩn nút Thử lại)
 
 ui/camera/CameraRecordFragment.kt   ★ file trung tâm, "nhạc trưởng" của 1 phiên quay
     → effect/EffectRepository.kt          (tra EffectDefinition theo args.effectId)
@@ -871,9 +878,14 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
   **camera mới** (không quay lại camera cũ, giữ đúng bất biến "camera luôn nằm ngay trên
   effectList", xem `AGENTS.md` mục 3). Back hệ thống tự xử lý theo `isFullscreen`: đang fullscreen
   thì thu nhỏ trước, đang ở card thì về thẳng Trang chủ (không có `ConfirmDialog` ở màn này —
-  file đã chắc chắn được giữ từ bước trước). **4 nút MXH (Facebook/Instagram/TikTok/YouTube) hiện
-  rỗng** (comment `TODO` trong code, trỏ tới `HandAr_Plan.md` mục 7.4, sẽ làm ở commit riêng) —
-  đừng coi đó là bug chưa làm xong khi review code.
+  file đã chắc chắn được giữ từ bước trước). **4 nút MXH (Facebook/Instagram/TikTok/YouTube)** —
+  mỗi nút gọi `shareVideoToSocialApp()` (`utils/SocialShare.kt`): app đích có cài thì mở kèm sẵn
+  file qua `FileProvider` + `Intent.ACTION_SEND`, không thì mở trang app đó trên Play Store. Giới
+  hạn đã biết trước (không phải bug): không app nào prefill được caption qua Intent, Instagram
+  không mở được Story composer qua đường này (cần intent `ADD_TO_STORY` riêng). Thực tế test tay:
+  Facebook tự mở bài đăng kèm video, Instagram mở qua CH Play (chưa cài), TikTok mở bottom sheet
+  share tin nhắn/video, YouTube mở trình edit video trước khi đăng — xem thêm note trong
+  `AGENTS.md` mục 3.
 
 ---
 
@@ -907,6 +919,8 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | Thêm màn hình mới vào flow khởi động | `res/navigation/nav_graph.xml` + Fragment mới trong `ui/` theo mẫu `ui/onboarding/` |
 | Đổi ngôn ngữ / thêm bản dịch | `ui/language/LanguageFragment.kt` + `res/values-xx/strings.xml` |
 | Đổi top bar (back + tên effect) của màn camera/xem trước | `res/layout/view_effect_top_bar.xml` — dùng chung qua `<include>`, đừng nhân bản vào thư mục qualifier (xem `docs/AGENTS.md` mục 5) |
+| Đổi tên/xoá/chia sẻ video từ thư viện | `ui/player/VideoPlayerFragment.kt` (menu ⋮) + `ui/widget/RenameDialog.kt` / `ui/widget/ConfirmDialog.kt` |
+| Sửa logic mở app MXH khi chia sẻ | `utils/SocialShare.kt` (`shareVideoToSocialApp`, `SocialTarget`) |
 
 ---
 
@@ -939,3 +953,9 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
    chỗ nào tính kích thước vẽ theo pixel tuyệt đối (thay vì theo tỉ lệ `canvas.width`, như
    `HandSkeletonRenderer` đã làm đúng) đều có nguy cơ vẽ sai tỉ lệ giữa live và video xuất ra —
    đây từng là 1 bug thật (xem comment trong `HandSkeleton.kt`).
+8. **`ShareFragment` có 2 lối vào với hành vi khác nhau, đừng giả định effectId luôn hợp lệ**: vào
+   từ `RecordedPreviewFragment` thì `fromRecordedPreview=true` + `effectId` thật (nút Thử lại hoạt
+   động); vào từ menu ⋮ của `VideoPlayerFragment` thì `fromRecordedPreview=false` + `effectId=""`
+   (nút Thử lại bị ẩn ở tầng UI, nhưng nếu sau này có code nào lỡ gọi `actionShareToCameraRecord`
+   bất chấp cờ này thì sẽ mở camera với effect rỗng — kiểm tra `args.fromRecordedPreview` trước khi
+   sửa gì liên quan tới nút Thử lại).
