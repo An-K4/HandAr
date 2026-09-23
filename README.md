@@ -42,7 +42,11 @@
 - **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3). Màn phát video có menu ⋮ ở top bar: **Đổi tên** (dialog nhập tên mới, đổi thẳng tên file `.mp4`), **Xoá** (có `ConfirmDialog` xác nhận), **Chia sẻ** (mở lại đúng màn Chia sẻ nói trên, không có nút Thử lại).
 - **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
-- **Đa ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) + màn onboarding/khảo sát khi mở app lần đầu.
+- **Đa ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) qua màn Cài đặt (xem dưới) + màn onboarding/khảo sát khi mở app lần đầu.
+- **Màn Cài đặt** (mở từ icon hamburger ở top bar, có sẵn mọi lúc): mục Ngôn ngữ điều hướng thật sang màn chọn vi/en
+  (2 dòng dạng radio); các mục Đánh giá/Chia sẻ app/Góp ý/Giới thiệu/Chính sách riêng tư mới chỉ có UI.
+- **Hướng dẫn cử chỉ**: nút Action ở màn quay mở dialog liệt kê từng cử chỉ của effect đang chọn (tên +
+  icon, hiện icon dùng tạm chung 1 hình cho mọi cử chỉ).
 
 ## Công nghệ
 
@@ -138,25 +142,25 @@ qua `SharedFlow` (không dùng `setResultListener` trỏ thẳng vào Fragment �
 
 ### Luồng màn hình
 
+> Thứ tự cụm mở app 1 lần đã đổi từ commit `24d7626`/`b1a3cf9`: `languageFragment` không còn ở đây
+> nữa, chuyển sang chỉ mở từ `settingsFragment` (icon hamburger ở top bar, xem dưới sơ đồ).
+
 ```text
-splashFragment (start, delay ~1s)
+splashFragment (start, delay 5s, thanh loading chạy song song)
       │ popUpTo+inclusive
       ▼
-languageFragment (chọn vi/en)
+welcomeFragment (1 nút Bắt đầu)
       │ popUpTo+inclusive
       ▼
-onboarding1Fragment ──> onboarding2Fragment ──> onboarding3Fragment
-                                                        │ popUpTo+inclusive
-                                                        ▼
-                                                  surveyFragment
-                                                        │ popUpTo+inclusive
-                                                        ▼
-                                                  welcomeFragment
-                                                        │ popUpTo+inclusive
-                                                        ▼
-                                                  permissionFragment (switch Camera / Thông báo)
-                                                        │ popUpTo+inclusive
-                                                        ▼
+onboarding1Fragment (có nút Skip → surveyFragment, popUpTo+inclusive) ──> onboarding2Fragment ──> onboarding3Fragment
+                                                                                      │ popUpTo+inclusive
+                                                                                      ▼
+                                                                                surveyFragment
+                                                                                      │ popUpTo+inclusive
+                                                                                      ▼
+                                                                          permissionFragment (switch Camera / Thông báo)
+                                                                                      │ popUpTo+inclusive
+                                                                                      ▼
 effectListFragment ──chọn effectId──> effectPreviewFragment ──Create──> cameraRecordFragment ──Stop──> recordedPreviewFragment ──Save──> shareFragment
         ↕ bottom nav (tab Home / Collection)      ▲  (popUpTo preview inclusive)         │ ⇅ nút Effect        (Save điều hướng sang shareFragment, popUpTo inclusive; back/Thoát qua ConfirmDialog xoá file)
         │                                         └── tick effect khác ── effectPickerFragment ◄┘
@@ -164,9 +168,12 @@ videoListFragment ──chọn video──> videoPlayerFragment
 
       shareFragment: nút Trang chủ → về effectListFragment; nút Thử lại → cameraRecordFragment MỚI
       (popUpTo share inclusive, không quay lại camera cũ)
+
+      settingsFragment (mở từ icon hamburger ở top bar, có sẵn ở mọi màn có top bar, KHÔNG thuộc
+      chuỗi one-shot trên) ──mục Ngôn ngữ──> languageFragment (chọn vi/en, back thường = navigateUp)
 ```
 
-Cụm màn mở app lần đầu (splash/language/onboarding/survey/welcome/permission) chạy **một chiều**, mỗi bước đều
+Cụm màn mở app lần đầu (splash/welcome/onboarding/survey/permission) chạy **một chiều**, mỗi bước đều
 `popUpTo` + `popUpToInclusive="true"` về điểm đầu cụm đó — không back ngược lại được. Tương tự,
 action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` +
 `popUpToInclusive="true"` để giải phóng camera ngay lúc điều hướng và không back ngược lại màn quay.
@@ -221,12 +228,20 @@ app/src/main/java/com/example/handar/
 ├── audio/                        BgmPlayer (MediaPlayer) · SoundEffectPlayer (SoundPool) — cả hai chỉ
 │                                phát ra loa, TÁCH RIÊNG khỏi track ghi hình (xem `AudioMixer`)
 ├── ui/
-│   ├── splash/ · language/ · onboarding/ · survey/ · welcome/ · permission/   luồng mở app lần đầu, 1 chiều
-│   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo)
+│   ├── splash/ · onboarding/ · survey/ · welcome/ · permission/   luồng mở app lần đầu, 1 chiều (thứ
+│   │                 tự: splash → welcome → onboarding1-3 → survey → permission)
+│   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo;
+│   │                  onboarding/: onboarding1 có nút Skip nhảy thẳng sang survey)
+│   ├── language/     LanguageFragment — KHÔNG còn trong luồng mở app lần đầu, chỉ mở từ settings/ (2 dòng
+│   │                 tick vi/en dạng radio)
+│   ├── settings/     SettingsFragment — mở từ icon hamburger ở view_top_bar.xml, chỉ mục Ngôn ngữ có
+│   │                 logic (nav sang language/), các mục còn lại mới đổ UI
 │   ├── effectlist/   EffectListFragment (có ô search real-time), EffectAdapter
 │   ├── effectpreview/ EffectPreviewFragment       (xem trước effect + nút Create, mở từ effectlist/effectpicker)
 │   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
-│   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình)
+│   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình); GestureGuideDialog +
+│   │                 GestureAdapter (dialog lưới 2 cột hướng dẫn cử chỉ, mở từ nút Action — map tên/icon
+│   │                 ở `effect/gesture/GestureDisplay.kt`, icon đang dùng tạm chung `ic_action`)
 │   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save điều hướng sang share/, back/Thoát qua ConfirmDialog xoá file)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)
 │   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),

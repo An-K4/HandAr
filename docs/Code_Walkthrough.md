@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `64cf7f0`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `ddcadce`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -21,7 +21,8 @@
 MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
-    splash → language → onboarding1-3 → survey → welcome → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
+    splash → welcome → onboarding1(Skip→survey) → onboarding2 → onboarding3 → survey → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
+    (thứ tự này đổi từ commit `24d7626`/`b1a3cf9` — language không còn trong chuỗi này, xem dòng settings/language bên dưới)
                                                                         │                  ▲                 ⇅ (nút Effect / back)
                                                                         │                  └─ (tick, effect khác) ─ effectPicker
                                                                         └──────────────→ videoList → videoPlayer
@@ -31,8 +32,15 @@ ui/share/ShareFragment.kt   (mở từ recordedPreview.save(), popUpTo recordedP
     → nút Trang chủ: popBackStack(effectListFragment, inclusive=false)
     → nút Thử lại: actionShareToCameraRecord(effectId), popUpTo chính shareFragment inclusive (camera mới)
 
-ui/welcome/WelcomeFragment.kt · ui/permission/PermissionFragment.kt   (2 màn cuối của cụm mở app 1 lần, nằm giữa survey và effectList)
-    → WelcomeFragment: chỉ có 1 nút → action_welcome_to_permission (popUpTo inclusive)
+ui/welcome/WelcomeFragment.kt   (màn THỨ HAI của cụm mở app 1 lần, ngay sau splash)
+    → chỉ có 1 nút → action_welcome_to_onboarding_1 (popUpTo inclusive)
+
+ui/language/LanguageFragment.kt · ui/settings/SettingsFragment.kt   (KHÔNG nằm trong luồng mở app 1 lần —
+settings mở từ icon hamburger ở view_top_bar.xml, có sẵn mọi lúc; language chỉ mở từ settings)
+    → SettingsFragment: 6 hàng, chỉ hàng Ngôn ngữ có logic (action_settings_to_language, không popUpTo)
+    → LanguageFragment: 2 hàng tick vi/en (KHÔNG dùng RecyclerView vì chỉ 2 lựa chọn cố định), back = navigateUp()
+
+ui/permission/PermissionFragment.kt   (màn cuối của cụm mở app 1 lần, giữa survey và effectList)
     → PermissionFragment: 2 SwitchMaterial (Camera = CAMERA, Thông báo = POST_NOTIFICATIONS — Android < 13 không có quyền này
       nên luôn coi là granted). Switch chỉ phản ánh trạng thái quyền thật (`refreshSwitchStates()` ở onViewCreated + onResume để
       cập nhật khi user vừa cấp tay trong Settings): bật khi chưa cấp → xin quyền; tắt khi đã cấp → trả về bật (Android không
@@ -564,7 +572,14 @@ giật do I/O:
     `pendingStateSince`/`activeEffect`, còn `onDestroyView` null hoá `latestCameraBitmap`/`latestHandResult` để không
     giữ bitmap nặng trong RAM. Không reset thì quay lại từ màn chọn (huỷ) sẽ: (1) không phát lại tiếng của cử chỉ
     đang giơ (debounce coi là đã kích hoạt), (2) cài `activeEffect` cũ vào video nếu bấm Record ngay.
-  - `btn_action` hiện mới có UI, **chưa gắn logic** (chờ design, xem `HandAr_Plan.md` mục 10).
+  - `btn_action` → `GestureGuideDialog(requireContext(), currentEffect).show()` (từ commit `ddcadce`, trước đó
+    chưa gắn logic). Dialog (`ui/camera/GestureGuideDialog.kt`, layout `dialog_gesture_guide.xml`, nền trong suốt +
+    dim 0.6f) liệt kê bằng `GridLayoutManager(2 cột)` + `GestureAdapter` tất cả cử chỉ của `effect.states`,
+    `.distinct()` để gộp các state dùng chung 1 gesture (khác `soundRes`) thành 1 dòng. Map gesture →
+    tên/icon hiển thị nằm ở `effect/gesture/GestureDisplay.kt` (`gestureDisplayMap`, hàm mở rộng
+    `GestureRecognizer.toDisplay()`) — **mọi gesture đang dùng chung 1 icon tạm `ic_action`**, chưa có
+    bộ icon riêng từng cử chỉ, không phải bug. Thêm gesture mới vào `object Gestures` (mục 2) mà không
+    thêm vào `gestureDisplayMap` thì dialog sẽ rơi về `unknownGestureDisplay` (fallback).
 - Nếu `currentEffect.background != null`: ẩn `PreviewView` (`binding.preview.visibility =
   View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `testEffectBackgroundEffect`)
   thì không cần thấy hình camera thật phía sau, `OverlayView` tự vẽ nền đè lên.
@@ -917,7 +932,9 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | ⚠️ Sửa bất kỳ gì trong pipeline ghi hình (PTS, mixer, encoder) | Đọc `HandAr_Refactor_Plan.md` trước — xem `docs/AGENTS.md` mục 5 |
 | Đổi độ phân giải/bitrate/fps ghi hình | `ui/camera/CameraRecordFragment.kt` (`computeRecordingSize`, tham số `VideoRecorder(...)`) + `recording/VideoEncoderWrapper.kt` (`computeBitrate`) |
 | Thêm màn hình mới vào flow khởi động | `res/navigation/nav_graph.xml` + Fragment mới trong `ui/` theo mẫu `ui/onboarding/` |
-| Đổi ngôn ngữ / thêm bản dịch | `ui/language/LanguageFragment.kt` + `res/values-xx/strings.xml` |
+| Đổi ngôn ngữ / thêm bản dịch | `ui/language/LanguageFragment.kt` (mở từ `ui/settings/SettingsFragment.kt`, KHÔNG còn trong luồng mở app lần đầu) + `res/values-xx/strings.xml` |
+| Thêm/sửa mục trong màn Cài đặt | `ui/settings/SettingsFragment.kt` + `item_settings_option.xml`, mở từ `btn_open_settings` ở `view_top_bar.xml` |
+| Sửa dialog hướng dẫn cử chỉ (nút Action màn camera) | `ui/camera/GestureGuideDialog.kt`/`GestureAdapter.kt` + `effect/gesture/GestureDisplay.kt` (map tên/icon) |
 | Đổi top bar (back + tên effect) của màn camera/xem trước | `res/layout/view_effect_top_bar.xml` — dùng chung qua `<include>`, đừng nhân bản vào thư mục qualifier (xem `docs/AGENTS.md` mục 5) |
 | Đổi tên/xoá/chia sẻ video từ thư viện | `ui/player/VideoPlayerFragment.kt` (menu ⋮) + `ui/widget/RenameDialog.kt` / `ui/widget/ConfirmDialog.kt` |
 | Sửa logic mở app MXH khi chia sẻ | `utils/SocialShare.kt` (`shareVideoToSocialApp`, `SocialTarget`) |

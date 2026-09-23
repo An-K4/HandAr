@@ -35,9 +35,6 @@ class GestureGuideDialog(
 
         binding.textTitle.text = context.getString(R.string.camera_action)
 
-        // distinct(): 1 effect co the co nhieu state dung chung 1 cu chi (vd cung Gestures.singleHandCall
-        // nhung khac soundRes) - chi hien 1 lan trong danh sach huong dan. giu nguyen thu tu khai bao
-        // trong effect/catalog/*.kt (distinct() giu lai lan xuat hien dau tien).
         val gestureItems = effect.states.map { it.gesture.toDisplay() }.distinct()
         binding.recyclerGesture.layoutManager = GridLayoutManager(context, 2)
         binding.recyclerGesture.addItemDecoration(GridSpacingItemDecoration(context))
