@@ -131,7 +131,7 @@ class RecordedPreviewFragment : Fragment() {
     private fun save() {
         val nav = findNavController()
         if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
-        nav.navigate(RecordedPreviewFragmentDirections.actionRecordedPreviewToShare(videoPath, effectId))
+        nav.navigate(RecordedPreviewFragmentDirections.actionRecordedPreviewToShare(videoPath, effectId, fromRecordedPreview = true))
     }
 
     override fun onDestroyView() {

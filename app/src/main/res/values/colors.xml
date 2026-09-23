@@ -29,6 +29,10 @@
     <!-- màu màn share. màu figma xuất theo RRGGBBAA, android dùng AARRGGBB nên đảo alpha trước khi khai. -->
     <!-- figma #F0EFFE57 -> nền các nút icon nổi (mở rộng/thu nhỏ) đè lên video. -->
     <color name="icon_overlay_bg">#57F0EFFE</color>
+    <!-- = nav_bg (#0A1020) ở alpha 0.5 (0x80) — đúng fillColor+fillAlpha đã vẽ sẵn trong khung của
+         ic_back.xml, dùng lại cho bg_icon_bordered_button (khung nút hamburger, icon không có sẵn khung
+         như ic_back) để 2 nút trông đồng bộ. -->
+    <color name="nav_bg_alpha_50">#800A1020</color>
     <!-- nền nút icon mạng xã hội (facebook/instagram/tiktok/youtube). -->
     <color name="social_icon_bg">#F6F5FE</color>
 </resources>

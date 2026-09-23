@@ -48,7 +48,7 @@
             android:layout_marginTop="24dp"
             android:background="@drawable/bg_effect_item_shape"
             android:clipToOutline="true"
-            android:foreground="@drawable/border_effect_decorative_square"
+            android:foreground="@drawable/border_effect_decorative"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintDimensionRatio="W,9:16"
             app:layout_constraintEnd_toEndOf="parent"
@@ -58,12 +58,18 @@
             app:layout_constraintTop_toBottomOf="@id/text_share_title"
             app:layout_constraintVertical_bias="0.0">
 
+            <!-- texture_view (không phải surface_view mặc định): surface_view vẽ ra layer composite
+                 riêng, không đi qua canvas của view cha nên clipToOutline/ViewOutlineProvider của
+                 card_video_container không cắt được nội dung của nó -> video tràn ra ngoài viền bo
+                 góc. texture_view vẽ như 1 View thường nên bo góc theo card_video_container mới
+                 thấy hiệu quả trên video thật (đổi lại: tốn thêm chút hiệu năng/pin so với
+                 surface_view, chấp nhận được vì đây chỉ là màn xem lại ngắn). -->
             <androidx.media3.ui.PlayerView
                 android:id="@+id/player_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 app:resize_mode="zoom"
-                app:surface_type="surface_view"
+                app:surface_type="texture_view"
                 app:use_controller="false" />
 
             <FrameLayout
@@ -113,9 +119,11 @@
             android:gravity="center"
             android:minHeight="56dp"
             android:orientation="horizontal"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/card_video_container">
+            app:layout_constraintTop_toBottomOf="@id/card_video_container"
+            tools:visibility="visible">
 
             <ImageView
                 android:layout_width="wrap_content"
@@ -139,10 +147,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
-            android:layout_marginTop="20dp"
             android:layout_marginEnd="32dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
+            app:layout_constraintBottom_toTopOf="@+id/layout_social_icons"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/btn_try_again">
@@ -179,7 +187,6 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="20dp"
             android:layout_marginEnd="24dp"
             android:layout_marginBottom="24dp"
             android:orientation="horizontal"

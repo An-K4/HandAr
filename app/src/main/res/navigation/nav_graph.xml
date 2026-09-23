@@ -181,6 +181,12 @@
         <argument
             android:name="effectId"
             app:argType="string"/>
+        <!-- chỉ màn đến từ recordedpreview mới hiện nút Try Again; mặc định false cho các lối vào khác (vd từ
+             videoPlayerFragment). -->
+        <argument
+            android:name="fromRecordedPreview"
+            app:argType="boolean"
+            android:defaultValue="false"/>
 
         <action android:id="@+id/action_share_to_cameraRecord"
             app:destination="@id/cameraRecordFragment"
@@ -204,5 +210,10 @@
         <argument
             android:name="videoPath"
             app:argType="string"/>
+
+        <!-- không popUpTo: giữ nguyên videoPlayerFragment trong back stack để sau này nếu
+             cần back thật (thay vì goHome() như hiện tại) thì vẫn quay đúng về màn này. -->
+        <action android:id="@+id/action_videoPlayer_to_share"
+            app:destination="@id/shareFragment"/>
     </fragment>
 </navigation>

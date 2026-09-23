@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">HandAr</string>
+    <string name="app_name">Magic Hand</string>
     <string name="record_button">Nút ghi hình</string>
     <string name="done">Xong</string>
     <string name="exit">Thoát</string>
@@ -49,4 +49,15 @@
     <string name="instagram">Instagram</string>
     <string name="tiktok">Tiktok</string>
     <string name="youtube">Youtube</string>
+    <string name="menu">Menu</string>
+    <string name="delete">Xóa</string>
+    <string name="share">Chia sẻ</string>
+    <string name="rename">Đổi tên</string>
+    <string name="cancel">Huỷ</string>
+    <string name="please_enter_new_name">Nhập tên mới</string>
+    <string name="delete_video_message">Xoá video này?\nHành động này không thể hoàn tác.</string>
+    <string name="rename_successfully">Đã đổi tên</string>
+    <string name="can_not_rename_video">Không đổi tên được video</string>
+    <string name="video_name_already_exists">Tên này đã được dùng cho video khác</string>
+    <string name="settings">Cài đặt</string>
 </resources>

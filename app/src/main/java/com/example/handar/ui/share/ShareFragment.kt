@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -17,6 +18,7 @@ import androidx.navigation.fragment.navArgs
 import com.example.handar.R
 import com.example.handar.databinding.FragmentShareBinding
 import com.example.handar.ui.widget.VideoSeekBarController
+import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.applySystemBarsInsetsMargin
 import java.io.File
 
@@ -48,7 +50,13 @@ class ShareFragment : Fragment() {
         binding.layoutSocialIcons.applySystemBarsInsetsMargin(bottom = true)
         binding.layoutFullscreenBottomBar.applySystemBarsInsetsMargin(bottom = true)
 
+        // android:clipToOutline="true" trong xml chỉ có hiệu lực từ api 31. gọi lại bằng code để đảm bảo bị cắt đúng trên
+        // cả máy api < 31. Chỉ clip card_video_container (không clip fullscreen_video_container).
+        binding.cardVideoContainer.clipRoundedCorners(resources.getDimension(R.dimen.card_corner_radius))
+
         setupPlayer()
+
+        binding.btnTryAgain.isVisible = args.fromRecordedPreview
 
         binding.btnHome.setOnClickListener { goHome() }
         binding.btnExpand.setOnClickListener { showFullscreen() }
@@ -78,14 +86,20 @@ class ShareFragment : Fragment() {
         val p = ExoPlayer.Builder(requireContext()).build()
         player = p
         p.repeatMode = Player.REPEAT_MODE_ONE
-        // icon play giữa card chỉ hiện khi video KHÔNG đang phát (đang buffer/pause/ended) — ẩn ngay khi
-        // đã vào phát thật (đúng yêu cầu "vào là phát luôn thì ẩn icon đi"), không cần tự theo dõi state thủ công.
+        // icon play giữa card chỉ hiện khi video đang không phát (buffer/pause/ended).
         p.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _binding?.playIndicator?.visibility = if (isPlaying) View.GONE else View.VISIBLE
             }
         })
         binding.playerView.player = p
+        // bấm vào video để tạm dừng/phát tiếp. p.isPlaying thay vì so playWhenReady vì nó
+        // tính cả trạng thái buffer/suppress của ExoPlayer, tránh lệch với trạng thái phát thật.
+        // listener đặt thẳng trên player_view (không phải card_video_container) nên vẫn hoạt
+        // động đúng khi player_view được dời sang fullscreen_video_container.
+        binding.playerView.setOnClickListener {
+            if (p.isPlaying) p.pause() else p.play()
+        }
         p.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(videoPath))))
         p.prepare()
         p.playWhenReady = true
@@ -98,7 +112,6 @@ class ShareFragment : Fragment() {
         ).also { it.start() }
     }
 
-    // dời player_view (giữ nguyên player đang phát, không tạo lại) sang container toàn màn hình.
     private fun showFullscreen() {
         if (isFullscreen) return
         isFullscreen = true
@@ -111,8 +124,6 @@ class ShareFragment : Fragment() {
         binding.groupFullscreen.visibility = View.VISIBLE
     }
 
-    // dời player_view về lại card thu gọn, chèn ở index 0 để nằm DƯỚI icon play trang trí + nút expand
-    // (đúng thứ tự z-order khai trong fragment_share.xml lúc đầu).
     private fun showCard() {
         if (!isFullscreen) return
         isFullscreen = false

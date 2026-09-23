@@ -1,9 +1,230 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- màn phát video từ thư viện (mở từ VideoListFragment). -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/playerView"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/fragment_video_player"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    app:use_controller="true"
-    app:show_timeout="4000" />
+    android:background="@color/black"
+    tools:context=".ui.player.VideoPlayerFragment">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/player_view"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:resize_mode="fit"
+        app:surface_type="surface_view"
+        app:use_controller="false" />
+
+    <!-- icon play giữa màn hình, chỉ hiện khi video đang không phát (pause/buffer/ended). -->
+    <FrameLayout
+        android:id="@+id/play_indicator"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/player_view"
+        app:layout_constraintEnd_toEndOf="@id/player_view"
+        app:layout_constraintStart_toStartOf="@id/player_view"
+        app:layout_constraintTop_toTopOf="@id/player_view">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.45"
+            android:background="@drawable/bg_play_button_circle" />
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_play" />
+    </FrameLayout>
+
+    <!-- vùng bắt chạm để đóng dropdown khi bấm ra ngoài — nằm TRƯỚC btn_menu trong cây view nên
+         không che mất chính nút hamburger (btn_menu vẫn nhận chạm bình thường để tự đóng/mở). -->
+    <View
+        android:id="@+id/scrim_dropdown"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/btn_back"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:background="@null"
+        android:contentDescription="@string/back"
+        android:src="@drawable/ic_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/btn_menu"
+        android:layout_width="37dp"
+        android:layout_height="37dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_icon_bordered_button"
+        android:contentDescription="@string/menu"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_hambuger"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layout_bottom_bar_player"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/text_position_player"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            tools:text="00:34" />
+
+        <SeekBar
+            android:id="@+id/seek_bar_player"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="8dp"
+            android:layout_weight="1"
+            android:progressBackgroundTint="@color/text_secondary"
+            android:progressTint="@color/cyan_bright"
+            android:thumbTint="@color/cyan_bright" />
+
+        <TextView
+            android:id="@+id/text_duration_player"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            tools:text="00:56" />
+    </LinearLayout>
+
+    <!-- neo vào cạnh trái và cạnh dưới của btn_menu để căn chéo góc dưới-trái. -->
+    <LinearLayout
+        android:id="@+id/menu_dropdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:background="@drawable/bg_dialog_card"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintEnd_toStartOf="@id/btn_menu"
+        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:id="@+id/item_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="14dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_delete" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/delete"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginHorizontal="5dp"
+            android:background="@color/text_disabled" />
+
+        <LinearLayout
+            android:id="@+id/item_share"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="14dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_share" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/share"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginHorizontal="5dp"
+            android:background="@color/text_disabled" />
+
+        <LinearLayout
+            android:id="@+id/item_rename"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="14dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_rename" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/rename"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
