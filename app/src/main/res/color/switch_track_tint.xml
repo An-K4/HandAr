@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- track của 2 switch ở màn permission: bật = cyan_bright, tắt = text_disabled (xám xanh).
+     ColorStateList bắt buộc phải để ở res/color/ (khác res/values/colors.xml, đó chỉ khai được
+     1 màu tĩnh) mới đổi được theo state_checked qua app:trackTint mà không cần code Kotlin. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/cyan_bright" android:state_checked="true" />
+    <item android:color="@color/text_disabled" />
+</selector>
