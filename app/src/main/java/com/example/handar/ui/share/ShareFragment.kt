@@ -19,7 +19,9 @@ import com.example.handar.R
 import com.example.handar.databinding.FragmentShareBinding
 import com.example.handar.ui.widget.VideoSeekBarController
 import com.example.handar.ui.widget.clipRoundedCorners
+import com.example.handar.utils.SocialTarget
 import com.example.handar.utils.applySystemBarsInsetsMargin
+import com.example.handar.utils.shareVideoToSocialApp
 import java.io.File
 
 @OptIn(UnstableApi::class)
@@ -64,11 +66,19 @@ class ShareFragment : Fragment() {
         binding.btnBackFullscreen.setOnClickListener { showCard() }
         binding.btnTryAgain.setOnClickListener { tryAgain() }
 
-        // TODO: impl logic mở app tương ứng để share (kế hoạch mục 7.4) — commit riêng.
-        binding.btnFacebook.setOnClickListener { }
-        binding.btnInstagram.setOnClickListener { }
-        binding.btnTiktok.setOnClickListener { }
-        binding.btnYoutube.setOnClickListener { }
+        val caption = getString(R.string.share_caption_template)
+        binding.btnFacebook.setOnClickListener {
+            shareVideoToSocialApp(requireContext(), SocialTarget.FACEBOOK, File(videoPath), caption)
+        }
+        binding.btnInstagram.setOnClickListener {
+            shareVideoToSocialApp(requireContext(), SocialTarget.INSTAGRAM, File(videoPath), caption)
+        }
+        binding.btnTiktok.setOnClickListener {
+            shareVideoToSocialApp(requireContext(), SocialTarget.TIKTOK, File(videoPath), caption)
+        }
+        binding.btnYoutube.setOnClickListener {
+            shareVideoToSocialApp(requireContext(), SocialTarget.YOUTUBE, File(videoPath), caption)
+        }
 
         // hệ thống: đang fullscreen thì thu nhỏ trước (cùng hành vi nút back/thu nhỏ trong ảnh 2),
         // đang ở card thì về thẳng home — theo đúng xác nhận của người dùng cho câu hỏi 2/3.

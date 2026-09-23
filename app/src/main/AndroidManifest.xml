@@ -6,6 +6,17 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- can khai de: (1) isAppInstalled() trong SocialShare.kt thay doi dung, (2) setPackage() trong
+         Intent.ACTION_SEND resolve dung activity cua app dich tren Android 11+ (package visibility).
+         2 goi TikTok la vi tiktok co ban quoc te (musically) va ban Trung Quoc/Douyin (trill) khac nhau. -->
+    <queries>
+        <package android:name="com.facebook.katana"/>
+        <package android:name="com.instagram.android"/>
+        <package android:name="com.zhiliaoapp.musically"/>
+        <package android:name="com.ss.android.ugc.trill"/>
+        <package android:name="com.google.android.youtube"/>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
