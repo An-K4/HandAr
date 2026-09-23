@@ -8,7 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.handar.R
 import com.example.handar.databinding.FragmentOnboarding3Binding
-import com.example.handar.utils.applySystemBarsInsetsPadding
+import com.example.handar.utils.applySystemBarsInsetsMargin
 
 class Onboarding3Fragment : Fragment() {
     private var _binding: FragmentOnboarding3Binding? = null
@@ -24,7 +24,7 @@ class Onboarding3Fragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.root.applySystemBarsInsetsPadding()
+        binding.btnNext.applySystemBarsInsetsMargin(bottom = true)
 
         binding.btnNext.setOnClickListener {
             findNavController().navigate(R.id.action_onboarding3_to_survey)

@@ -61,4 +61,13 @@
     <string name="can_not_rename_video">Không đổi tên được video</string>
     <string name="video_name_already_exists">Tên này đã được dùng cho video khác</string>
     <string name="settings">Cài đặt</string>
+
+    <string name="skip">Bỏ qua</string>
+    <string name="continue_button">Tiếp tục</string>
+    <string name="onboarding_1_title">Phép thuật nằm trong tay bạn</string>
+    <string name="onboarding_1_subtitle">Biến cử chỉ đơn giản thành hiệu ứng điện ảnh</string>
+    <string name="onboarding_2_title">Đôi tay bạn điều khiển phép thuật</string>
+    <string name="onboarding_2_subtitle">Di chuyển, xoay và ra cử chỉ. Hiệu ứng sẽ đi theo tay bạn</string>
+    <string name="onboarding_3_title">Sẵn sàng thi triển?</string>
+    <string name="onboarding_3_subtitle">Chọn một hiệu ứng và thổi phép thuật vào đời thực</string>
 </resources>

@@ -61,4 +61,14 @@
     <string name="can_not_rename_video">Couldn\'t rename video</string>
     <string name="video_name_already_exists">This name is already used by another video</string>
     <string name="settings">Settings</string>
+
+    <!-- onboarding: continue_button KHÔNG đặt tên là "continue" vì đó là từ khóa Kotlin, R.string.continue sẽ không compile được. -->
+    <string name="skip">Skip</string>
+    <string name="continue_button">Continue</string>
+    <string name="onboarding_1_title">Magic is in your hands</string>
+    <string name="onboarding_1_subtitle">Turn simple gestures into cinematic effects</string>
+    <string name="onboarding_2_title">Your hands control the magic</string>
+    <string name="onboarding_2_subtitle">Move, rotate and gesture. The effect follows you</string>
+    <string name="onboarding_3_title">Ready to cast?</string>
+    <string name="onboarding_3_subtitle">Choose an effect and bring your magic to life</string>
 </resources>
