@@ -25,6 +25,8 @@
     <string name="stopped_low_storage">Automatically saved — storage running low</string>
     <string name="app_logo">App logo</string>
     <string name="select_language">Select language</string>
+    <string name="language_name_english">English</string>
+    <string name="language_name_vietnamese">Tiếng Việt</string>
     <string name="next">Next</string>
     <string name="start">Start</string>
     <string name="welcome_content">Welcome</string>

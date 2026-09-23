@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_permission_card"
+    android:clickable="true"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:foreground="@drawable/selector_language_item_border"
+    android:minHeight="64dp"
+    android:paddingHorizontal="18dp"
+    android:paddingVertical="14dp">
+
+    <ImageView
+        android:id="@+id/icon_language_flag"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:contentDescription="@null"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_english" />
+
+    <TextView
+        android:id="@+id/text_language_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="12dp"
+        android:textColor="@color/text_primary_light"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/checkbox_language"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@id/icon_language_flag"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="English" />
+
+    <!-- clickable/focusable=false: root của item mới là nơi xử lý click (giống item_effect_picker
+         dùng root.setOnClickListener thay vì bắt click ở view con) — bấm vào bất kỳ đâu trong dòng
+         đều chọn được, không chỉ đúng tâm checkbox.
+         Dùng ImageView tự đổi src (không dùng CheckBox/android:button) vì AppCompatCheckBox
+         tự áp buttonTint theo theme (màu accent tím mặc định) đè lên drawable nhiều màu của
+         mình, làm mất tick + đổi màu loạn khi state đổi nhanh (constant-state của drawable
+         bị tint bị chia sẻ/cache giữa các view). -->
+    <ImageView
+        android:id="@+id/checkbox_language"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_checkbox_circle_unchecked"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
