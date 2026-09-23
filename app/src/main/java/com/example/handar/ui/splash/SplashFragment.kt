@@ -29,7 +29,7 @@ class SplashFragment : Fragment() {
         binding.root.applySystemBarsInsetsPadding()
 
         navigateRunnable = Runnable {
-            if (isAdded) findNavController().navigate(R.id.action_splash_to_language)
+            if (isAdded) findNavController().navigate(R.id.action_splash_to_onboarding1)
         }
         view.postDelayed(navigateRunnable!!, splashDelayMs)
     }

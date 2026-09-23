@@ -18,8 +18,6 @@
             app:popUpToInclusive="true"/>
     </fragment>
 
-    <!-- Mồ côi cố ý: không còn destination nào trỏ tới đây, và màn này cũng không nav đi đâu nữa
-         (xem LanguageFragment.kt). Giữ lại trong graph phòng khi cần dùng lại sau này. -->
     <fragment android:id="@+id/languageFragment"
         android:name="com.example.handar.ui.language.LanguageFragment"
         android:label="Chọn ngôn ngữ"
@@ -98,6 +96,18 @@
             app:destination="@id/effectListFragment"
             app:popUpTo="@id/permissionFragment"
             app:popUpToInclusive="true"/>
+    </fragment>
+
+    <!-- Mở từ icon hambuger ở view_top_bar.xml (MainActivity.kt gọi navigate() thẳng bằng id destination,
+         không qua <action> riêng cho effectList/videoList — cùng cách setupBottomNavTabs đang dùng).
+         Không nằm trong destinationsWithMainChrome nên top_bar/bottom_nav chung tự ẩn. -->
+    <fragment android:id="@+id/settingsFragment"
+        android:name="com.example.handar.ui.settings.SettingsFragment"
+        android:label="Cài đặt"
+        tools:layout="@layout/fragment_settings">
+
+        <action android:id="@+id/action_settings_to_language"
+            app:destination="@id/languageFragment"/>
     </fragment>
 
     <fragment android:id="@+id/effectListFragment"

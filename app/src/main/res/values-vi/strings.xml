@@ -28,6 +28,7 @@
     <string name="start">Bắt đầu</string>
     <string name="welcome_content">Chào mừng</string>
     <string name="permission_title">Cấp quyền</string>
+    <string name="permission_subtitle">HandAr cần quyền truy cập máy ảnh và quyền gửi thông báo để mang lại trải nghiệm tốt nhất.</string>
     <string name="permission_camera">Máy ảnh</string>
     <string name="permission_notification">Cho phép thông báo</string>
     <string name="get_started">Bắt đầu ngay</string>
@@ -61,6 +62,13 @@
     <string name="can_not_rename_video">Không đổi tên được video</string>
     <string name="video_name_already_exists">Tên này đã được dùng cho video khác</string>
     <string name="settings">Cài đặt</string>
+    <string name="settings_item_language">Ngôn ngữ</string>
+    <string name="settings_language_subtitle">Chọn ngôn ngữ hiển thị</string>
+    <string name="settings_item_rate_us">Đánh giá ứng dụng</string>
+    <string name="settings_item_share_app">Chia sẻ ứng dụng</string>
+    <string name="settings_item_feedback">Gửi phản hồi</string>
+    <string name="settings_item_about_app">Về ứng dụng</string>
+    <string name="settings_item_privacy_policy">Chính sách bảo mật</string>
 
     <string name="skip">Bỏ qua</string>
     <string name="continue_button">Tiếp tục</string>

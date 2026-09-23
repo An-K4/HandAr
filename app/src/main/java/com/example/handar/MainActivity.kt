@@ -44,6 +44,9 @@ class MainActivity : AppCompatActivity() {
         val topBar = findViewById<View>(R.id.top_bar)
         topBar.applySystemBarsInsetsMargin(top = true)
         val topBarTitle = topBar.findViewById<TextView>(R.id.text_top_bar_title)
+        topBar.findViewById<View>(R.id.btn_open_settings).setOnClickListener {
+            navController.navigate(R.id.settingsFragment)
+        }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             val visibility =

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1 dòng trong màn Cài đặt (fragment_settings.xml): icon + tiêu đề (+ phụ đề tuỳ chọn) + mũi tên
+     tuỳ chọn ở cuối. Dùng chung cho mọi item qua nhiều lần <include> trong fragment_settings.xml,
+     SettingsFragment.kt tự đổ icon/text/hiện-ẩn phụ đề & mũi tên cho từng item.
+     Nền dùng lại bg_permission_card.xml (giống 2 card ở fragment_permission.xml), viền dùng
+     border_effect_decorative_rectangle.xml làm foreground. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_permission_card"
+    android:clickable="true"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:foreground="@drawable/border_effect_decorative_rectangle"
+    android:minHeight="64dp"
+    android:paddingHorizontal="18dp"
+    android:paddingVertical="14dp">
+
+    <ImageView
+        android:id="@+id/icon_option"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:contentDescription="@null"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_language" />
+
+    <!-- chain dọc packed với subtitle: khi subtitle GONE (item không có phụ đề), title tự đứng
+         giữa hàng; khi subtitle hiện, cả 2 dòng cùng được canh giữa theo chiều dọc. -->
+    <TextView
+        android:id="@+id/text_option_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="12dp"
+        android:textColor="@color/text_primary_light"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toTopOf="@id/text_option_subtitle"
+        app:layout_constraintEnd_toStartOf="@id/icon_option_trailing"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@id/icon_option"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="Language" />
+
+    <TextView
+        android:id="@+id/text_option_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="12dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/icon_option_trailing"
+        app:layout_constraintStart_toEndOf="@id/icon_option"
+        app:layout_constraintTop_toBottomOf="@id/text_option_title"
+        tools:text="Select the language"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/icon_option_trailing"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_arrow_right"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

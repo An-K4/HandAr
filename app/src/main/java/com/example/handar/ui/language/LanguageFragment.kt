@@ -42,7 +42,6 @@ class LanguageFragment : Fragment() {
                 "en"
             }
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
-            findNavController().navigate(R.id.action_language_to_onboarding1)
         }
     }
 

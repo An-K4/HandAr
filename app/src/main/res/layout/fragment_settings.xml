@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/fragment_settings"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:orientation="vertical"
+    tools:context=".ui.settings.SettingsFragment">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_settings_top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp">
+
+        <ImageButton
+            android:id="@+id/btn_settings_back"
+            android:layout_width="37dp"
+            android:layout_height="37dp"
+            android:background="@null"
+            android:contentDescription="@string/back"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_back"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/text_settings_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings"
+            android:textColor="@color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/view_settings_divider"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/horizontal_divider"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="92:8"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/text_settings_title"
+            app:layout_constraintWidth_percent="0.35" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- paddingBottom cộng thêm inset đáy hệ thống được áp trong SettingsFragment.kt (giống cách
+         recycler_effect_picker làm ở fragment_effect_picker.xml), không phải bottom_nav_curve_height
+         vì màn này không có bottom nav. -->
+    <ScrollView
+        android:id="@+id/scroll_settings"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="24dp"
+            android:orientation="vertical">
+
+            <!-- item duy nhất có logic nav (sang languageFragment) + phụ đề + mũi tên; các item còn
+                 lại chỉ đổ UI, chưa cần logic (xem SettingsFragment.kt). -->
+            <include
+                android:id="@+id/item_language"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <include
+                android:id="@+id/item_rate_us"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <include
+                android:id="@+id/item_share_app"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <include
+                android:id="@+id/item_feedback"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <include
+                android:id="@+id/item_about_app"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <include
+                android:id="@+id/item_privacy_policy"
+                layout="@layout/item_settings_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
