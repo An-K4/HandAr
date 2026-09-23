@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Magic Hand</string>
+    <string name="app_name">Hand Magic</string>
     <string name="splash_loading_hint">Loading your magic…</string>
     <string name="record_button">Record Button</string>
     <string name="done">Done</string>
@@ -25,11 +25,9 @@
     <string name="stopped_low_storage">Automatically saved — storage running low</string>
     <string name="app_logo">App logo</string>
     <string name="select_language">Select language</string>
-    <string name="language_name_english">English</string>
-    <string name="language_name_vietnamese">Tiếng Việt</string>
     <string name="next">Next</string>
     <string name="start">Start</string>
-    <string name="welcome_content">Welcome</string>
+    <string name="welcome_content">Welcome to Hand Magic</string>
     <string name="permission_title">Permission</string>
     <string name="permission_subtitle">HandAr needs access to your camera and permission to send notifications to give you the best experience.</string>
     <string name="permission_camera">Camera</string>
@@ -72,8 +70,6 @@
     <string name="settings_item_feedback">Send Feedback</string>
     <string name="settings_item_about_app">About App</string>
     <string name="settings_item_privacy_policy">Privacy Policy</string>
-
-    <!-- onboarding: continue_button KHÔNG đặt tên là "continue" vì đó là từ khóa Kotlin, R.string.continue sẽ không compile được. -->
     <string name="skip">Skip</string>
     <string name="continue_button">Continue</string>
     <string name="onboarding_1_title">Magic is in your hands</string>
@@ -82,4 +78,6 @@
     <string name="onboarding_2_subtitle">Move, rotate and gesture. The effect follows you</string>
     <string name="onboarding_3_title">Ready to cast?</string>
     <string name="onboarding_3_subtitle">Choose an effect and bring your magic to life</string>
+    <string name="language_name_english">English</string>
+    <string name="language_name_vietnamese">Tiếng Việt</string>
 </resources>

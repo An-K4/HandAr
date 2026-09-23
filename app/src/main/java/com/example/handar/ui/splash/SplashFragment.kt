@@ -38,7 +38,7 @@ class SplashFragment : Fragment() {
         setupLoadingBar()
 
         navigateRunnable = Runnable {
-            if (isAdded) findNavController().navigate(R.id.action_splash_to_onboarding1)
+            if (isAdded) findNavController().navigate(R.id.action_splash_to_welcome)
         }
         view.postDelayed(navigateRunnable!!, splashDelayMs)
     }

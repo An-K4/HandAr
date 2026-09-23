@@ -27,7 +27,7 @@ class WelcomeFragment : Fragment() {
         binding.root.applySystemBarsInsetsPadding()
 
         binding.btnWelcomeStart.setOnClickListener {
-            findNavController().navigate(R.id.action_welcome_to_permission)
+            findNavController().navigate(R.id.action_welcome_to_onboarding_1)
         }
     }
 

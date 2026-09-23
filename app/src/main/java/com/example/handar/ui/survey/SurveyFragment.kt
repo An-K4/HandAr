@@ -27,7 +27,7 @@ class SurveyFragment : Fragment() {
         binding.root.applySystemBarsInsetsPadding()
 
         binding.btnSurveyDone.setOnClickListener {
-            findNavController().navigate(R.id.action_survey_to_welcome)
+            findNavController().navigate(R.id.action_survey_to_permission)
         }
     }
 

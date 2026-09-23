@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Magic Hand</string>
+    <string name="app_name">Hand Magic</string>
     <string name="splash_loading_hint">Đang chuẩn bị phép thuật…</string>
     <string name="record_button">Nút ghi hình</string>
     <string name="done">Xong</string>
@@ -27,7 +27,7 @@
     <string name="select_language">Chọn ngôn ngữ</string>
     <string name="next">Tiếp theo</string>
     <string name="start">Bắt đầu</string>
-    <string name="welcome_content">Chào mừng</string>
+    <string name="welcome_content">Chào mừng đến với Hand Magic</string>
     <string name="permission_title">Cấp quyền</string>
     <string name="permission_subtitle">HandAr cần quyền truy cập máy ảnh và quyền gửi thông báo để mang lại trải nghiệm tốt nhất.</string>
     <string name="permission_camera">Máy ảnh</string>
@@ -70,7 +70,6 @@
     <string name="settings_item_feedback">Gửi phản hồi</string>
     <string name="settings_item_about_app">Về ứng dụng</string>
     <string name="settings_item_privacy_policy">Chính sách bảo mật</string>
-
     <string name="skip">Bỏ qua</string>
     <string name="continue_button">Tiếp tục</string>
     <string name="onboarding_1_title">Phép thuật nằm trong tay bạn</string>
@@ -79,4 +78,6 @@
     <string name="onboarding_2_subtitle">Di chuyển, xoay và ra cử chỉ. Hiệu ứng sẽ đi theo tay bạn</string>
     <string name="onboarding_3_title">Sẵn sàng thi triển?</string>
     <string name="onboarding_3_subtitle">Chọn một hiệu ứng và thổi phép thuật vào đời thực</string>
+    <string name="language_name_english">English</string>
+    <string name="language_name_vietnamese">Tiếng Việt\n</string>
 </resources>

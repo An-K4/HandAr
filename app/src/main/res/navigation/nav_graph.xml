@@ -10,10 +10,8 @@
         android:label="Splash"
         tools:layout="@layout/fragment_splash">
 
-        <!-- màn ngôn ngữ bị gỡ khỏi luồng (mồ côi, xem languageFragment bên dưới) — splash nav thẳng
-             sang onboarding1. -->
-        <action android:id="@+id/action_splash_to_onboarding1"
-            app:destination="@+id/onboarding1Fragment"
+        <action android:id="@+id/action_splash_to_welcome"
+            app:destination="@+id/welcomeFragment"
             app:popUpTo="@id/splashFragment"
             app:popUpToInclusive="true"/>
     </fragment>
@@ -32,8 +30,6 @@
         <action android:id="@+id/action_onboarding1_to_onboarding2"
             app:destination="@id/onboarding2Fragment"/>
 
-        <!-- Skip: nhảy thẳng qua khỏi cả 3 màn onboarding, giống hệt đích đến của nút Continue ở onboarding3
-             (action_onboarding3_to_survey) — popUpTo onboarding1Fragment inclusive cho đồng bộ. -->
         <action android:id="@+id/action_onboarding1_to_survey"
             app:destination="@id/surveyFragment"
             app:popUpTo="@id/onboarding1Fragment"
@@ -70,8 +66,8 @@
         android:label="Khảo sát"
         tools:layout="@layout/fragment_survey">
 
-        <action android:id="@+id/action_survey_to_welcome"
-            app:destination="@id/welcomeFragment"
+        <action android:id="@+id/action_survey_to_permission"
+            app:destination="@id/permissionFragment"
             app:popUpTo="@id/surveyFragment"
             app:popUpToInclusive="true"/>
     </fragment>
@@ -81,8 +77,8 @@
         android:label="Chào mừng"
         tools:layout="@layout/fragment_welcome">
 
-        <action android:id="@+id/action_welcome_to_permission"
-            app:destination="@id/permissionFragment"
+        <action android:id="@+id/action_welcome_to_onboarding_1"
+            app:destination="@id/onboarding1Fragment"
             app:popUpTo="@id/welcomeFragment"
             app:popUpToInclusive="true"/>
     </fragment>
@@ -98,9 +94,7 @@
             app:popUpToInclusive="true"/>
     </fragment>
 
-    <!-- Mở từ icon hambuger ở view_top_bar.xml (MainActivity.kt gọi navigate() thẳng bằng id destination,
-         không qua <action> riêng cho effectList/videoList — cùng cách setupBottomNavTabs đang dùng).
-         Không nằm trong destinationsWithMainChrome nên top_bar/bottom_nav chung tự ẩn. -->
+    <!-- Mở từ icon hambuger ở view_top_bar.xml. -->
     <fragment android:id="@+id/settingsFragment"
         android:name="com.example.handar.ui.settings.SettingsFragment"
         android:label="Cài đặt"

@@ -68,7 +68,6 @@ class LanguageFragment : Fragment() {
         row.textLanguageName.text = name
         row.root.isSelected = selected
 
-        // Thay cho .isChecked cũ: Tự đổi src ImageView bằng tay
         row.checkboxLanguage.setImageResource(
             if (selected) R.drawable.ic_checkbox_circle_checked
             else R.drawable.ic_checkbox_circle_unchecked
