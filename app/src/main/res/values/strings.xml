@@ -78,6 +78,14 @@
     <string name="onboarding_2_subtitle">Move, rotate and gesture. The effect follows you</string>
     <string name="onboarding_3_title">Ready to cast?</string>
     <string name="onboarding_3_subtitle">Choose an effect and bring your magic to life</string>
+
+    <!-- TẠM: nội dung khảo sát 2 bước đang là placeholder, chưa có câu hỏi/đáp án thật -->
+    <string name="survey_step_1">Step 1 of 2</string>
+    <string name="survey_step_2">Step 2 of 2</string>
+    <string name="survey_1_question">Question ???</string>
+    <string name="survey_2_question">Question ???</string>
+    <string name="survey_choose_answer">Choose an answer…</string>
+    <string name="survey_answer_placeholder">Answer %1$d</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt</string>
 
@@ -98,4 +106,5 @@
     <string name="gesture_two_hands_heart">Heart</string>
     <string name="gesture_crossed_fingers">Crossed Fingers</string>
     <string name="gesture_unknown">Gesture</string>
+    <string name="finish">Finish</string>
 </resources>

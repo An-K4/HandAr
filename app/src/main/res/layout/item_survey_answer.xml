@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_permission_card"
+    android:clickable="true"
+    android:clipToOutline="true"
+    android:focusable="true"
+    android:foreground="@drawable/selector_language_item_border"
+    android:minHeight="64dp"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="12dp">
+
+    <ImageView
+        android:id="@+id/icon_answer_thumbnail"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_survey_answer_thumbnail"
+        android:clipToOutline="true"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/fire_ball_thumbnail" />
+
+    <TextView
+        android:id="@+id/text_answer_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="12dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/checkbox_answer"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@id/icon_answer_thumbnail"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Đáp án 1" />
+
+    <!-- clickable/focusable=false: root của item mới là nơi xử lý click, đọc item_language_option.xml. -->
+    <ImageView
+        android:id="@+id/checkbox_answer"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_checkbox_circle_unchecked"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

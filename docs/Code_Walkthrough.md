@@ -21,7 +21,7 @@
 MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
-    splash → welcome → onboarding1(Skip→survey) → onboarding2 → onboarding3 → survey → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
+    splash → welcome → onboarding1(Skip→survey1) → onboarding2 → onboarding3 → survey1 → survey2 → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
     (thứ tự này đổi từ commit `24d7626`/`b1a3cf9` — language không còn trong chuỗi này, xem dòng settings/language bên dưới)
                                                                         │                  ▲                 ⇅ (nút Effect / back)
                                                                         │                  └─ (tick, effect khác) ─ effectPicker

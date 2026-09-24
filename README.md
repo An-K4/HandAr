@@ -152,11 +152,14 @@ splashFragment (start, delay 5s, thanh loading chạy song song)
 welcomeFragment (1 nút Bắt đầu)
       │ popUpTo+inclusive
       ▼
-onboarding1Fragment (có nút Skip → surveyFragment, popUpTo+inclusive) ──> onboarding2Fragment ──> onboarding3Fragment
+onboarding1Fragment (có nút Skip → survey1Fragment, popUpTo+inclusive) ──> onboarding2Fragment ──> onboarding3Fragment
                                                                                       │ popUpTo+inclusive
                                                                                       ▼
-                                                                                surveyFragment
-                                                                                      │ popUpTo+inclusive
+                                                                                survey1Fragment
+                                                                                      │ (Continue, không popUpTo)
+                                                                                      ▼
+                                                                                survey2Fragment (khảo sát 2 bước, câu hỏi/đáp án còn placeholder)
+                                                                                      │ popUpTo survey1Fragment inclusive
                                                                                       ▼
                                                                           permissionFragment (switch Camera / Thông báo)
                                                                                       │ popUpTo+inclusive
@@ -229,9 +232,10 @@ app/src/main/java/com/example/handar/
 │                                phát ra loa, TÁCH RIÊNG khỏi track ghi hình (xem `AudioMixer`)
 ├── ui/
 │   ├── splash/ · onboarding/ · survey/ · welcome/ · permission/   luồng mở app lần đầu, 1 chiều (thứ
-│   │                 tự: splash → welcome → onboarding1-3 → survey → permission)
+│   │                 tự: splash → welcome → onboarding1-3 → survey1 → survey2 → permission)
 │   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo;
-│   │                  onboarding/: onboarding1 có nút Skip nhảy thẳng sang survey)
+│   │                  onboarding/: onboarding1 có nút Skip nhảy thẳng sang survey1; survey/:
+│   │                  Survey1Fragment/Survey2Fragment, khảo sát 2 bước, câu hỏi/đáp án còn placeholder)
 │   ├── language/     LanguageFragment — KHÔNG còn trong luồng mở app lần đầu, chỉ mở từ settings/ (2 dòng
 │   │                 tick vi/en dạng radio)
 │   ├── settings/     SettingsFragment — mở từ icon hamburger ở view_top_bar.xml, chỉ mục Ngôn ngữ có

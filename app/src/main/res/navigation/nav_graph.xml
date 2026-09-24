@@ -31,7 +31,7 @@
             app:destination="@id/onboarding2Fragment"/>
 
         <action android:id="@+id/action_onboarding1_to_survey"
-            app:destination="@id/surveyFragment"
+            app:destination="@id/survey1Fragment"
             app:popUpTo="@id/onboarding1Fragment"
             app:popUpToInclusive="true"/>
     </fragment>
@@ -45,7 +45,7 @@
             app:destination="@id/onboarding3Fragment"/>
 
         <action android:id="@+id/action_onboarding2_to_survey"
-            app:destination="@id/surveyFragment"
+            app:destination="@id/survey1Fragment"
             app:popUpTo="@id/onboarding1Fragment"
             app:popUpToInclusive="true"/>
     </fragment>
@@ -56,19 +56,33 @@
         tools:layout="@layout/fragment_onboarding_3">
 
         <action android:id="@+id/action_onboarding3_to_survey"
-            app:destination="@id/surveyFragment"
+            app:destination="@id/survey1Fragment"
             app:popUpTo="@id/onboarding1Fragment"
             app:popUpToInclusive="true"/>
     </fragment>
 
-    <fragment android:id="@+id/surveyFragment"
-        android:name="com.example.handar.ui.survey.SurveyFragment"
-        android:label="Khảo sát"
-        tools:layout="@layout/fragment_survey">
+    <fragment android:id="@+id/survey1Fragment"
+        android:name="com.example.handar.ui.survey.Survey1Fragment"
+        android:label="Khảo sát 1/2"
+        tools:layout="@layout/fragment_survey_1">
 
-        <action android:id="@+id/action_survey_to_permission"
+        <action android:id="@+id/action_survey1_to_survey2"
+            app:destination="@id/survey2Fragment"/>
+
+        <action android:id="@+id/action_survey1_to_permission"
             app:destination="@id/permissionFragment"
-            app:popUpTo="@id/surveyFragment"
+            app:popUpTo="@id/survey1Fragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+    <fragment android:id="@+id/survey2Fragment"
+        android:name="com.example.handar.ui.survey.Survey2Fragment"
+        android:label="Khảo sát 2/2"
+        tools:layout="@layout/fragment_survey_2">
+
+        <action android:id="@+id/action_survey2_to_permission"
+            app:destination="@id/permissionFragment"
+            app:popUpTo="@id/survey1Fragment"
             app:popUpToInclusive="true"/>
     </fragment>
 
@@ -94,7 +108,7 @@
             app:popUpToInclusive="true"/>
     </fragment>
 
-    <!-- Mở từ icon hambuger ở view_top_bar.xml. -->
+    <!-- mở từ icon hambuger ở view_top_bar.xml. -->
     <fragment android:id="@+id/settingsFragment"
         android:name="com.example.handar.ui.settings.SettingsFragment"
         android:label="Cài đặt"
@@ -129,7 +143,6 @@
             app:popUpTo="@id/cameraRecordFragment"
             app:popUpToInclusive="true"/>
 
-        <!-- KHÔNG popUpTo: camera phải nằm lại dưới để nhấn back ở màn chọn thì quay về đúng camera cũ -->
         <action android:id="@+id/action_cameraRecord_to_effectPicker"
             app:destination="@id/effectPickerFragment"/>
     </fragment>
@@ -143,9 +156,6 @@
             android:name="currentEffectId"
             app:argType="string"/>
 
-        <!-- tick effect KHÁC → sang màn xem trước effect mới, gỡ cả camera cũ lẫn màn này (camera sẽ được tạo
-             mới khi bấm Create). màn này chỉ mở được từ camera nên camera luôn nằm ngay dưới; nếu sau này có đường vào khác
-             (camera không nằm dưới) thì popUpTo này im lặng không làm gì (HandAr_Plan.md mục 4). -->
         <action android:id="@+id/action_effectPicker_to_effectPreview"
             app:destination="@id/effectPreviewFragment"
             app:popUpTo="@id/cameraRecordFragment"
@@ -160,8 +170,6 @@
             android:name="effectId"
             app:argType="string"/>
 
-        <!-- Create → camera: popUpTo CHÍNH màn này (màn mình đang rời) inclusive để back ở camera vẫn về
-             effectList như trước khi có màn xem trước, và các luồng sau camera (recordedPreview...) không đổi. -->
         <action android:id="@+id/action_effectPreview_to_cameraRecord"
             app:destination="@id/cameraRecordFragment"
             app:popUpTo="@id/effectPreviewFragment"
@@ -226,8 +234,6 @@
             android:name="videoPath"
             app:argType="string"/>
 
-        <!-- không popUpTo: giữ nguyên videoPlayerFragment trong back stack để sau này nếu
-             cần back thật (thay vì goHome() như hiện tại) thì vẫn quay đúng về màn này. -->
         <action android:id="@+id/action_videoPlayer_to_share"
             app:destination="@id/shareFragment"/>
     </fragment>

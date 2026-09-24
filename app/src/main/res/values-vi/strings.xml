@@ -78,6 +78,14 @@
     <string name="onboarding_2_subtitle">Di chuyển, xoay và ra cử chỉ. Hiệu ứng sẽ đi theo tay bạn</string>
     <string name="onboarding_3_title">Sẵn sàng thi triển?</string>
     <string name="onboarding_3_subtitle">Chọn một hiệu ứng và thổi phép thuật vào đời thực</string>
+
+    <!-- TẠM: nội dung khảo sát 2 bước đang là placeholder, chưa có câu hỏi/đáp án thật -->
+    <string name="survey_step_1">Bước 1/2</string>
+    <string name="survey_step_2">Bước 2/2</string>
+    <string name="survey_1_question">Câu hỏi ???</string>
+    <string name="survey_2_question">Câu hỏi ???</string>
+    <string name="survey_choose_answer">Chọn đáp án…</string>
+    <string name="survey_answer_placeholder">Đáp án %1$d</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt</string>
 
@@ -98,4 +106,5 @@
     <string name="gesture_two_hands_heart">Trái tim</string>
     <string name="gesture_crossed_fingers">Bắt chéo ngón tay</string>
     <string name="gesture_unknown">Cử chỉ</string>
+    <string name="finish">Hoàn thành</string>
 </resources>
