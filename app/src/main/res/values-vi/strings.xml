@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Hand Magic</string>
+    <string name="app_name">Magic Hand</string>
     <string name="splash_loading_hint">Đang chuẩn bị phép thuật…</string>
     <string name="record_button">Nút ghi hình</string>
     <string name="done">Xong</string>
@@ -27,7 +27,7 @@
     <string name="select_language">Chọn ngôn ngữ</string>
     <string name="next">Tiếp theo</string>
     <string name="start">Bắt đầu</string>
-    <string name="welcome_content">Chào mừng đến với Hand Magic</string>
+    <string name="welcome_content">Chào mừng đến với Magic Hand</string>
     <string name="permission_title">Cấp quyền</string>
     <string name="permission_subtitle">HandAr cần quyền truy cập máy ảnh và quyền gửi thông báo để mang lại trải nghiệm tốt nhất.</string>
     <string name="permission_camera">Máy ảnh</string>

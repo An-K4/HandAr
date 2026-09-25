@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Hand Magic</string>
+    <string name="app_name">Magic Hand</string>
     <string name="splash_loading_hint">Loading your magic…</string>
     <string name="record_button">Record Button</string>
     <string name="done">Done</string>
@@ -27,7 +27,7 @@
     <string name="select_language">Select language</string>
     <string name="next">Next</string>
     <string name="start">Start</string>
-    <string name="welcome_content">Welcome to Hand Magic</string>
+    <string name="welcome_content">Welcome to Magic Hand</string>
     <string name="permission_title">Permission</string>
     <string name="permission_subtitle">HandAr needs access to your camera and permission to send notifications to give you the best experience.</string>
     <string name="permission_camera">Camera</string>
