@@ -18,7 +18,9 @@
 ## 0. Bản đồ quan hệ tổng quát (đọc cái này trước)
 
 ```text
-MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/)
+MainActivity.kt ── giữ vòng đời HandLandmarkerProvider (effect/); nút camera giữa bottom nav
+    (badge_container trong view_curved_bottom_nav.xml) → navigate thẳng cameraRecordFragment với
+    effectId="" (không qua action nào) — camera KHÔNG effect, xem chi tiết ở mục 6.1
 
 nav_graph.xml điều hướng qua các Fragment trong ui/*
     splash → welcome → onboarding1(Skip→survey1) → onboarding2 → onboarding3 → survey1 → survey2 → permission → effectList → effectPreview → cameraRecord → recordedPreview → share (nút Thử lại ở share tạo camera MỚI, popUpTo share inclusive)
@@ -537,6 +539,17 @@ biến mất — đây là hành vi cố ý, không phải bug.
 
 `onCreate`: `currentEffect = EffectRepository.findById(args.effectId)` — `args` là `navArgs()` sinh
 bởi Safe Args từ `<argument android:name="effectId" app:argType="string"/>` trong `nav_graph.xml`.
+
+**`currentEffect` là nullable (`EffectDefinition?`).** `effectId=""` (default value trong nav_graph,
+dùng bởi nút camera giữa bottom nav ở `MainActivity` — xem mục 0 phần "nut camera giua nav") →
+`currentEffect = null` (dùng `EffectRepository.findByIdOrNull`, không phải `findById`, để không crash).
+Khi không có effect: `OverlayView.setEffect()` không được gọi (bản thân `OverlayView.effect` cũng
+nullable, `drawFrame()`/`resolveMatchedIndex()` tự `return` sớm khi null — không cần code camera tự
+chặn gì thêm), không âm thanh/bgm, `requiredNumHands` mặc định 1, và **cột nút Action (hướng dẫn cử
+chỉ) bị ẩn** (`layoutCameraActionColumn.visibility = INVISIBLE`, không GONE — giữ nguyên quy ước tránh
+lệch tâm nút record). Người dùng chỉ có thể quay video thường (không hiệu ứng) hoặc bấm nút Effect để
+mở `effectPickerFragment` chọn effect (qua `effectPreviewFragment`, tạo `CameraRecordFragment` MỚI có
+effect — instance "không effect" ban đầu bị bỏ theo đúng `popUpTo` sẵn có của luồng chọn effect).
 
 `onViewCreated` chuẩn bị **toàn bộ dữ liệu âm thanh trước khi vào camera**, để lúc phát không bị
 giật do I/O:

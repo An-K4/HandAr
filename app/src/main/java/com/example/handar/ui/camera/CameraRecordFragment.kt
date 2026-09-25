@@ -74,7 +74,7 @@ class CameraRecordFragment : Fragment() {
     private var videoRecorder: VideoRecorder? = null
     private var latestHandResult: HandLandmarkerResult? = null
 
-    private lateinit var currentEffect: EffectDefinition
+    private var currentEffect: EffectDefinition? = null
     private lateinit var statePcmMap: Map<String, ShortArray>
 
     @Volatile
@@ -134,7 +134,7 @@ class CameraRecordFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        currentEffect = EffectRepository.findById(args.effectId)
+        currentEffect = args.effectId.takeIf { it.isNotEmpty() }?.let { EffectRepository.findByIdOrNull(it) }
     }
 
     override fun onCreateView(
@@ -163,13 +163,13 @@ class CameraRecordFragment : Fragment() {
         backgroundExecutor = Executors.newSingleThreadExecutor()
         soundEffectPlayer = SoundEffectPlayer(
             requireContext(),
-            currentEffect.states.mapNotNull { it.soundRes }
+            currentEffect?.states.orEmpty().mapNotNull { it.soundRes }
         )
-        statePcmMap = currentEffect.states.mapNotNull { state ->
+        statePcmMap = currentEffect?.states.orEmpty().mapNotNull { state ->
             state.soundRes?.let { state.id to loadWavPcm(requireContext(), it) }
         }.toMap()
 
-        currentEffect.bgm?.let { bgm ->
+        currentEffect?.bgm?.let { bgm ->
             bgmPcm = loadWavPcm(requireContext(), bgm.resId)
             bgmPlayer = BgmPlayer(requireContext(), bgm.resId, bgm.gainPercent)
             bgmPlayer?.startFromBeginning()
@@ -177,15 +177,20 @@ class CameraRecordFragment : Fragment() {
 
         with(binding) {
             overlayView = overlay
-            overlay.setEffect(currentEffect)
-            if (currentEffect.background != null) {
+            currentEffect?.let { overlay.setEffect(it) }
+            if (currentEffect?.background != null) {
                 binding.preview.visibility = View.INVISIBLE
             }
 
             bindEffectInfo(currentEffect)
             layoutCameraTopBar.btnBack.setOnClickListener { navigateBack() }
             btnEffect.setOnClickListener { openEffectPicker() }
-            btnAction.setOnClickListener { GestureGuideDialog(requireContext(), currentEffect).show() }
+
+            val hasEffect = currentEffect != null
+            layoutCameraActionColumn.visibility = if (hasEffect) View.VISIBLE else View.INVISIBLE
+            btnAction.setOnClickListener {
+                currentEffect?.let { effect -> GestureGuideDialog(requireContext(), effect).show() }
+            }
 
             btnToggleRecord.setOnClickListener { view ->
                 toggleRecording()
@@ -243,15 +248,15 @@ class CameraRecordFragment : Fragment() {
     }
 
     /**
-     * mở màn chọn effect (EffectPickerFragment). camera nằm lại trong back stack nên instance này sống tiếp
-     * và có thể được quay lại (đóng màn chọn mà không đổi) → xem resetGestureState().
-     * nút này bị ẩn (INVISIBLE) khi đang ghi hình nên không thể bấm giữa lúc quay; còn chốt cửa
+     * mở màn chọn effect. camera nằm lại trong back stack nên instance này sống tiếp
+     * và có thể được quay lại → xem resetGestureState().
+     * nút này bị ẩn khi đang ghi hình nên không thể bấm giữa lúc quay; còn chốt cửa
      * currentDestination là để chống bấm đúp (navigate lần 2 sẽ ném IllegalArgumentException).
      */
     private fun openEffectPicker() {
         val nav = findNavController()
         if (nav.currentDestination?.id != R.id.cameraRecordFragment) return
-        nav.navigate(CameraRecordFragmentDirections.actionCameraRecordToEffectPicker(currentEffect.id))
+        nav.navigate(CameraRecordFragmentDirections.actionCameraRecordToEffectPicker(currentEffect?.id ?: ""))
     }
 
     /**
@@ -279,15 +284,6 @@ class CameraRecordFragment : Fragment() {
         }
     }
 
-    /**
-     * bắt đầu ghi hình thì màn chỉ còn nút stop (+ đồng hồ ngay trên nút): ẩn top bar và 2 cột Effect/Action.
-     * không có hàm hiện lại: dừng ghi hợp lệ luôn rời khỏi màn này (sang preview hoặc pop), nên hiện lại
-     * trong lúc chờ lưu file chỉ gây nháy UI; còn bấm stop quá sớm ("recording_too_short") thì vẫn đang ghi nên
-     * UI đang ẩn là đúng.
-     * 2 cột dùng INVISIBLE chứ không phải GONE: chúng là 2 ô weight 1 kẹp 2 bên nút record,
-     * GONE sẽ dồn hết chỗ và nút record bị lệch khỏi tâm. (đồng hồ do startRecordingTimerUI/
-     * stopRecordingTimerUI tự bật/tắt đúng lúc frame đầu tiên được ghi, không xử lý ở đây.)
-     */
     private fun hideChromeWhileRecording() {
         with(binding) {
             layoutCameraTopBar.root.visibility = View.GONE
@@ -318,7 +314,7 @@ class CameraRecordFragment : Fragment() {
 
     private fun setupMediaPipe() {
         handLandmarker =
-            HandLandmarkerProvider.getOrCreate(requireContext(), currentEffect.requiredNumHands)
+            HandLandmarkerProvider.getOrCreate(requireContext(), currentEffect?.requiredNumHands ?: 1)
 
         viewLifecycleOwner.lifecycleScope.launch {
             HandLandmarkerProvider.results.collect { (result, inputImage) ->
@@ -331,15 +327,16 @@ class CameraRecordFragment : Fragment() {
     }
 
     private fun handleGesture(result: HandLandmarkerResult) {
+        val effect = currentEffect ?: return
         val hands = result.landmarks()
         if (hands.isEmpty()) {
-            if (currentEffect.stateMode == StateMode.Momentary) clearActiveEffect()
+            if (effect.stateMode == StateMode.Momentary) clearActiveEffect()
             return
         }
 
-        val matchedState = currentEffect.states.firstOrNull { it.gesture.recognize(hands) }
+        val matchedState = effect.states.firstOrNull { it.gesture.recognize(hands) }
         if (matchedState == null) {
-            if (currentEffect.stateMode == StateMode.Momentary) clearActiveEffect()
+            if (effect.stateMode == StateMode.Momentary) clearActiveEffect()
             return
         }
 
@@ -457,7 +454,7 @@ class CameraRecordFragment : Fragment() {
                     startRecordingTimerUI()
                     bgmPlayer?.startFromBeginning()
                 }
-                audioMixer.setBgm(bgmPcm, currentEffect.bgm?.gainPercent ?: 50)
+                audioMixer.setBgm(bgmPcm, currentEffect?.bgm?.gainPercent ?: 50)
                 audioMixer.resetBgmPos()
                 start()
                 activeEffect?.let { effect ->
@@ -514,7 +511,7 @@ class CameraRecordFragment : Fragment() {
                 val bitmap = latestCameraBitmap
                 val handResult = latestHandResult
 
-                val effectHasBackground = currentEffect.background != null || currentEffect.states.any { it.background != null }
+                val effectHasBackground = currentEffect?.background != null || currentEffect?.states.orEmpty().any { it.background != null }
                 if (effectHasBackground || bitmap != null) {
                     videoRecorder?.pushFrame { canvas ->
                         if (!effectHasBackground) {
@@ -600,7 +597,7 @@ class CameraRecordFragment : Fragment() {
             if (showSavedToast) {
                 Toast.makeText(requireContext(), getString(R.string.recording_saved_on_back), Toast.LENGTH_SHORT).show()
             }
-            val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path, currentEffect.id)
+            val action = CameraRecordFragmentDirections.actionCameraRecordToRecordedPreview(path, currentEffect?.id ?: "")
             nav.navigate(action)
         }
     }

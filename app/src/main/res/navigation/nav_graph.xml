@@ -134,9 +134,11 @@
         android:name="com.example.handar.ui.camera.CameraRecordFragment"
         android:label="Quay video"
         tools:layout="@layout/fragment_camera_record">
+        <!-- rỗng ("") = vào camera không effect -->
         <argument
             android:name="effectId"
-            app:argType="string"/>
+            app:argType="string"
+            android:defaultValue=""/>
 
         <action android:id="@+id/action_cameraRecord_to_recordedPreview"
             app:destination="@id/recordedPreviewFragment"

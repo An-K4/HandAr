@@ -9,6 +9,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentContainerView
+import androidx.core.os.bundleOf
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.navOptions
@@ -60,6 +61,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupBottomNavTabs(navController, bottomNav)
+
+        bottomNav.findViewById<View>(R.id.badge_container).setOnClickListener {
+            navController.navigate(R.id.cameraRecordFragment, bundleOf("effectId" to ""))
+        }
     }
 
     private fun setupBottomNavTabs(navController: NavController, bottomNav: View) {

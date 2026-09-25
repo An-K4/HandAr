@@ -37,6 +37,8 @@ object EffectRepository {
 
     fun findById(id: String): EffectDefinition = all.first { it.id == id }
 
+    fun findByIdOrNull(id: String): EffectDefinition? = all.firstOrNull { it.id == id }
+
     fun findByName(query: String): List<EffectDefinition> =
         if (query.isBlank()) all else all.filter { it.displayName.contains(query, ignoreCase = true) }
 }
