@@ -111,6 +111,9 @@
     <string name="gesture_both_hands_fist">Both Fists</string>
     <string name="gesture_two_hands_heart">Heart</string>
     <string name="gesture_crossed_fingers">Crossed Fingers</string>
+    <string name="gesture_pointing">Point With Any Hand</string>
+    <string name="gesture_finger_extended">Extend Any Finger</string>
+    <string name="gesture_wrists_together">Wrists Together, Palms Open</string>
     <string name="gesture_unknown">Gesture</string>
     <string name="finish">Finish</string>
 </resources>

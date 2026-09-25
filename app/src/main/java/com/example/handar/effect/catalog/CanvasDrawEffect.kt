@@ -14,7 +14,7 @@ import com.example.handar.effect.visual.canvas.drawcanvas.StrokeVisual
 fun canvasDrawEffect(): EffectDefinition = EffectDefinition(
     id = "canvas_draw",
     displayName = "Vẽ canvas",
-    thumbnailRes = R.drawable.stranger_things_monster,
+    thumbnailRes = R.drawable.canvas_draw_thumbnail,
     requiredNumHands = 1,
     states = listOf(
         EffectState(
@@ -31,7 +31,7 @@ fun canvasDrawEffect(): EffectDefinition = EffectDefinition(
             asset = EffectAsset.Procedural("stroke_clear") { _, scope ->
                 ClearOnActivate(scope.shared("stroke_model") { StrokeModel() })
             },
-            soundRes = R.raw.paper_tear
+            soundRes = R.raw.canvas_draw_clear
         ),
         EffectState(
             id = "idle_skeleton",

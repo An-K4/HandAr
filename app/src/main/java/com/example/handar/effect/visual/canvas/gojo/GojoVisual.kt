@@ -22,14 +22,14 @@ class GojoVisual(
     private val model: GojoModel
 ) : EffectVisual {
     private val blueBall =
-        BitmapFactory.decodeResource(context.resources, R.drawable.blue_ball)
+        BitmapFactory.decodeResource(context.resources, R.drawable.gojo_blue_ball)
     private val redBall =
-        BitmapFactory.decodeResource(context.resources, R.drawable.red_ball)
+        BitmapFactory.decodeResource(context.resources, R.drawable.gojo_red_ball)
     private val purpleBall =
-        BitmapFactory.decodeResource(context.resources, R.drawable.stranger_things_monster)
+        BitmapFactory.decodeResource(context.resources, R.drawable.gojo_purple_ball)
     private val mergeAnim = AnimatedGifVisual(
         context,
-        EffectAsset.AnimatedGif(R.drawable.stranger_things_clock, oneShot = true)
+        EffectAsset.AnimatedGif(R.drawable.gojo_merge, oneShot = true)
     )
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val matrix = Matrix()

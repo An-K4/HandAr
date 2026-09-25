@@ -107,6 +107,17 @@ object Gestures {
         hands.any { isPointing(it, it[0]) }
     }
 
+    /** ≥ 1 trong 4 ngón trỏ/giữa/áp út/út đang duỗi, KHÔNG tính ngón cái — dùng cho hiệu ứng "Tia sét":
+     *  mỗi ngón đang duỗi sẽ có 1 tia sét riêng, nên không giới hạn số ngón giống như các cử chỉ số
+     *  (singleHandPointing, singleHandPeaceSign...) vốn yêu cầu đúng cả những ngón còn lại phải gập. */
+    val anyFingerExtendedNoThumb = GestureRecognizer { hands ->
+        hands.any { landmark ->
+            val wrist = landmark[0]
+            isIndexExtended(landmark, wrist) || isMiddleExtended(landmark, wrist) ||
+                    isRingExtended(landmark, wrist) || isPinkyExtended(landmark, wrist)
+        }
+    }
+
     // HAI TAY
     /** 🤚✋ xòe 2 tay */
     val bothHandsPalmOpen = GestureRecognizer { hands ->
@@ -116,6 +127,19 @@ object Gestures {
     /** ✊✊ nắm 2 tay */
     val bothHandsFist = GestureRecognizer { hands ->
         hands.size >= 2 && hands.all { isFist(it, it[0]) }
+    }
+
+    /** ❤️ 2 cổ tay chụm sát nhau + cả 2 tay đang xòe — dùng cho hiệu ứng "Dragon Ball" state kamehameha.
+     *  Ngưỡng WRIST_TOGETHER_RATIO_THRESHOLD chỉ chốt được khi chạy thật trên tay người dùng — cần
+     *  chỉnh lại sau khi test (nới ra nếu quá khó chụm đủ, siết lại nếu dễ nhầm với bothHandsPalmOpen). */
+    val twoHandsWristsTogetherOpen = GestureRecognizer { hands ->
+        if (hands.size < 2) return@GestureRecognizer false
+        val handA = hands[0]
+        val handB = hands[1]
+        if (!isPalmOpen(handA, handA[0]) || !isPalmOpen(handB, handB[0])) return@GestureRecognizer false
+        val scale = (palmLength(handA, handA[0]) + palmLength(handB, handB[0])) / 2.0
+        if (scale == 0.0) return@GestureRecognizer false
+        pointDistance(handA[0], handB[0]) / scale < WRIST_TOGETHER_RATIO_THRESHOLD
     }
 
     /** 🫶 ký hiệu trái tim 2 tay */
@@ -161,4 +185,6 @@ object Gestures {
 
         indexCross || middleCross || ringCross || pinkyCross
     }
+
+    private const val WRIST_TOGETHER_RATIO_THRESHOLD = 0.6
 }

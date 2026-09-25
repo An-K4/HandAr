@@ -4,6 +4,7 @@ import com.example.handar.R
 import com.example.handar.effect.gesture.Gestures
 import com.example.handar.effect.model.AnchorSource
 import com.example.handar.effect.model.EffectAsset
+import com.example.handar.effect.model.EffectBgm
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.visual.canvas.gojo.GojoModel
@@ -12,7 +13,7 @@ import com.example.handar.effect.visual.canvas.gojo.GojoVisual
 fun gojoEffect(): EffectDefinition = EffectDefinition(
     id = "gojo",
     displayName = "Gojo",
-    thumbnailRes = R.drawable.stranger_things_monster,
+    thumbnailRes = R.drawable.gojo_thumbnail,
     requiredNumHands = 2,
     states = listOf(
         EffectState(
@@ -24,5 +25,6 @@ fun gojoEffect(): EffectDefinition = EffectDefinition(
             soundRes = null,
             anchorSource = AnchorSource.IndexFingertip
         )
-    )
+    ),
+    bgm = EffectBgm(R.raw.gojo_bgm)
 )

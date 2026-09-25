@@ -111,6 +111,9 @@
     <string name="gesture_both_hands_fist">Nắm hai tay</string>
     <string name="gesture_two_hands_heart">Trái tim</string>
     <string name="gesture_crossed_fingers">Bắt chéo ngón tay</string>
+    <string name="gesture_pointing">Chỉ ngón trỏ (tay bất kỳ)</string>
+    <string name="gesture_finger_extended">Duỗi ngón bất kỳ</string>
+    <string name="gesture_wrists_together">Chụm cổ tay, xòe bàn tay</string>
     <string name="gesture_unknown">Cử chỉ</string>
     <string name="finish">Hoàn thành</string>
 </resources>

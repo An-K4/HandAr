@@ -20,7 +20,7 @@ class EffectPreviewFragment : Fragment() {
     companion object {
         // TẠM: chưa có video/gif minh hoạ cho từng effect, dùng ảnh động có sẵn để dựng UI trước.
         // khi có media thật: khai vào EffectDefinition (vd previewRes) và bỏ hằng này.
-        private val DEMO_PREVIEW_RES = R.drawable.black_hole
+        private val DEMO_PREVIEW_RES = R.drawable.black_hole_portal
     }
 
     private val args: EffectPreviewFragmentArgs by navArgs()

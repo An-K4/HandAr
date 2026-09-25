@@ -16,5 +16,10 @@ enum class AnchorSource {
     IndexFingertip,
 
     /** trung điểm tâm hai bàn tay. ví dụ dùng cho "Cổng dịch chuyển/Hố đen". */
-    TwoHandMidpoint
+    TwoHandMidpoint,
+
+    /** trung điểm 2 cổ tay (landmark 0) — khác TwoHandMidpoint (landmark 9, khớp giữa ngón giữa).
+     *  ví dụ dùng cho hiệu ứng "Dragon Ball" state kamehameha: khi 2 cổ tay chụm sát nhau,
+     *  "cổ tay" mô tả đúng hành động chụm tay hơn là khớp giữa ngón giữa. */
+    TwoWristMidpoint
 }

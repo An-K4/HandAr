@@ -8,7 +8,9 @@ import com.example.handar.R
 data class GestureDisplay(@StringRes val nameRes: Int, @DrawableRes val iconRes: Int)
 
 val gestureDisplayMap: Map<GestureRecognizer, GestureDisplay> = mapOf(
+    Gestures.anyFingerExtendedNoThumb to GestureDisplay(R.string.gesture_finger_extended, R.drawable.ic_action),
     Gestures.anyHandPresent to GestureDisplay(R.string.gesture_any_hand, R.drawable.ic_action),
+    Gestures.anyHandPointing to GestureDisplay(R.string.gesture_pointing, R.drawable.ic_action),
     Gestures.singleHandPalmOpen to GestureDisplay(R.string.gesture_open_palm, R.drawable.ic_action),
     Gestures.singleHandFist to GestureDisplay(R.string.gesture_fist, R.drawable.ic_action),
     Gestures.singleHandPointing to GestureDisplay(R.string.gesture_one_finger, R.drawable.ic_action),
@@ -23,7 +25,7 @@ val gestureDisplayMap: Map<GestureRecognizer, GestureDisplay> = mapOf(
     Gestures.bothHandsFist to GestureDisplay(R.string.gesture_both_hands_fist, R.drawable.ic_action),
     Gestures.twoHandsHeart to GestureDisplay(R.string.gesture_two_hands_heart, R.drawable.ic_action),
     Gestures.twoHandsCrossedFingers to GestureDisplay(R.string.gesture_crossed_fingers, R.drawable.ic_action),
-    // Gestures.anyHandPointing: hiện không effect nào dùng, không đưa vào map này.
+    Gestures.twoHandsWristsTogetherOpen to GestureDisplay(R.string.gesture_wrists_together, R.drawable.ic_action)
 )
 
 // fallback khi không thấy cử chỉ khớp trong map

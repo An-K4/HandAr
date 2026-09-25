@@ -216,13 +216,18 @@ app/src/main/java/com/example/handar/
 │   │                            EffectBgm / AnchorSource / SizeSource / StateMode
 │   ├── gesture/                 Gesture.kt (object Gestures) · GestureRecognizer · GestureUtils
 │   ├── visual/                  EffectVisual + factory createEffectVisual() · HandFrame · EffectScope · ProceduralVisual
-│   │   ├── image/                StaticImageVisual · AnimatedGifVisual · SpriteSheetVisual
+│   │   ├── image/                StaticImageVisual · AnimatedGifVisual · SpriteSheetVisual · OneShotGifVisual
+│   │   │                        (ảnh động chạy 1 lần rồi ẩn hẳn, dùng cho sóng âm của Quái vật)
 │   │   └── canvas/
 │   │       ├── drawcanvas/       StrokeModel/StrokeVisual/ClearOnActivate/SkeletonOnlyVisual/HandSkeleton
-│   │       └── gojo/             GojoModel/GojoVisual
+│   │       ├── gojo/             GojoModel/GojoVisual (composition: 1 AnimatedGifVisual con + gojo_merge oneShot)
+│   │       ├── fireball/         FireBallBurstVisual (burst oneShot rồi tự chuyển sang big loop)
+│   │       ├── magicshield/      ShieldHideVisual (thu nhỏ theo thời gian bằng code)
+│   │       ├── lightning/        LightningVisual (buffer-render, vẽ nhiều bản xoay theo từng ngón đang duỗi)
+│   │       └── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
-│   └── catalog/                 factory cho hiệu ứng phức tạp (CameraShutter, TestEffectBackground,
-│                                CanvasDraw, Earth, BlackHole, Gojo)
+│   └── catalog/                 factory cho đủ 10/10 hiệu ứng (FireBall, MagicShield, Lightning,
+│                                DragonBall, Gojo, Monster, RoomTeleport, CanvasDraw, Earth, BlackHole)
 ├── recording/                    toàn bộ pipeline ghi hình, không đụng vào nếu không bắt buộc (xem cuối file)
 │   ├── VideoRecorder.kt         điều phối ghi hình (nhạc trưởng)
 │   ├── MuxerCoordinator.kt      chờ đủ 2 track mới muxer.start()
@@ -235,7 +240,7 @@ app/src/main/java/com/example/handar/
 │   │                 tự: splash → welcome → onboarding1-3 → survey1 → survey2 → permission)
 │   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo;
 │   │                  onboarding/: onboarding1 có nút Skip nhảy thẳng sang survey1; survey/:
-│   │                  Survey1Fragment/Survey2Fragment, khảo sát 2 bước, câu hỏi/đáp án còn placeholder)
+│   │                  Survey1Fragment/Survey2Fragment, khảo sát 2 bước đã có nội dung thật, chưa lưu lựa chọn)
 │   ├── language/     LanguageFragment — KHÔNG còn trong luồng mở app lần đầu, chỉ mở từ settings/ (2 dòng
 │   │                 tick vi/en dạng radio)
 │   ├── settings/     SettingsFragment — mở từ icon hamburger ở view_top_bar.xml, chỉ mục Ngôn ngữ có
@@ -274,20 +279,25 @@ docs/                                      tài liệu thiết kế & vận hàn
 
 ## Danh sách hiệu ứng
 
-Khai báo trong `effect/EffectRepository.kt` (một phần lấy từ `effect/catalog/`) — hiện có **10 hiệu ứng**:
+Khai báo trong `effect/EffectRepository.kt`, lắp hoàn toàn từ `effect/catalog/` (không còn hiệu ứng nào
+khai trực tiếp trong `EffectRepository.kt`) — hiện có **10 hiệu ứng**, khớp hoàn toàn
+`docs/Design_App_HandAr.md` mục 4:
 
 | id | Tên hiển thị | Số tay | Các trạng thái (cử chỉ → asset) |
 |---|---|---|---|
-| `black_background_with_monster` | Quái vật bóng đêm với tiếng đồng hồ kêu | 1 | xoè tay → quái vật · nắm tay → đồng hồ, kèm **nền GIF riêng** (`background`) + **nhạc nền** (`bgm`) trộn vào video |
-| `rock_on_ily` | Rock on / I love you | 1 | rock on · I-love-you |
-| `camera_shutter` | Chụp ảnh | 2 | 5 cử chỉ (OK, peace, like, rock on, call) đều ra cùng 1 GIF chụp ảnh |
-| `absolute_cinema_two_hand` | Absolute cinema | 2 | 2 tay xoè · 2 tay nắm |
-| `heart_or_cross` | Trái tim và dấu X | 2 | trái tim · dấu X |
-| `test_effect_background` | Thay đổi nền | 1 | 4 cử chỉ đổi nền (Solid/Image/Animated) khác nhau, dùng `StateMode.Latched` — giữ nền khi mất tay |
-| `canvas_draw` | Vẽ canvas | 1 | chỉ tay → vẽ nét theo đầu ngón trỏ · nắm tay → xoá nét · khác → chỉ hiện khung xương tay (nền đen, dùng `EffectAsset.Procedural` + `EffectScope`) |
-| `earth` | Trái đất | 1 | có tay → quả đất to/nhỏ theo khoảng nhón ngón tay cái-trỏ (`AnchorSource.PinchMidpoint`) |
-| `black_hole` | Hố đen | 2 | có tay → hố đen to/nhỏ theo khoảng cách 2 tay (`AnchorSource.TwoHandMidpoint`) |
-| `gojo` | Gojo | 2 | chỉ tay → quả cầu ở đầu ngón trỏ mỗi tay, chạm 2 đầu ngón trỏ → phát animation sáp nhập rồi hiện quả cầu tím |
+| `fire_ball` | Cầu lửa | 1 | nắm tay → lửa nhỏ (loop) + tiếng cháy · xòe tay → bùng lửa to (burst 1 lần rồi chuyển sang loop to) + tiếng bùng |
+| `magic_shield` | Vòng khiên năng lượng | 1 | xòe tay → khiên hiện (loop) · nắm tay → khiên thu nhỏ dần rồi biến mất (dựng bằng code, dùng chung asset lúc hiện), kèm **nhạc nền** |
+| `lightning` | Tia sét | 1 | ≥ 1 ngón (trừ ngón cái) đang duỗi → tia sét ở đầu mỗi ngón đang duỗi, xoay theo hướng ngón + tiếng xẹt điện lặp |
+| `dragon_ball` | Chưởng năng lượng Dragon Ball | 1–2 (`requiredNumHands = 2`) | 1 tay xòe → quả cầu năng lượng (loop) + tiếng tụ khí · 2 cổ tay chụm + cả 2 tay xòe → kamehameha to hơn, xoáy nhanh hơn (không tiếng riêng, phải khai **trước** state 1 tay trong `states`) |
+| `gojo` | Gojo | 1–2 (`requiredNumHands = 2`) | chỉ ngón trỏ mỗi tay → quả cầu xanh/đỏ ở đầu ngón trỏ (tay trái xanh, tay phải đỏ) · chạm 2 đầu ngón trỏ → phát animation hòa nhập rồi hiện quả cầu tím, kèm **nhạc nền** |
+| `monster` | Quái vật | 1 | xòe tay → quái vật hiện (ảnh tĩnh) trên **nền riêng** · nắm tay → quái vật biến mất + sóng âm lan toả (1 lần), kèm **nhạc nền** |
+| `room_teleport` | Dịch chuyển giữa các phòng | 1 | số 1/2/3 ngón hoặc nắm tay → 4 phòng khác nhau (nền + tiếng riêng từng phòng, nhân vật hoạt hình bám tay dùng chung), `StateMode.Latched` — giữ nguyên phòng khi mất tay |
+| `canvas_draw` | Vẽ canvas | 1 | chỉ ngón trỏ → vẽ nét theo đầu ngón trỏ · nắm tay → xoá nét + tiếng xé giấy · khác → chỉ hiện khung xương tay (nền đen, dùng `EffectAsset.Procedural` + `EffectScope`) |
+| `earth` | Trái đất | 1 | có tay → ảnh trái đất to/nhỏ theo khoảng nhón ngón cái-trỏ (`AnchorSource.PinchMidpoint`/`SizeSource.PinchDistance`), kèm **nhạc nền** |
+| `black_hole` | Hố đen | 2 | 2 tay cùng xòe → cổng xoáy to/nhỏ theo khoảng cách 2 tay (`AnchorSource.TwoHandMidpoint`/`SizeSource.TwoHandDistance`), tiếng lặp giữa 2 tay, kèm **nền ảnh riêng** |
+
+> 8 cử chỉ từng gắn với 4 hiệu ứng test cũ (đã gỡ) vẫn còn trong `object Gestures` nhưng chưa `EffectState`
+> nào dùng — xem docstring đầu `EffectRepository.kt` và `docs/Test_Checklist.md` mục I.10.
 
 Giải thích chi tiết cách từng loại hoạt động (Procedural, AnchorSource/SizeSource, EffectScope...):
 xem `docs/Code_Walkthrough.md` mục 1 và 3.

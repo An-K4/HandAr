@@ -24,8 +24,8 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| B1 | Mở app, chọn effect `rock_on_ily`, đưa tay vào khung hình, làm cử chỉ rock on (🤘) | GIF rock on hiện đúng vị trí lòng bàn tay, tiếng rock on phát ra loa |
-| B2 | Đổi sang cử chỉ I love you (🤟) | Đổi sang GIF I love you, tiếng tương ứng phát ra loa |
+| B1 | Mở app, chọn effect `fire_ball`, đưa tay vào khung hình, nắm tay (✊) | GIF lửa nhỏ hiện đúng vị trí lòng bàn tay, tiếng lửa cháy phát ra loa |
+| B2 | Xoè tay (✋) | Đổi sang hoạt ảnh bùng lửa to (burst rồi chuyển loop), tiếng bùng lửa phát ra loa |
 | B3 | Đưa tay ra khỏi khung hình | GIF biến mất, không còn tiếng phát tiếp |
 | B4 | Di chuyển tay lại gần/xa camera | Kích thước GIF co giãn theo đúng khoảng cách tay-camera |
 
@@ -142,7 +142,7 @@ git checkout main && git stash pop
 | G16 | Xem trước → Create → camera → Back | Camera đúng effect; Back về **màn danh sách** (màn xem trước đã bị gỡ khỏi back stack) |
 | G17 | Camera → Effect → chọn effect khác → tick → ở màn xem trước bấm Back | Về **màn danh sách** (camera cũ + màn chọn đã bị gỡ — cố ý, xem `nav_graph.xml`), không quay về camera cũ |
 | G18 | Ở màn xem trước: bấm đúp thật nhanh nút Create, rồi lặp lại với nút back | Không crash (không `IllegalArgumentException`), không pop luôn màn phía dưới — chỉ đi đúng 1 bước |
-| G19 | Màn danh sách + màn chọn: effect có tên dài (vd `black_background_with_monster`) | Tên chỉ 1 dòng, cắt bằng “…”; ở màn danh sách dấu “…” **không** nằm dưới icon tim |
+| G19 | Màn danh sách + màn chọn: effect có tên dài (vd `dragon_ball` — “Chưởng năng lượng Dragon Ball”) | Tên chỉ 1 dòng, cắt bằng “…”; ở màn danh sách dấu “…” **không** nằm dưới icon tim |
 
 > **Về G7c — hành vi hệ thống, không phải lỗi app:** từ Android 11 (API 30), sau **2 lần từ chối**, hệ thống chuyển quyền sang trạng thái *permanently denied*: `launch()` vẫn chạy, callback vẫn trả kết quả "denied", nhưng **không dialog nào hiện ra**. Không có API nào bắt hệ thống hỏi lại được — chỉ người dùng tự cấp trong Settings. Vì vậy app bắt buộc phải phân biệt 3 trạng thái bằng `shouldShowRequestPermissionRationale()`:
 >
@@ -199,8 +199,8 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| I1 | Chọn effect có nhiều state dùng **asset khác nhau rõ rệt** (ví dụ `test_effect_background`: trỏ / peace / 3 ngón / nắm → 4 nền + tiếng khác nhau; hoặc `black_background_with_monster`: xoè → quái vật, nắm → đồng hồ), lần lượt làm đúng từng cử chỉ tương ứng | Đúng gif/tiếng tương ứng hiện ra, không lẫn sang state khác — xác nhận `indexOfFirst`/`firstOrNull` vẫn chọn đúng sau khi đổi sang gọi `recognize(hands)` 1 lần |
-| I2 | Chọn `camera_shutter` (effect nhiều state 1 tay dùng chung 1 asset), thử đủ cả 5-6 cử chỉ gắn vào đó | Mỗi cử chỉ đều kích hoạt được hiệu ứng, không có cử chỉ nào "im lặng" |
+| I1 | Chọn effect có nhiều state dùng **asset khác nhau rõ rệt** (ví dụ `room_teleport`: trỏ / peace / 3 ngón / nắm → 4 nền + tiếng khác nhau; hoặc `monster`: xoè → quái vật hiện, nắm → sóng âm), lần lượt làm đúng từng cử chỉ tương ứng | Đúng gif/tiếng tương ứng hiện ra, không lẫn sang state khác — xác nhận `indexOfFirst`/`firstOrNull` vẫn chọn đúng sau khi đổi sang gọi `recognize(hands)` 1 lần |
+| I2 | *(đã xoá — effect test `camera_shutter` dùng cho mục này không còn tồn tại; 5 cử chỉ từng gắn ở đó nay test theo cách tạm ở mục I.10)* | |
 | I3 | Với 1 effect 1 tay bất kỳ, đưa **2 tay** vào khung hình cùng lúc, chỉ 1 tay làm đúng cử chỉ | Hiệu ứng vẫn kích hoạt bình thường (state 1 tay chỉ cần `hands.firstOrNull()` khớp, không bị tay thứ 2 cản) |
 
 ### I.2. Mirror & neo vị trí (Mục 11.2–11.3 — chống regression bug `normMidY`)
@@ -235,7 +235,7 @@ git checkout main && git stash pop
 | I14 | Bắt chéo 2 ngón út (thay vì trỏ) | Hiệu ứng X **vẫn** kích hoạt — xác nhận tổng quát hoá sang "1 trong 4 loại ngón" hoạt động đúng |
 | I15 | 2 ngón trỏ chỉ **gần nhau**, chưa thực sự bắt chéo qua | **Không** kích hoạt — xác nhận `segmentsCross` phân biệt đúng "cắt qua" với "ở gần" |
 
-> **Mục I.6 (cũ) đã xoá** — checklist trước đây có một mục kiểm tra cử chỉ 2 tay "ghép hình chữ L thành khung máy ảnh", nhưng gesture đó không còn tồn tại trong `Gestures` (chỉ còn `twoHandsHeart`, `twoHandsCrossedFingers`, `bothHandsPalmOpen`, `bothHandsFist` ở nhóm 2 tay). `camera_shutter` hiện tại kích hoạt bằng 5 cử chỉ **1 tay** (OK sign, peace, thumbs up, rock on, call) — không có gesture 2 tay nào cho hiệu ứng chụp ảnh nữa. Nếu sau này thêm lại kiểu cử chỉ ghép hình, viết lại mục này từ đầu thay vì khôi phục nguyên văn, vì `EffectRepository.kt`/`GestureRecognizer.kt` đã đổi cấu trúc nhiều lần từ lúc mục cũ được viết.
+> **Mục I.6 (cũ) đã xoá** — checklist trước đây có một mục kiểm tra cử chỉ 2 tay "ghép hình chữ L thành khung máy ảnh", nhưng gesture đó không còn tồn tại trong `Gestures` (chỉ còn `twoHandsHeart`, `twoHandsCrossedFingers`, `bothHandsPalmOpen`, `bothHandsFist` ở nhóm 2 tay). `camera_shutter` (effect dùng 5 cử chỉ 1 tay: OK sign, peace, thumbs up, rock on, call) đã bị xoá hoàn toàn ở đợt thay 10 hiệu ứng thật — 5 cử chỉ đó nay "mồ côi", test theo cách tạm ở mục I.10. Nếu sau này thêm lại kiểu cử chỉ ghép hình, viết lại mục này từ đầu thay vì khôi phục nguyên văn, vì `EffectRepository.kt`/`GestureRecognizer.kt` đã đổi cấu trúc nhiều lần từ lúc mục cũ được viết.
 
 ### I.7. Log dọn dẹp
 
@@ -249,8 +249,8 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| I20 | Chỉ ngón trỏ (☝️) trên effect dùng `singleHandFist` (vd `black_background_with_monster` — không dùng `canvas_draw` vì chỉ tay chính là state `stroke` của nó) | KHÔNG bị nhận nhầm là nắm tay |
-| I21 | Ba ngón (trỏ+giữa+áp út duỗi) trên effect dùng `singleHandPalmOpen` (vd `black_background_with_monster`) | KHÔNG bị nhận nhầm là xòe tay |
+| I20 | Chỉ ngón trỏ (☝️) trên effect dùng `singleHandFist` (vd `monster` — không dùng `canvas_draw` vì chỉ tay chính là state `stroke` của nó) | KHÔNG bị nhận nhầm là nắm tay |
+| I21 | Ba ngón (trỏ+giữa+áp út duỗi) trên effect dùng `singleHandPalmOpen` (vd `monster`) | KHÔNG bị nhận nhầm là xòe tay |
 | I22 | Nắm tay thật (cả 5 ngón kể cả ngón cái gập) | Vẫn kích hoạt đúng `singleHandFist` — xác nhận không bị thắt quá chặt tới mức không trigger được |
 | I23 | Xòe tay thật (cả 5 ngón kể cả ngón cái duỗi) | Vẫn kích hoạt đúng `singleHandPalmOpen` — nếu KHÓ trigger hơn hẳn trước đây (đặc biệt do ngón cái), xem ghi chú "công thức ngón cái chưa chặt hoàn toàn" ở `GestureUtils.kt`, cân nhắc nới ngưỡng riêng cho ngón cái thay vì quay lại kiểu đếm cũ |
 
@@ -261,6 +261,36 @@ git checkout main && git stash pop
 | I24 | Effect `canvas_draw`: đưa tay vào khung hình nhưng KHÔNG làm cử chỉ trỏ/nắm nào | Chỉ khung xương hiện, không nét vẽ, không tiếng — xác nhận state `idle_skeleton` (catch-all) hoạt động đúng vai trò mặc định |
 | I25 | Effect `canvas_draw`: chỉ ngón trỏ (state `stroke`) | Nét vẽ + khung xương cùng hiện — xác nhận state cụ thể vẫn được ưu tiên trước catch-all nhờ đúng thứ tự khai báo trong `states` |
 | I26 | Bất kỳ effect nào khác dùng `anyHandPresent`/gesture luôn-đúng tương tự làm catch-all trong tương lai | Đảm bảo state đó luôn được khai **cuối cùng** trong danh sách `states` — nếu đặt trước, nó sẽ che mất mọi cử chỉ khác |
+
+### I.10. Cử chỉ đang “mồ côi” — vẫn còn trong `Gestures` nhưng chưa effect nào dùng
+
+> Bối cảnh: sau đợt thay 4 hiệu ứng test cũ (`rock_on_ily`, `camera_shutter`,
+> `absolute_cinema_two_hand`, `heart_or_cross`) bằng 4 hiệu ứng thật (Cầu lửa, Vòng khiên, Tia
+> sét, Dragon Ball), 8 cử chỉ sau không còn `EffectState` nào gán tới nữa (xem docstring đầu
+> `EffectRepository.kt`): `singleHandOkSign`, `singleHandThumbsUp`, `singleHandCall`,
+> `singleHandRockOn`, `singleHandILoveYou`, `bothHandsFist`, `twoHandsHeart`,
+> `twoHandsCrossedFingers`. Công thức của chúng trong `GestureUtils.kt` **không đổi**, chỉ là
+> mất chỗ kích hoạt qua UI thật để quan sát — không thể test như các mục I khác (chọn 1
+> effect có sẵn rồi làm đúng cử chỉ).
+>
+> **Cách test tạm thời** (không commit thay đổi này): mở 1 file `effect/catalog/*.kt` của hiệu
+> ứng 1 tay bất kỳ (ví dụ `MagicShieldEffect.kt`), đổi tạm `gesture = Gestures.xxx` của 1
+> state sang đúng cử chỉ muốn test, build/cài lại, làm cử chỉ đó trên effect vừa sửa, quan
+> sát hiệu ứng có kích hoạt đúng không, rồi **`git checkout`** lại file đó trước khi chuyển
+> sang cử chỉ tiếp theo. Với 2 cử chỉ 2 tay (`bothHandsFist`, `twoHandsHeart`,
+> `twoHandsCrossedFingers`) đổi tạm trên 1 hiệu ứng đã khai `requiredNumHands = 2` (ví dụ
+> `BlackHoleEffect.kt`) để `HandLandmarkerProvider` khởi động đúng chế độ 2 tay.
+
+| # | Cử chỉ | Bước | Kỳ vọng |
+|---|---|---|---|
+| I27 | `singleHandOkSign` (👌) | Gán tạm vào 1 state 1 tay, làm dấu OK | Kích hoạt đúng; không nhầm với cử chỉ 3 ngón hoặc nắm tay (công thức dùng `thumbIndexPinchRatio`, khác `isThumbExtended` của các cử chỉ khác — xem `Code_Walkthrough.md` mục 2) |
+| I28 | `singleHandThumbsUp` (👍) | Tương tự | Kích hoạt đúng; thử thêm cử chỉ nắm tay thường (không giơ ngón cái) để xác nhận KHÔNG bị nhầm — công thức `isThumbExtended` được comment là chưa chặt, đây là cơ hội duy nhất để phát hiện sai từ lúc 2 hiệu ứng test cũ bị gỡ |
+| I29 | `singleHandCall` (🤙) | Tương tự | Kích hoạt đúng, phân biệt được với `singleHandRockOn` (I30) dù cả 2 đều giơ ngón cái + 1 ngón khác |
+| I30 | `singleHandRockOn` (🤘) | Tương tự | Kích hoạt đúng, phân biệt được với I29 |
+| I31 | `singleHandILoveYou` (🤟) | Tương tự | Kích hoạt đúng, không bị nhầm với `singleHandRockOn` (cả 2 gần giống, khác ở ngón cái) |
+| I32 | `bothHandsFist` (✊✊) | Gán tạm vào effect 2 tay, cả 2 tay cùng nắm | Kích hoạt đúng; chỉ 1 tay nắm tay kia xòe/vắng → KHÔNG kích hoạt (guạrd `hands.size >= 2 && hands.all { ... }` — xem I9) |
+| I33 | `twoHandsHeart` (🫂) | Tương tự, làm dấu tim 2 tay | Áp dụng đúng giới hạn đã biết ở I10–I12 (nghiêng tay có thể mất hiệu ứng, hình tam giác bằng ngón thẳng không được kích hoạt) |
+| I34 | `twoHandsCrossedFingers` (❌) | Tương tự, bắt chéo 2 ngón bất kỳ trong 4 cặp (trỏ/giữa/áp út/út) | Áp dụng đúng giới hạn đã biết ở I13–I15 (bắt chéo thật mới tính, chỉ để gần nhau thì không) |
 
 ---
 
@@ -296,7 +326,7 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| L1 | Chọn effect dùng `AnimatedGif` (`rock_on_ily`, `camera_shutter`, hay `black_background_with_monster`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
+| L1 | Chọn effect dùng `AnimatedGif` (`fire_ball`, `magic_shield`, hay `black_hole`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
 | L2 | Effect "Gojo": chạm 2 tay để trigger hoạt ảnh hợp nhất **trong lúc đang quay**, lặp lại vài lần | Hoạt ảnh phát trọn vẹn mỗi lần trong video, không bị đứng hình/giật ở khung đầu hoạt ảnh |
 | L3 | Bất kỳ effect `AnimatedGif` nào: quay 1 clip dài (~60s), đổi cử chỉ liên tục suốt clip | App không crash, không ANR — nếu crash log có `IllegalStateException`/liên quan `AnimatedImageDrawable`, đây là regression của đúng race đã sửa |
 

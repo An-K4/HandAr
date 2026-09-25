@@ -251,6 +251,18 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
                     frame.cy = frame.py(hands[0][9].y())
                 }
             }
+
+            AnchorSource.TwoWristMidpoint -> {
+                if (hands.size >= 2) {
+                    val normMidX = (hands[0][0].x() + hands[1][0].x()) / 2f
+                    val normMidY = (hands[0][0].y() + hands[1][0].y()) / 2f
+                    frame.cx = frame.px(normMidX)
+                    frame.cy = frame.py(normMidY)
+                } else {
+                    frame.cx = frame.px(hands[0][0].x())
+                    frame.cy = frame.py(hands[0][0].y())
+                }
+            }
         }
 
         val sizeSource =
