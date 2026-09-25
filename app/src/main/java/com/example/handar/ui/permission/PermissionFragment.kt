@@ -21,7 +21,7 @@ class PermissionFragment : Fragment() {
     private var _binding: FragmentPermissionBinding? = null
     private val binding get() = _binding!!
 
-    // Trên Android < 13 (TIRAMISU) không tồn tại quyền POST_NOTIFICATIONS,
+    // trên android < 13 không tồn tại quyền POST_NOTIFICATIONS,
     // thông báo mặc định được phép nên coi như luôn "granted".
     private val notificationPermissionApplicable =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -58,7 +58,7 @@ class PermissionFragment : Fragment() {
 
         binding.switchNotification.setOnClickListener {
             if (!notificationPermissionApplicable) {
-                // Không có gì để xin, luôn giữ bật.
+                // không có gì để xin, luôn giữ bật.
                 binding.switchNotification.isChecked = true
                 return@setOnClickListener
             }
@@ -76,7 +76,7 @@ class PermissionFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // User có thể vừa quay lại từ màn Cài đặt hệ thống sau khi tự cấp quyền thủ công.
+        // user có thể vừa quay lại từ màn cài đặt hệ thống sau khi tự cấp quyền thủ công.
         refreshSwitchStates()
     }
 
@@ -90,9 +90,9 @@ class PermissionFragment : Fragment() {
         ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED
 
     /**
-     * Switch chỉ phản ánh trạng thái quyền thật, không tự ý bật/tắt:
-     * - Đang tắt (chưa cấp) mà user bấm bật -> đi xin quyền, kết quả trả về mới quyết định trạng thái cuối.
-     * - Đang bật (đã cấp) mà user bấm tắt -> Android không cho app tự thu hồi quyền, trả switch về bật.
+     * switch chỉ phản ánh trạng thái quyền thật, không tự ý bật/tắt:
+     * - đang tắt (chưa cấp) mà user bấm bật -> đi xin quyền, kết quả trả về mới quyết định trạng thái cuối.
+     * - đang bật (đã cấp) mà user bấm tắt -> Android không cho app tự thu hồi quyền, trả switch về bật.
      */
     private fun handleSwitchClicked(
         switch: SwitchMaterial,

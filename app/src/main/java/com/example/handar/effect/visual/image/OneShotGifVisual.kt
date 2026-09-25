@@ -7,11 +7,11 @@ import com.example.handar.effect.visual.EffectVisual
 import com.example.handar.effect.visual.HandFrame
 
 /**
- * Ảnh động chạy đúng 1 lần mỗi lần state được kích hoạt, chạy xong thì KHÔNG vẽ gì nữa.
+ * ảnh động chạy đúng 1 lần mỗi lần state được kích hoạt, chạy xong thì không vẽ gì nữa.
  *
- * Khác `EffectAsset.AnimatedGif(oneShot = true)` dùng trực tiếp: AnimatedGifVisual dừng ở khung cuối
+ * khác `EffectAsset.AnimatedGif(oneShot = true)` dùng trực tiếp: AnimatedGifVisual dừng ở khung cuối
  * và vẫn vẽ khung đó cho tới khi state tắt. Wrapper này dùng cho hiệu ứng "bùng ra rồi biến mất"
- * (vd sóng âm của Quái vật) — muốn giữ khung cuối thì dùng AnimatedGif oneShot thẳng.
+ * muốn giữ khung cuối thì dùng AnimatedGif oneShot thẳng.
  */
 class OneShotGifVisual(context: Context, resId: Int) : EffectVisual {
     private val gif = AnimatedGifVisual(context, EffectAsset.AnimatedGif(resId, oneShot = true))

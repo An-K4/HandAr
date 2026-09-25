@@ -129,9 +129,7 @@ object Gestures {
         hands.size >= 2 && hands.all { isFist(it, it[0]) }
     }
 
-    /** ❤️ 2 cổ tay chụm sát nhau + cả 2 tay đang xòe — dùng cho hiệu ứng "Dragon Ball" state kamehameha.
-     *  Ngưỡng WRIST_TOGETHER_RATIO_THRESHOLD chỉ chốt được khi chạy thật trên tay người dùng — cần
-     *  chỉnh lại sau khi test (nới ra nếu quá khó chụm đủ, siết lại nếu dễ nhầm với bothHandsPalmOpen). */
+    /** cử chỉ vận chiêu Kamehameha trong Dragon Ball */
     val twoHandsWristsTogetherOpen = GestureRecognizer { hands ->
         if (hands.size < 2) return@GestureRecognizer false
         val handA = hands[0]

@@ -8,15 +8,6 @@ import com.example.handar.effect.visual.EffectVisual
 import com.example.handar.effect.visual.HandFrame
 import com.example.handar.effect.visual.image.AnimatedGifVisual
 
-/**
- * State "nắm tay" của Vòng khiên: vòng khiên (`magic_shield`, cùng asset với state xòe tay) thu nhỏ
- * dần trong HIDE_DURATION_MS rồi biến mất hẳn — dựng bằng code (scale theo thời gian), không cần
- * asset riêng cho lúc thu nhỏ.
- *
- * `activatedAtMs` chỉ được set 1 lần khi cạnh lên (bắt đầu nắm tay), y hệt cơ chế
- * `ProceduralVisual.activateAtMs` nhưng viết tay ở đây vì còn cần tự quản lý vòng đời của
- * `AnimatedGifVisual` con (ProceduralVisual không có hook để làm việc đó — xem OneShotGifVisual).
- */
 class ShieldHideVisual(context: Context, resId: Int) : EffectVisual {
     private val gif = AnimatedGifVisual(context, EffectAsset.AnimatedGif(resId, oneShot = false))
 

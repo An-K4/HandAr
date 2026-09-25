@@ -21,23 +21,6 @@ import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import kotlin.math.atan2
 import kotlin.math.min
 
-/**
- * Vẽ 1 tia sét ở đầu MỖI ngón đang duỗi (trừ ngón cái), xoay theo hướng ngón đó.
- *
- * Chỉ decode `lightning_bolt` (webp động, lặp) MỘT LẦN rồi render vào 1 buffer bitmap dùng chung —
- * mọi tia sét trên màn hình cùng chia sẻ animation timing (đồng bộ, không lệch pha), khác với việc
- * tạo nhiều `AnimatedGifVisual` riêng (mỗi cái tự chạy animation độc lập, tốn CPU decode hơn).
- * `AnimatedGifVisual` có sẵn không dùng được trực tiếp ở đây vì nó chỉ vẽ 1 bản duy nhất theo đúng
- * `frame.cx/cy/r`, không hỗ trợ xoay hay vẽ nhiều bản với vị trí/góc khác nhau trong cùng 1 frame.
- *
- * Quy ước ảnh nguồn (xem Design_App_HandAr.md mục 5.2): tia sét dọc, chân ở giữa cạnh dưới của
- * canvas vuông, mũi hướng lên trên — nên pivot khi xoay/đặt vị trí là điểm giữa cạnh dưới, không
- * phải tâm ảnh.
- *
- * ⚠️ Góc xoay `angleDeg` là suy luận hình học chưa test trên máy thật (không chạy được app từ đây) —
- * nếu lúc test thấy tia sét lệch hướng theo kiểu nhất quán (vd luôn ngược 180° hoặc bị lật gương),
- * chỉnh lại công thức trong `computeAngleDeg()`, đây là chỗ duy nhất cần sửa.
- */
 class LightningVisual(context: Context) : EffectVisual {
     companion object {
         private const val BUFFER_SIZE = 256

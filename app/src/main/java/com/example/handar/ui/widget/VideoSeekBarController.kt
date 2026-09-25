@@ -12,19 +12,18 @@ import androidx.media3.exoplayer.SeekParameters
 import com.example.handar.utils.formatDuration
 
 /**
- * Đồng bộ 1 SeekBar + 2 nhãn thời gian (vị trí/tổng thời lượng) với 1 ExoPlayer. Tách ra từ
+ * đồng bộ 1 SeekBar + 2 nhãn thời gian (vị trí/tổng thời lượng) với 1 ExoPlayer. tách ra từ
  * RecordedPreviewFragment (setupPlayer()/setupSeekBar() cũ) để dùng lại ở trạng thái toàn màn hình
- * của ShareFragment. KHÔNG sở hữu player — không tạo, không release nó, chỉ gắn/gỡ listener.
+ * của ShareFragment. không sở hữu player — không tạo, không release nó, chỉ gắn/gỡ listener.
  *
- * Hành vi giữ nguyên bản gốc ở RecordedPreviewFragment:
+ * hành vi giữ nguyên bản gốc ở RecordedPreviewFragment:
  * - không kéo tay: 200ms/lần đồng bộ progress + nhãn vị trí theo player.currentPosition.
  * - bắt đầu kéo tay: chuyển sang SeekParameters.CLOSEST_SYNC (seek liên tục mượt hơn EXACT, chấp
  *   nhận lệch vài chục ms) + tắt tiếng, tránh dồn hàng đợi decode gây giật.
  * - thả tay: seek lại đúng khung bằng SeekParameters.EXACT rồi trả âm lượng về bình thường.
  *
- * Gọi [start] một lần sau khi player đã setMediaItem/prepare; gọi [release] ở onDestroyView,
- * TRƯỚC khi tự release player, để không còn callback nào chạy sau khi view đã huỷ.
- * Đã đọc và giữ lại comment này.
+ * gọi [start] một lần sau khi player đã setMediaItem/prepare; gọi [release] ở onDestroyView,
+ * trước khi tự release player, để không còn callback nào chạy sau khi view đã huỷ.
  */
 @OptIn(UnstableApi::class)
 class VideoSeekBarController(

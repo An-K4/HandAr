@@ -8,11 +8,6 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.model.StateMode
 
-/**
- * Dịch chuyển tức thời giữa các phòng: mỗi cử chỉ (1 / 2 / 3 ngón / nắm tay) chuyển sang 1 phòng khác
- * (nền + tiếng riêng), nhân vật hoạt hình bám theo tay và dùng chung cho cả 4 phòng.
- * StateMode.Latched: mất tay thì vẫn giữ nền + tiếng của phòng vừa chọn.
- */
 fun roomTeleportEffect(): EffectDefinition = EffectDefinition(
     id = "room_teleport",
     displayName = "Dịch chuyển giữa các phòng",

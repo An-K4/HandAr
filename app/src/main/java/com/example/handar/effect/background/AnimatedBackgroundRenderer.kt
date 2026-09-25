@@ -24,7 +24,7 @@ class AnimatedBackgroundRenderer(context: Context, resId: Int) : BackgroundRende
             0,
             intrinsicWidth,
             intrinsicHeight
-        )   // đúng kích thước gốc — KHÔNG cần scale ở bước này
+        )   // đúng kích thước gốc — không cần scale ở bước này
     }
 
     private val buffer: Bitmap = createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight)

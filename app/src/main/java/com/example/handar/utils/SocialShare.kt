@@ -20,10 +20,10 @@ enum class SocialTarget(val packageCandidates: List<String>, val playStorePackag
 }
 
 /**
- * App đích có cài thì mở app đó kèm sẵn [videoFile] (qua FileProvider, dùng lại đúng authority
+ * app đích có cài thì mở app đó kèm sẵn [videoFile] (qua FileProvider, dùng lại đúng authority
  * đã cấu hình cho màn share); không có app nào trong [SocialTarget.packageCandidates] được
- * cài, hoặc app từ chối nhận Intent (ActivityNotFoundException — ví dụ bản rút gọn không có màn
- * nhận share), đều rơi về mở trang app đó trên Play Store.
+ * cài, hoặc app từ chối nhận intent (ActivityNotFoundException — ví dụ bản rút gọn không có màn
+ * nhận share), đều rơi về mở trang app đó trên chplay.
  */
 fun shareVideoToSocialApp(
     context: Context,

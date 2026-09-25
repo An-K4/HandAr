@@ -8,11 +8,6 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.visual.canvas.magicshield.ShieldHideVisual
 
-/**
- * Vòng khiên năng lượng: xòe tay → khiên hiện (loop); nắm tay → khiên thu nhỏ dần rồi biến mất
- * (ShieldHideVisual, dựng bằng code, dùng chung asset với state xòe tay).
- * Không có tiếng riêng cho từng state, chỉ có nhạc nền.
- */
 fun magicShieldEffect(): EffectDefinition = EffectDefinition(
     id = "magic_shield",
     displayName = "Vòng khiên năng lượng",

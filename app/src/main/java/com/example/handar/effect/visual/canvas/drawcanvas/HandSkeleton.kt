@@ -15,11 +15,11 @@ private val HAND_CONNECTIONS = listOf(
 )
 
 /**
- * Vẽ khung xương bàn tay.
+ * vẽ khung xương bàn tay.
  *
- * Mỗi `EffectVisual` giữ **một instance riêng** — hai bản live/recording không được dùng chung
- * `Paint` (luật M6 #3 trong `HandAr_Plan.md`). Gom vào một lớp để ba hiệu ứng đang vẽ khung
- * xương không mỗi nơi khai một bộ màu — trước khi gom, `SkeletonOnlyVisual` dùng
+ * mỗi EffectVisual giữ một instance riêng — hai bản live/recording không được dùng chung
+ * paint. gom vào một lớp để ba hiệu ứng đang vẽ khung
+ * xương không mỗi nơi khai một bộ màu — trước khi gom, SkeletonOnlyVisual dùng
  * `argb(225, 225, 225, 0)` còn hai chỗ kia dùng `argb(255, 255, 255, 0)`, nên khung xương
  * đổi màu mỗi lần đổi trạng thái.
  */
@@ -34,7 +34,7 @@ class HandSkeletonRenderer {
     }
 
     fun draw(canvas: Canvas, frame: HandFrame) {
-        // Kích thước suy từ bề ngang canvas, KHÔNG dùng số pixel cố định: canvas ghi hình
+        // Kích thước suy từ bề ngang canvas, không dùng số pixel cố định: canvas ghi hình
         // (~720) hẹp hơn view live (~1080), nét cố định sẽ dày hơn khoảng 1,5 lần trong video.
         linePaint.strokeWidth = canvas.width * LINE_WIDTH_RATIO
         val dotRadius = canvas.width * DOT_RADIUS_RATIO

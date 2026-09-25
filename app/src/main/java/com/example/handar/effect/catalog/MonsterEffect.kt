@@ -9,10 +9,6 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.visual.image.OneShotGifVisual
 
-/**
- * Quái vật: xòe tay → quái vật hiện theo tay; nắm tay → quái vật biến mất, sóng âm lan ra 1 lần.
- * Không có tiếng riêng cho từng state, chỉ có nhạc nền (bgm) chạy suốt.
- */
 fun monsterEffect(): EffectDefinition = EffectDefinition(
     id = "monster",
     displayName = "Quái vật",

@@ -31,7 +31,7 @@ class EffectPreviewFragment : Fragment() {
     private lateinit var effect: EffectDefinition
 
     // giữ riêng để start/stop theo vòng đời (onStart/onStop). AnimatedImageDrawable giữ callback về ImageView
-    // nên PHẢI null hoá ở onDestroyView, nếu không sẽ giữ cả cây view.
+    // nên phải null hoá ở onDestroyView, nếu không sẽ giữ cả cây view.
     private var previewDrawable: AnimatedImageDrawable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {

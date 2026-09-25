@@ -15,7 +15,7 @@ import com.example.handar.utils.applySystemBarsInsetsMargin
 import com.example.handar.utils.applySystemBarsInsetsPadding
 
 /**
- * màn Cài đặt hiện tại chỉ item language có logic điều hướng (sang language fragment);
+ * màn hiện tại chỉ item language có logic điều hướng (sang language fragment);
  * các item còn lại mới chỉ đổ ui, chưa gắn logic — sẽ bổ sung sau.
  */
 class SettingsFragment : Fragment() {

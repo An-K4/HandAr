@@ -7,10 +7,6 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.visual.canvas.fireball.FireBallBurstVisual
 
-/**
- * Cầu lửa: nắm tay → lửa nhỏ (loop); xòe tay → bùng lên to (burst 1 lần rồi chuyển sang loop to),
- * xem FireBallBurstVisual.
- */
 fun fireBallEffect(): EffectDefinition = EffectDefinition(
     id = "fire_ball",
     displayName = "Cầu lửa",

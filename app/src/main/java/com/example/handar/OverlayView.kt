@@ -128,7 +128,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     }
 
     /**
-     * Nhận diện cử chỉ chạy đúng MỘT lần cho mỗi kết quả MediaPipe, ở đây.
+     * nhận diện cử chỉ chạy đúng 1 lần cho mỗi kết quả MediaPipe, ở đây.
      * `onDraw` (live) và thread ghi hình chỉ đọc lại kết quả này — không tự nhận diện lại:
      * vừa đỡ ~55 lần nhận diện thừa mỗi giây, vừa bỏ được chuyện hai thread cùng ghi `latchedIndex`.
      */

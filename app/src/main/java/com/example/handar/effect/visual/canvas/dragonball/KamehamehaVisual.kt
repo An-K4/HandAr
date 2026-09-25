@@ -16,19 +16,6 @@ import com.example.handar.effect.visual.EffectVisual
 import com.example.handar.effect.visual.HandFrame
 import kotlin.math.min
 
-/**
- * State kamehameha của Dragon Ball: dùng lại đúng asset `dragon_ball_energy` (cùng file với state
- * 1 tay), nhưng vẽ TO HƠN và xoáy nhanh hơn — asset phải là quả cầu xoáy đối xứng (xem
- * Design_App_HandAr.md mục 5.2) để phép xoay thêm này không lộ ra là "dán chồng ảnh xoay lệch".
- *
- * "To hơn": nhân thêm SIZE_MULTIPLIER lên `frame.r` (mặc định vẫn là PalmRadius trung bình 2 tay —
- * không dùng TwoHandDistance vì lúc 2 cổ tay chụm sát nhau khoảng cách đó gần bằng 0, xem ghi chú
- * trong DragonBallEffect.kt).
- * "Xoáy nhanh hơn": animation gốc của webp đã tự xoay ở tốc độ riêng, thêm 1 lớp xoay CODE-DRIVEN
- * đè lên trên (SPIN_DEGREES_PER_SEC) để tăng cảm giác xoáy so với state 1 tay (không có lớp xoay
- * thêm này) — cùng kỹ thuật buffer-render với LightningVisual vì cần Matrix tự do (rotate + scale),
- * AnimatedGifVisual có sẵn không hỗ trợ xoay.
- */
 class KamehamehaVisual(context: Context) : EffectVisual {
     companion object {
         private const val BUFFER_SIZE = 256

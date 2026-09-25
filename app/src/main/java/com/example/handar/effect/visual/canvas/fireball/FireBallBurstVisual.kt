@@ -8,15 +8,6 @@ import com.example.handar.effect.visual.EffectVisual
 import com.example.handar.effect.visual.HandFrame
 import com.example.handar.effect.visual.image.AnimatedGifVisual
 
-/**
- * State "xòe tay" của Cầu lửa: phát `fire_ball_burst` (chạy 1 lần, lửa nhỏ bùng lên to) rồi CHUYỂN
- * SANG `fire_ball_big` (lặp vô hạn) và giữ nguyên cho tới khi state tắt.
- *
- * Composition theo đúng mẫu GojoVisual (mục 3.7 Code_Walkthrough.md): chứa 2 AnimatedGifVisual con,
- * tự quyết định con nào đang được vẽ dựa vào `burst.hasFinishedPlaying()`. `wasActive` chỉ dùng để
- * phát hiện cạnh lên (bắt đầu xòe tay) — mỗi lần xòe lại là 1 lượt "bùng lên" mới, không phát burst
- * lặp lại liên tục trong lúc tay vẫn đang xòe (setActive(true) bị OverlayView gọi lại mỗi frame).
- */
 class FireBallBurstVisual(context: Context) : EffectVisual {
     private val burst =
         AnimatedGifVisual(context, EffectAsset.AnimatedGif(R.drawable.fire_ball_burst, oneShot = true))
