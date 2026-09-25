@@ -14,8 +14,12 @@ import com.example.handar.utils.applySystemBarsInsetsPadding
 class Survey2Fragment : Fragment() {
 
     companion object {
-        // TẠM: chưa có ảnh riêng cho từng đáp án, dùng chung 1 ảnh có sẵn để dựng ui
-        private val DEMO_ANSWER_THUMBNAIL_RES = R.drawable.fire_ball_thumbnail
+        private val ANSWERS = listOf(
+            R.drawable.room_teleport_thumbnail to R.string.survey_2_answer_1,
+            R.drawable.black_hole_thumbnail to R.string.survey_2_answer_2,
+            R.drawable.gojo_thumbnail to R.string.survey_2_answer_3,
+            R.drawable.monster_thumbnail to R.string.survey_2_answer_4
+        )
     }
 
     private var _binding: FragmentSurvey2Binding? = null
@@ -37,10 +41,6 @@ class Survey2Fragment : Fragment() {
 
         bindAnswers()
 
-        binding.textSurveySkip.setOnClickListener {
-            findNavController().navigate(R.id.action_survey2_to_permission)
-        }
-
         binding.btnSurveyFinish.setOnClickListener {
             findNavController().navigate(R.id.action_survey2_to_permission)
         }
@@ -55,8 +55,9 @@ class Survey2Fragment : Fragment() {
         )
 
         rows.forEachIndexed { index, row ->
-            row.iconAnswerThumbnail.setImageResource(DEMO_ANSWER_THUMBNAIL_RES)
-            row.textAnswerName.text = getString(R.string.survey_answer_placeholder, index + 1)
+            val (iconRes, textRes) = ANSWERS[index]
+            row.iconAnswerThumbnail.setImageResource(iconRes)
+            row.textAnswerName.text = getString(textRes)
             setRowSelected(row, index == selectedIndex)
 
             row.root.setOnClickListener {

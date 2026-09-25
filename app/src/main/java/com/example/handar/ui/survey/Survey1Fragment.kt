@@ -14,8 +14,12 @@ import com.example.handar.utils.applySystemBarsInsetsPadding
 class Survey1Fragment : Fragment() {
 
     companion object {
-        // TẠM: chưa có ảnh riêng cho từng đáp án, dùng chung 1 ảnh có sẵn để dựng ui
-        private val DEMO_ANSWER_THUMBNAIL_RES = R.drawable.fire_ball_thumbnail
+        private val ANSWERS = listOf(
+            R.drawable.ic_tiktok to R.string.survey_1_answer_1,
+            R.drawable.friend to R.string.survey_1_answer_2,
+            R.drawable.canvas_draw_thumbnail to R.string.survey_1_answer_3,
+            R.drawable.question_mark to R.string.survey_1_answer_4
+        )
     }
 
     private var _binding: FragmentSurvey1Binding? = null
@@ -55,8 +59,9 @@ class Survey1Fragment : Fragment() {
         )
 
         rows.forEachIndexed { index, row ->
-            row.iconAnswerThumbnail.setImageResource(DEMO_ANSWER_THUMBNAIL_RES)
-            row.textAnswerName.text = getString(R.string.survey_answer_placeholder, index + 1)
+            val (iconRes, textRes) = ANSWERS[index]
+            row.iconAnswerThumbnail.setImageResource(iconRes)
+            row.textAnswerName.text = getString(textRes)
             setRowSelected(row, index == selectedIndex)
 
             row.root.setOnClickListener {

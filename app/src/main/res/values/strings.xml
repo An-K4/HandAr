@@ -79,13 +79,19 @@
     <string name="onboarding_3_title">Ready to cast?</string>
     <string name="onboarding_3_subtitle">Choose an effect and bring your magic to life</string>
 
-    <!-- TẠM: nội dung khảo sát 2 bước đang là placeholder, chưa có câu hỏi/đáp án thật -->
     <string name="survey_step_1">Step 1 of 2</string>
     <string name="survey_step_2">Step 2 of 2</string>
-    <string name="survey_1_question">Question ???</string>
-    <string name="survey_2_question">Question ???</string>
+    <string name="survey_1_question">What do you want to create?</string>
+    <string name="survey_1_answer_1">TikTok clips</string>
+    <string name="survey_1_answer_2">Unique effects with friends</string>
+    <string name="survey_1_answer_3">Something creative</string>
+    <string name="survey_1_answer_4">Something else</string>
+    <string name="survey_2_question">Which type of effect excites you?</string>
+    <string name="survey_2_answer_1">Instant teleport</string>
+    <string name="survey_2_answer_2">Zoom in / out</string>
+    <string name="survey_2_answer_3">Magic</string>
+    <string name="survey_2_answer_4">Appear / disappear</string>
     <string name="survey_choose_answer">Choose an answer…</string>
-    <string name="survey_answer_placeholder">Answer %1$d</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt</string>
 

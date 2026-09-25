@@ -79,13 +79,19 @@
     <string name="onboarding_3_title">Sẵn sàng thi triển?</string>
     <string name="onboarding_3_subtitle">Chọn một hiệu ứng và thổi phép thuật vào đời thực</string>
 
-    <!-- TẠM: nội dung khảo sát 2 bước đang là placeholder, chưa có câu hỏi/đáp án thật -->
     <string name="survey_step_1">Bước 1/2</string>
     <string name="survey_step_2">Bước 2/2</string>
-    <string name="survey_1_question">Câu hỏi ???</string>
-    <string name="survey_2_question">Câu hỏi ???</string>
+    <string name="survey_1_question">Bạn muốn tạo gì?</string>
+    <string name="survey_1_answer_1">Các clip TikTok</string>
+    <string name="survey_1_answer_2">Những hiệu ứng độc đáo cùng bạn bè</string>
+    <string name="survey_1_answer_3">Một điều gì đó sáng tạo</string>
+    <string name="survey_1_answer_4">Khác</string>
+    <string name="survey_2_question">Bạn có hứng thú với dạng hiệu ứng nào?</string>
+    <string name="survey_2_answer_1">Dịch chuyển tức thời</string>
+    <string name="survey_2_answer_2">Phóng to / thu nhỏ</string>
+    <string name="survey_2_answer_3">Phép thuật</string>
+    <string name="survey_2_answer_4">Xuất hiện / biến mất</string>
     <string name="survey_choose_answer">Chọn đáp án…</string>
-    <string name="survey_answer_placeholder">Đáp án %1$d</string>
     <string name="language_name_english">English</string>
     <string name="language_name_vietnamese">Tiếng Việt</string>
 
