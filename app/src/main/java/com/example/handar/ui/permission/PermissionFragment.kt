@@ -10,11 +10,14 @@ import android.view.ViewGroup
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.handar.R
 import com.example.handar.databinding.FragmentPermissionBinding
+import com.example.handar.ui.widget.PermissionDeniedDialog
 import com.example.handar.utils.applySystemBarsInsetsPadding
+import com.example.handar.utils.openAppSettings
 import com.google.android.material.switchmaterial.SwitchMaterial
 
 class PermissionFragment : Fragment() {
@@ -26,13 +29,21 @@ class PermissionFragment : Fragment() {
     private val notificationPermissionApplicable =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
+    private var permissionDeniedDialog: PermissionDeniedDialog? = null
+
     private val requestCameraPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> binding.switchCamera.isChecked = granted }
+    ) { granted ->
+        binding.switchCamera.isChecked = granted
+        if (!granted) handleDenial(Manifest.permission.CAMERA)
+    }
 
     private val requestNotificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> binding.switchNotification.isChecked = granted }
+    ) { granted ->
+        binding.switchNotification.isChecked = granted
+        if (!granted) handleDenial(Manifest.permission.POST_NOTIFICATIONS)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -45,6 +56,9 @@ class PermissionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.root.applySystemBarsInsetsPadding()
+
+        // android < 13: không có quyền để xin, hiện switch chỉ gây hiểu nhầm nên ẩn cả card.
+        binding.cardPermissionNotification.isVisible = notificationPermissionApplicable
 
         refreshSwitchStates()
 
@@ -106,8 +120,39 @@ class PermissionFragment : Fragment() {
         }
     }
 
+    /**
+     * Từ chối kèm "Don't ask again": hệ thống nuốt luôn các lần xin sau, bấm switch sẽ không có
+     * phản hồi gì -> phải chỉ đường sang màn cài đặt quyền của app.
+     * Từ chối thường thì để nguyên, user bấm switch lần nữa là xin lại được.
+     */
+    private fun handleDenial(permission: String) {
+        if (shouldShowRequestPermissionRationale(permission)) return
+        showPermissionDeniedDialog(permission)
+    }
+
+    private fun showPermissionDeniedDialog(permission: String) {
+        val ctx = context ?: return
+        if (permissionDeniedDialog?.isShowing == true) return
+
+        val message = when (permission) {
+            Manifest.permission.POST_NOTIFICATIONS -> getString(R.string.denied_notification_permission_message)
+            else -> getString(R.string.denied_permission_message)
+        }
+
+        permissionDeniedDialog = PermissionDeniedDialog(
+            context = ctx,
+            message = message,
+            // màn này là bước onboarding, không có gì để thoát ra: chỉ đóng dialog và ở lại.
+            negativeText = getString(R.string.close),
+            onExit = {},
+            onOpenSettings = { ctx.openAppSettings() },
+        ).also { it.show() }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        permissionDeniedDialog?.dismiss()
+        permissionDeniedDialog = null
         _binding = null
     }
 }

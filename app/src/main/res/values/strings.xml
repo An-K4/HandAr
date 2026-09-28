@@ -9,8 +9,11 @@
     <string name="preview">Preview</string>
     <string name="exit_without_save_message">Do you really want to exit?\nYour video will not be saved</string>
     <string name="permission_denied">Permission denied</string>
-    <string name="denied_permission_message">This feature can\'t work without the required permission.
-        Please go to Settings → Magic Hand → allow Camera permission to keep using it.
+    <string name="denied_permission_message">This feature can\'t work without the camera permission.
+        Open Settings and allow Camera to keep using it.
+    </string>
+    <string name="denied_notification_permission_message">Notifications are turned off for Magic Hand.
+        Open Settings and allow Notifications to keep getting updates.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Couldn\'t play video</string>

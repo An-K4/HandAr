@@ -93,6 +93,7 @@
         android:paddingHorizontal="16dp"
         android:paddingVertical="14dp"
         app:layout_constraintBottom_toTopOf="@id/card_permission_notification"
+        app:layout_goneMarginBottom="32dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 

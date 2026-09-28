@@ -37,12 +37,13 @@ import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.effect.model.StateMode
 import com.example.handar.recording.VideoRecorder
+import com.example.handar.ui.widget.PermissionDeniedDialog
 import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.applySystemBarsInsetsMargin
+import com.example.handar.utils.openAppSettings
 import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.logRecordingStats
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
@@ -109,6 +110,11 @@ class CameraRecordFragment : Fragment() {
     private var bgmPlayer: BgmPlayer? = null
     private var bgmPcm: ShortArray? = null
 
+    private var permissionDeniedDialog: PermissionDeniedDialog? = null
+
+    // người dùng vừa được đẩy sang màn cài đặt quyền: khi quay lại app phải kiểm tra quyền lần nữa.
+    private var awaitingSettingsResult = false
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permission ->
@@ -123,11 +129,7 @@ class CameraRecordFragment : Fragment() {
                 Toast.makeText(ctx, getString(R.string.camera_permission_denied), Toast.LENGTH_SHORT).show()
                 findNavController().popBackStack()
             } else {
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(getString(R.string.permission_denied))
-                    .setMessage(getString(R.string.denied_permission_message))
-                    .setPositiveButton(getString(R.string.ok)) { _, _ -> findNavController().popBackStack() }
-                    .show()
+                showPermissionDeniedDialog()
             }
         }
     }
@@ -210,6 +212,17 @@ class CameraRecordFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (videoRecorder?.isRecording != true) bgmPlayer?.startFromBeginning()
+
+        // quay lại từ màn cài đặt quyền: bật được thì chạy tiếp, không thì thoát màn.
+        if (awaitingSettingsResult) {
+            awaitingSettingsResult = false
+            if (hasCameraPermission()) {
+                setupMediaPipe()
+                startCamera()
+            } else {
+                findNavController().popBackStack()
+            }
+        }
     }
 
     override fun onPause() {
@@ -219,6 +232,8 @@ class CameraRecordFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        permissionDeniedDialog?.dismiss()
+        permissionDeniedDialog = null
         stopRecordingTimerUI()
         val recorder = videoRecorder
         videoRecorder = null
@@ -310,6 +325,25 @@ class CameraRecordFragment : Fragment() {
         } else {
             requestPermissionLauncher.launch(notGrantedPermissions.toTypedArray())
         }
+    }
+
+    private fun hasCameraPermission(): Boolean = ContextCompat.checkSelfPermission(
+        requireContext(),
+        Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+
+    private fun showPermissionDeniedDialog() {
+        val ctx = context ?: return
+        if (permissionDeniedDialog?.isShowing == true) return
+
+        permissionDeniedDialog = PermissionDeniedDialog(
+            context = ctx,
+            onExit = { findNavController().popBackStack() },
+            onOpenSettings = {
+                awaitingSettingsResult = true
+                ctx.openAppSettings()
+            },
+        ).also { it.show() }
     }
 
     private fun setupMediaPipe() {
