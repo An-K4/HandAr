@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `0f63cfe`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `9fb0b06`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -102,7 +102,9 @@ effect/EffectRepository.kt
 effect/catalog/*.kt  (mỗi hiệu ứng "đặc biệt" nằm ở đây thay vì khai trực tiếp trong Repository)
     → effect/visual/canvas/gojo/*.kt       (GojoEffect.kt dùng)
     → effect/visual/canvas/drawcanvas/*.kt (CanvasDrawEffect.kt dùng)
-    → effect/model/AnchorSource.kt, SizeSource.kt (BlackHoleEffect.kt, EarthEffect.kt dùng)
+    → effect/model/AnchorSource.kt, SizeSource.kt (BlackHoleEffect.kt, EarthEffect.kt, DragonBallEffect.kt dùng)
+    → effect/visual/canvas/{fireball,magicshield,lightning,dragonball}/*.kt (FireBall/MagicShield/Lightning/DragonBallEffect.kt dùng, xem mục 3.8)
+    → effect/visual/image/OneShotGifVisual.kt (MonsterEffect.kt dùng)
 
 recording/VideoRecorder.kt          ★ file trung tâm thứ ba, "nhạc trưởng ghi hình"
     → recording/VideoEncoderWrapper.kt    (MediaCodec H.264 nhận Surface để vẽ lên)
@@ -171,7 +173,7 @@ xem `BgmPlayer` vs `AudioMixer` ở mục 7.2 và 8.3, đây là hai đường h
 
 Đây là 2 enum quyết định `HandFrame.cx/cy` (tâm vẽ) và `HandFrame.r` (kích thước) được tính thế nào
 trong `OverlayView.drawFrame()` (mục 5.4) — mặc định `PalmCenter`/`PalmRadius` phù hợp phần lớn
-hiệu ứng bám lòng bàn tay, còn 3 cặp còn lại phục vụ hiệu ứng đặc biệt:
+hiệu ứng bám lòng bàn tay, còn 4 cặp còn lại phục vụ hiệu ứng đặc biệt:
 
 | AnchorSource | Công thức tâm | SizeSource đi kèm thường dùng | Effect ví dụ |
 |---|---|---|---|
@@ -179,11 +181,11 @@ hiệu ứng bám lòng bàn tay, còn 3 cặp còn lại phục vụ hiệu ứ
 | `PinchMidpoint` | trung điểm ngón cái (4) + ngón trỏ (8) | `PinchDistance` | `EarthEffect.kt` — trái đất to nhỏ theo khoảng nhón tay |
 | `IndexFingertip` | đầu ngón trỏ (8) | (thường giữ `PalmRadius`) | `GojoEffect.kt` — quả cầu bám đầu ngón trỏ |
 | `TwoHandMidpoint` | trung điểm khớp giữa (9) của 2 tay | `TwoHandDistance` | `BlackHoleEffect.kt` — hố đen to theo khoảng cách 2 tay |
+| `TwoWristMidpoint` | trung điểm 2 cổ tay (landmark 0) | (mặc định `PalmRadius`) | `DragonBallEffect.kt` state kamehameha — "cổ tay chụm" mô tả đúng hành động hơn khớp giữa ngón giữa |
 
 Cả hai đều đọc trực tiếp từ `EffectState` **đang khớp** (`currentEffect.states.getOrNull(matchedIndex)`),
-nghĩa là **mỗi state trong cùng 1 effect có thể dùng anchor/size khác nhau** — hiện tại không effect
-nào trong `EffectRepository.all` tận dụng việc trộn nhiều anchor/size trong 1 effect, nhưng model
-đã hỗ trợ sẵn.
+nghĩa là **mỗi state trong cùng 1 effect có thể dùng anchor/size khác nhau** — ví dụ thật:
+`dragonBallEffect()` (state kamehameha neo `TwoWristMidpoint`, state charge dùng `PalmCenter` mặc định).
 
 ### 1.3 `StateMode` — Momentary vs Latched
 
@@ -195,8 +197,7 @@ Dùng trong `OverlayView.resolveMatchedIndex()` (mục 5.3):
   không khớp state nào → `matchedIndex = -1`, hiệu ứng biến mất.
 - **`Latched`**: một khi khớp 1 state, **giữ nguyên** state đó (`latchedIndex`) kể cả khi tay biến mất
   khỏi khung hình hay đổi sang cử chỉ không khớp gì — chỉ đổi khi khớp một cử chỉ khác. Dùng cho
-  `TestEffectBackgroundEffect.kt` (đổi nền) vì đổi nền liên tục theo từng frame lúc tay đang di
-  chuyển giữa 2 cử chỉ sẽ giật hình.
+  `RoomTeleportEffect.kt` (room_teleport, đổi nền + tiếng theo số ngón tay).
 
 ⚠️ **`StateMode` chỉ ảnh hưởng `OverlayView` (chọn vẽ gì)** — không ảnh hưởng
 `CameraRecordFragment.handleGesture()` (chọn phát tiếng gì). Hai nơi này nhận diện **độc lập** nhau,
@@ -204,19 +205,20 @@ xem mục 6.3 để hiểu vì sao và hậu quả khi sửa 1 bên mà quên b�
 
 ### 1.4 `EffectRepository.all` và `effect/catalog/`
 
-`EffectRepository.all` là 1 `List<EffectDefinition>` phẳng, lắp ráp từ 2 nguồn:
-1. **Khai trực tiếp trong file** — các effect đơn giản (`black_background_with_monster`, `rock_on_ily`, `absolute_cinema_two_hand`, `heart_or_cross`).
-2. **Gọi hàm factory từ `effect/catalog/*.kt`** — các effect phức tạp hơn (dùng `AnchorSource`/
-   `SizeSource` khác mặc định, dùng `Procedural`, hoặc nhiều state):
-   - `cameraShutterEffect()` — **5 state** (OK, peace, like, rock on, call), mỗi state 1 cử chỉ khác nhau nhưng cùng dùng chung 1 GIF + 1 tiếng chụp ảnh; `requiredNumHands = 2` dù cử chỉ là 1 tay
-   - `testEffectBackgroundEffect()` — dùng `StateMode.Latched` + mỗi state đổi 1 nền khác nhau
-   - `canvasDrawEffect()` — dùng `Procedural` + `EffectScope.shared()` (mục 3.3)
-   - `earthEffect()`, `blackHoleEffect()` — dùng `AnchorSource`/`SizeSource` khác mặc định
-   - `gojoEffect()` — dùng `Procedural` + composition (mục 3.7)
+`EffectRepository.all` là 1 `List<EffectDefinition>` phẳng gồm đủ 10 hiệu ứng, mỗi hiệu ứng là 1 hàm
+factory trong `effect/catalog/*.kt` (không còn effect nào khai trực tiếp trong `EffectRepository.kt`):
+`blackHoleEffect()`, `fireBallEffect()`, `magicShieldEffect()`, `lightningEffect()`, `dragonBallEffect()`,
+`gojoEffect()`, `monsterEffect()`, `roomTeleportEffect()`, `canvasDrawEffect()`, `earthEffect()`.
+Thứ tự trong list = thứ tự hiển thị ở màn danh sách. Cơ chế đáng chú ý:
+- `roomTeleportEffect()` — `StateMode.Latched` + mỗi state đổi 1 nền khác nhau
+- `canvasDrawEffect()` — `Procedural` + `EffectScope.shared()` (mục 3.3)
+- `earthEffect()`, `blackHoleEffect()` — `AnchorSource`/`SizeSource` khác mặc định
+- `gojoEffect()` — `Procedural` + composition (mục 3.7)
 
-`findById(id)` dùng `.first { it.id == id }` — **crash nếu không tìm thấy id**. An toàn trong thực tế
-vì `id` luôn đến từ chính `EffectRepository.all` qua Safe Args (`EffectListFragmentDirections
-.actionEffectListToEffectPreview(effect.id)`, rồi `EffectPreviewFragmentDirections.actionEffectPreviewToCameraRecord(effect.id)`), không có đường nào truyền `id` tuỳ ý vào.
+Tra cứu: `findById(id)` dùng `.first` nên **crash nếu không thấy id** (an toàn vì id luôn đến từ chính
+`EffectRepository.all` qua Safe Args); `findByIdOrNull(id)` trả null — dùng bởi `CameraRecordFragment`
+vì nút camera bottom nav truyền `effectId=""` (camera không effect, mục 6.1); `findByName(query)` cho
+ô search real-time.
 
 ---
 
@@ -263,7 +265,7 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
 | `singleHandPalmOpen` / `singleHandFist` | ✋ / ✊ tay đầu tiên trong `hands` | dùng `landmark[0]` (tay 0), không phải tay cụ thể trái/phải |
 | `singleHandPointing` | ☝️ chỉ trỏ, các ngón khác gập | |
 | `singleHandPeaceSign` | ✌️ | |
-| `singleHandThreeFingers` | 3 ngón trỏ+giữa+áp út | dùng cho `testEffectBackgroundEffect` |
+| `singleHandThreeFingers` | 3 ngón trỏ+giữa+áp út | dùng cho `roomTeleportEffect` |
 | `singleHandThumbsUp` | 👍 | |
 | `singleHandRockOn` | 🤘 | |
 | `singleHandCall` | 🤙 | |
@@ -272,6 +274,12 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
 | `bothHandsPalmOpen` / `bothHandsFist` | cần **cả 2** tay cùng cử chỉ | `hands.size >= 2 && hands.all { ... }` |
 | `twoHandsHeart` | 🫶 trái tim 2 tay | dùng `fingerCurlRatio`, ngưỡng khoảng cách chuẩn hoá theo `palmLength` trung bình 2 tay |
 | `twoHandsCrossedFingers` | ❌ | dùng `segmentsCross`, thử lần lượt 4 cặp ngón (trỏ/giữa/áp út/út), chỉ cần 1 cặp chéo là đủ |
+| `anyFingerExtendedNoThumb` | ≥ 1 trong 4 ngón trỏ/giữa/áp út/út đang duỗi, không tính ngón cái | `lightningEffect()` — mỗi ngón duỗi có 1 tia riêng nên không ép các ngón còn lại phải gập |
+| `twoHandsWristsTogetherOpen` | cả 2 tay xòe + 2 cổ tay chụm (khoảng cách cổ tay / `palmLength` trung bình < 0.6) | state kamehameha của `dragonBallEffect()`; ngưỡng là `WRIST_TOGETHER_RATIO_THRESHOLD` |
+
+8 cử chỉ (`singleHandOkSign`, `singleHandThumbsUp`, `singleHandCall`, `singleHandRockOn`, `singleHandILoveYou`,
+`bothHandsFist`, `twoHandsHeart`, `twoHandsCrossedFingers`) hiện là "mồ côi": còn nguyên trong `Gestures`
+nhưng không `EffectState` nào gán tới (4 effect test cũ dùng chúng đã bị gỡ ở `0f63cfe`).
 
 Quan trọng: **thứ tự khai báo `states` trong `EffectDefinition` là độ ưu tiên khi nhiều gesture cùng
 khớp** — cả `OverlayView.resolveMatchedIndex()` lẫn `CameraRecordFragment.handleGesture()` đều dùng
@@ -319,7 +327,7 @@ offsetX, offsetY)` **mỗi frame** trước khi giao cho visual vẽ — nghĩa 
 tự tính toạ độ pixel, chỉ gọi `frame.px()`/`frame.py()`** để đổi từ toạ độ chuẩn hoá MediaPipe sang
 pixel canvas đang vẽ (canvas live và canvas ghi hình có kích thước khác nhau, `HandFrame` che giấu
 sai khác này). Đây là lý do các `EffectVisual` (như `GojoVisual`, `StrokeVisual`) có thể dùng
-chung logic vẽ cho cả live lẫn recording mà không cần biết đang vẽ lên canvas nào.
+chung logic vẽ cho cả live lẫn recording mà không cần biết đang vẽ lên canvas nào. Có thêm overload `px(lm: NormalizedLandmark)` / `py(lm)` (gọi `lm.x()`/`lm.y()`), `LightningVisual` dùng để đổi thẳng landmark ra pixel.
 
 ### 3.3 `EffectScope` — chia sẻ state giữa các `EffectState` trong CÙNG 1 effect
 
@@ -414,6 +422,39 @@ khác**:
      nhập; phát xong rồi (`hasFinishedPlaying()`) thì vẽ quả cầu tím cố định thay thế. Nếu **không**
      touching → vẽ quả cầu xanh/đỏ riêng ở đầu ngón trỏ mỗi tay đang chỉ (`isPointing`), màu theo
      `frame.handedness` (trái=xanh, phải=đỏ).
+
+
+### 3.8 Hiệu ứng của 10 effect thật — `visual/canvas/{fireball,magicshield,lightning,dragonball}/` và `visual/image/OneShotGifVisual.kt`
+
+Tất cả implement `EffectVisual` trực tiếp (không kế thừa `ProceduralVisual`), được khai trong catalog qua
+`EffectAsset.Procedural(id) { ctx, _ -> ... }` — không dùng `EffectScope` (tham số scope bị bỏ qua bằng `_`).
+
+- **`OneShotGifVisual(context, resId)`** (`visual/image/`): bọc 1 `AnimatedGifVisual(oneShot = true)`, `setActive`/
+  `onHandFrame` ủy quyền thẳng, còn `draw()` chỉ vẽ khi `!hasFinishedPlaying()` — chạy xong thì **biến mất hẳn**.
+  Khác `EffectAsset.AnimatedGif(oneShot = true)` dùng trực tiếp (dừng ở khung cuối và vẫn vẽ khung đó cho tới khi
+  state tắt). Dùng ở `monsterEffect()` state `monster_disappear` (sóng âm lan toả khi nắm tay).
+- **`FireBallBurstVisual(context)`**: composition 2 `AnimatedGifVisual` con — `burst` (`fire_ball_burst`, oneShot) và
+  `big` (`fire_ball_big`, lặp). `setActive(true)` chỉ kích `burst` ở **cạnh lên** (`active && !wasActive`);
+  `setActive(false)` dừng cả 2. `draw()`: burst chưa xong thì vẽ burst, xong thì `big.setActive(true)`
+  (idempotent, chỉ `start()` nếu chưa chạy) rồi vẽ big. Dùng ở `fireBallEffect()` state `burst_to_big` (xòe tay);
+  state `small` (nắm tay) chỉ là `AnimatedGif` thường.
+- **`ShieldHideVisual(context, resId)`**: 1 `AnimatedGifVisual` lặp dùng **cùng asset lúc hiện** (`magic_shield`),
+  hiệu ứng "thu nhỏ rồi biến mất" dựng bằng code. `activatedAtMs` (`@Volatile`) đặt ở lần `setActive(true)` đầu
+  (gọi lặp không reset mốc), về 0 khi inactive. `draw()` tính `scale = 1 - elapsed / HIDE_DURATION_MS` (500ms,
+  clamp 0..1); `scale <= 0` thì không vẽ gì. Cách thu nhỏ: **mượn tạm `frame.r`** — nhân `scale`, gọi `gif.draw`, rồi
+  trả lại `originalR` (frame dùng chung, không được giữ thay đổi — xem mục 12.6). Dùng ở `magicShieldEffect()`
+  state `shield_hide` (nắm tay); state `shield_show` (xòe tay) là `AnimatedGif` thường.
+- **`LightningVisual(context)`**: decode `lightning_bolt` thành `AnimatedImageDrawable` (software, lặp vô hạn), mỗi
+  `draw()` **render 1 lần vào buffer 256×256** rồi **vẽ nhiều bản** buffer đó — mỗi ngón trỏ(8)/giữa(12)/áp út(16)/
+  út(20) đang duỗi của **mọi tay** trong `frame.hands`. Mỗi bản: pivot ở giữa cạnh dưới ảnh, scale
+  `frame.r * BOLT_LENGTH_SCALE(1.15) / 256`, xoay theo vector khớp gần đầu ngón (pip) → đầu ngón (tip)
+  (`computeAngleDeg = atan2(dx, -dy)`, vì hướng "lên" mặc định của ảnh là (0,-1)), đặt chân tia vào đầu ngón.
+  Không dùng `frame.cx/cy`, chỉ `frame.px/py(landmark)`. Đi với `Gestures.anyFingerExtendedNoThumb`.
+- **`KamehamehaVisual(context)`**: buffer-render `dragon_ball_energy` giống trên, vẽ 1 bản tại `(frame.cx, frame.cy)`,
+  kích thước `frame.r * SIZE_MULTIPLIER(2.2)`, xoay thêm `SPIN_DEGREES_PER_SEC(320)` độ/giây tính từ `activatedAtMs`
+  (lớn hơn và xoáy nhanh hơn state 1 tay). Dùng ở `dragonBallEffect()` state `kamehameha`:
+  `Gestures.twoHandsWristsTogetherOpen` + `AnchorSource.TwoWristMidpoint`, không tiếng. ⚠️ State này **phải khai
+  trước** state `charge` (1 tay xòe) vì cả 2 nơi chọn state đều lấy state đầu tiên khớp.
 
 ---
 
@@ -510,7 +551,7 @@ Thứ tự trong hàm, theo đúng thứ tự code:
 4. **Đảo trái/phải `handedness`** nếu `mirrorX=true` — vì camera trước bị lật gương, "tay trái thật"
    hiện lên màn hình ở phía tay phải người xem, MediaPipe trả nhãn theo ảnh gốc (chưa lật) nên phải
    tự đảo lại nếu muốn nhãn khớp với cảm giác trực quan của người dùng.
-5. **Tính `frame.cx/cy`** theo `anchorSource` của state đang khớp (4 nhánh `when`, xem mục 1.2).
+5. **Tính `frame.cx/cy`** theo `anchorSource` của state đang khớp (5 nhánh `when`, xem mục 1.2).
 6. **Tính `frame.r`** theo `sizeSource` của state đang khớp (3 nhánh `when`, xem mục 1.2).
 7. Gọi `visuals.getOrNull(matchedIndex)?.draw(canvas, frame)`.
 
@@ -575,7 +616,7 @@ giật do I/O:
     lệch tâm). Cố ý **không có hàm hiện lại**: dừng ghi hợp lệ luôn rời màn (preview/pop), hiện lại chỉ gây nháy.
     Đồng hồ vẫn do `startRecordingTimerUI()`/`stopRecordingTimerUI()` bật/tắt như cũ.
   - `bindEffectInfo(effect: EffectDefinition?)`: đổ tên + thumbnail; nhận `null` / thumbnail lỗi thì rơi về nền đen
-    của `btn_effect` (chuẩn bị cho trường hợp vào màn camera khi chưa có effect nào).
+    của `btn_effect` (trường hợp thật: vào từ nút camera bottom nav, effectId="").
   - `navigateBack()`: logic chung của nút back trên top bar **và** `backCallback` (back hệ thống). Đang ghi →
     `stopRecordingAndGoToPreview(ignoreMinDuration = true, showSavedToast = true)`; không ghi → `popBackStack()`.
     `btnBack` bị disable cùng lúc với `btnToggleRecord` khi đang dừng ghi (tránh pop thẳng làm mất video).
@@ -594,7 +635,7 @@ giật do I/O:
     bộ icon riêng từng cử chỉ, không phải bug. Thêm gesture mới vào `object Gestures` (mục 2) mà không
     thêm vào `gestureDisplayMap` thì dialog sẽ rơi về `unknownGestureDisplay` (fallback).
 - Nếu `currentEffect.background != null`: ẩn `PreviewView` (`binding.preview.visibility =
-  View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `testEffectBackgroundEffect`)
+  View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `monsterEffect`, `roomTeleportEffect`, `blackHoleEffect`)
   thì không cần thấy hình camera thật phía sau, `OverlayView` tự vẽ nền đè lên.
 
 **`EffectPickerFragment`** (`ui/effectpicker/`, layout `fragment_effect_picker.xml`, item `item_effect_picker.xml`):
@@ -932,8 +973,7 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 
 | Muốn... | Vào file |
 |---|---|
-| Thêm hiệu ứng đơn giản (ảnh/GIF theo cử chỉ có sẵn) | `EffectRepository.kt`, khai trực tiếp trong `all` |
-| Thêm hiệu ứng phức tạp (nhiều state đặc biệt, anchor/size khác mặc định) | Tạo file mới trong `effect/catalog/`, thêm vào `EffectRepository.all` |
+| Thêm hiệu ứng (đơn giản hay phức tạp) | Tạo file mới trong `effect/catalog/`, thêm lời gọi vào `EffectRepository.all` |
 | Thêm cử chỉ mới | `effect/gesture/Gesture.kt` (công thức) + có thể cần thêm hàm helper vào `GestureUtils.kt` |
 | Chỉnh ngưỡng nhận diện 1 cử chỉ đang sai | `effect/gesture/GestureUtils.kt` (đọc kỹ công thức, đặc biệt `isThumbExtended` — đã biết chưa chặt) |
 | Đổi cách hiệu ứng bám tay (tâm/kích thước) | `effect/model/AnchorSource.kt`/`SizeSource.kt` + set trong `EffectState` |

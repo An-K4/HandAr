@@ -10,7 +10,7 @@
     <string name="exit_without_save_message">Do you really want to exit?\nYour video will not be saved</string>
     <string name="permission_denied">Permission denied</string>
     <string name="denied_permission_message">This feature can\'t work without the required permission.
-        Please go to Settings → HandAr → allow Camera permission to keep using it.
+        Please go to Settings → Magic Hand → allow Camera permission to keep using it.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Couldn\'t play video</string>
@@ -29,7 +29,7 @@
     <string name="start">Start</string>
     <string name="welcome_content">Welcome to Magic Hand</string>
     <string name="permission_title">Permission</string>
-    <string name="permission_subtitle">HandAr needs access to your camera and permission to send notifications to give you the best experience.</string>
+    <string name="permission_subtitle">Magic Hand needs access to your camera and permission to send notifications to give you the best experience.</string>
     <string name="permission_camera">Camera</string>
     <string name="permission_notification">Allow notification</string>
     <string name="get_started">Get Started</string>

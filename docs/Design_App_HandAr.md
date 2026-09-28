@@ -84,17 +84,19 @@
 
 ### 5.3 Asset đã có cần đổi tên
 
-| File hiện tại | Tên mới | Ghi chú |
+> **Trạng thái: đã xong toàn bộ** (commit `0f63cfe`) — bảng dưới đây giữ lại như lịch sử đổi tên, các file cũ đã được xóa. Các bảng/ghi chú ở 5.2 nhắc “Chưa có code”, “Code đã có, cần sửa” hay `TestEffectBackgroundEffect` cũng là trạng thái tại ngày chốt 21/9, không phản ánh code hiện tại (xem `effect/catalog/`).
+
+| File cũ | Tên mới | Ghi chú |
 |---|---|---|
 | `earth.webp` | `earth_planet.webp` | |
 | `black_hole.webp` | `black_hole_portal.webp` | |
-| `stranger_things_monster.webp` | `monster_appear.webp` | Hiện còn làm ảnh tạm ở Gojo, Vẽ canvas, Thay đổi nền |
-| `stranger_things_clock.wav` | Không đổi tên | Không dùng cho Quái vật nữa (nhạc nền mới thay vào), vẫn là tiếng của state "clock" trong hiệu ứng thay đổi nền |
+| `stranger_things_monster.webp` | `monster_appear.webp` | |
+| `stranger_things_monster.wav`, `stranger_things_clock.wav`, `stranger_things_clock.webp` | (xóa) | Không còn effect nào dùng (Quái vật đã có `monster_bgm.wav`, Room Teleport không còn state “clock”) |
 | `paper_tear.wav` | `canvas_draw_clear.wav` | |
-| `blue_ball.webp`, `red_ball.webp` | Thay bằng `gojo_blue_ball.webp`, `gojo_red_ball.webp` | Làm mới nên không đổi tên, xóa file cũ sau khi thay |
+| `blue_ball.webp`, `red_ball.webp` | Thay bằng `gojo_blue_ball.webp`, `gojo_red_ball.webp` | Làm mới nên không đổi tên, file cũ đã xóa |
 | `fire_ball_thumbnail.webp`, `lightning_thumbnail.webp`, `magic_shield_thumbnail.webp`, `black_hole_thumbnail.webp` | Giữ nguyên | Đã đúng mẫu `<effect_id>_thumbnail` |
 
-Trước khi đổi tên hoặc xóa file nào, kiểm tra hết chỗ tham chiếu `R.drawable.*` / `R.raw.*` (các file `stranger_things_*` còn được dùng ở nhiều chỗ). Các hiệu ứng test cũ (`rock_on_ily`, `camera_shutter`, `absolute_cinema_two_hand`, `heart_or_cross`) không nằm trong bảng và giữ nguyên asset của chúng.
+Trước khi đổi tên hoặc xóa file nào, kiểm tra hết chỗ tham chiếu `R.drawable.*` / `R.raw.*` (kể cả trong `.xml`). 4 hiệu ứng test cũ (`rock_on_ily`, `camera_shutter`, `absolute_cinema_two_hand`, `heart_or_cross`) đã bị gỡ hẳn cùng toàn bộ asset của chúng (`rock_on`, `i_love_you`, `camera_shutter`, `absolute_cinema`, `absolute_garbage`, `heart`, `cross`, `happy_happy_happy_cat`, `egg_cracked`).
 
 ### 5.4 Tổng hợp
 
@@ -105,4 +107,4 @@ Trước khi đổi tên hoặc xóa file nào, kiểm tra hết chỗ tham chi�
 | Âm thanh (tiếng hiệu ứng + nhạc nền) | 13 |
 | Cử chỉ mới thêm vào `Gestures` | 2 (`anyFingerExtendedNoThumb`, `twoHandsWristsTogetherOpen`) |
 
-Các hiệu ứng cần viết mới hoàn toàn: Cầu lửa, Vòng khiên, Tia sét, Dragon Ball (4 hiệu ứng thay dần các hiệu ứng test theo `AGENTS.md`).
+Các hiệu ứng viết mới hoàn toàn: Cầu lửa, Vòng khiên, Tia sét, Dragon Ball — đã thay hẳn 4 hiệu ứng test cũ (xem `AGENTS.md` mục 4).

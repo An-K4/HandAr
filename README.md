@@ -41,6 +41,8 @@
   được Story composer qua đường này.
 - **Thư viện video** (tab Collection ở bottom nav): lưới 2 cột các video đã quay, mỗi ô là thumbnail (giây đầu video) + nút play giữa; phát lại bằng ExoPlayer (Media3). Màn phát video có menu ⋮ ở top bar: **Đổi tên** (dialog nhập tên mới, đổi thẳng tên file `.mp4`), **Xoá** (có `ConfirmDialog` xác nhận), **Chia sẻ** (mở lại đúng màn Chia sẻ nói trên, không có nút Thử lại).
 - **Xem trước & đổi effect ngay trong màn quay**: bấm 1 effect ở danh sách → màn xem trước (nút Create) → camera; ở màn quay, nút Effect mở lưới chọn để chuyển sang effect khác (cũng đi qua màn xem trước).
+- **Quay nhanh không effect**: nút camera giữa bottom nav mở thẳng màn quay với `effectId=""` (quay video thường,
+  ẩn nút Action); muốn dùng hiệu ứng thì bấm nút Effect ngay trong màn quay.
 - **Tìm hiệu ứng theo tên** ở màn danh sách hiệu ứng: gõ tới đâu lọc real-time tới đó (contains, không phân biệt hoa/thường).
 - **Đa ngôn ngữ** (vi/en, chuyển bằng `AppCompatDelegate.setApplicationLocales`) qua màn Cài đặt (xem dưới) + màn onboarding/khảo sát khi mở app lần đầu.
 - **Màn Cài đặt** (mở từ icon hamburger ở top bar, có sẵn mọi lúc): mục Ngôn ngữ điều hướng thật sang màn chọn vi/en
@@ -78,6 +80,10 @@
 # Build bản phát hành (đã bật R8 + shrinkResources)
 ./gradlew :app:bundleRelease
 ```
+
+**CI:** `.github/workflows/release-debug.yml` — mỗi lần push lên `main`, GitHub Actions build `assembleDebug`
+và đẩy APK debug lên GitHub Release tag `latest` (tên bản build "Magic Hand Latest Build" — *Magic Hand* là
+tên hiển thị của app, *HandAr* là tên repo/package).
 
 > `local.properties` (đường dẫn SDK) là file máy cá nhân, không commit.
 
@@ -124,7 +130,8 @@ EffectDefinition            1 hiệu ứng người dùng chọn được ở m�
 
 EffectAsset (sealed class)  StaticImage | AnimatedGif | SpriteSheet | Procedural (vẽ bằng code)
 AnchorSource / SizeSource   quyết định tâm/kích thước vẽ: PalmCenter+PalmRadius (mặc định),
-                            PinchMidpoint+PinchDistance, IndexFingertip, TwoHandMidpoint+TwoHandDistance
+                            PinchMidpoint+PinchDistance, IndexFingertip, TwoHandMidpoint+TwoHandDistance,
+                            TwoWristMidpoint (trung điểm 2 cổ tay, dùng cho kamehameha)
 EffectVisual (interface)    3 nhóm: ảnh có sẵn (Static/AnimatedGif/SpriteSheet)Visual,
                             vẽ canvas thủ công (StrokeVisual, GojoVisual...), nền riêng (BackgroundRenderer)
 GestureRecognizer (fun interface)  Gestures.singleHandPalmOpen, twoHandsHeart, ...
@@ -158,7 +165,7 @@ onboarding1Fragment (có nút Skip → survey1Fragment, popUpTo+inclusive) ─�
                                                                                 survey1Fragment
                                                                                       │ (Continue, không popUpTo)
                                                                                       ▼
-                                                                                survey2Fragment (khảo sát 2 bước, câu hỏi/đáp án còn placeholder)
+                                                                                survey2Fragment (khảo sát 2 bước, đã có nội dung thật, chưa lưu lựa chọn)
                                                                                       │ popUpTo survey1Fragment inclusive
                                                                                       ▼
                                                                           permissionFragment (switch Camera / Thông báo)
@@ -207,10 +214,10 @@ Mọi tham số phải được khai `<argument>` trong `nav_graph.xml` thì cá
 ```text
 app/src/main/java/com/example/handar/
 ├── MainActivity.kt              NavHost + quản lý chrome (top bar đổi chữ theo tab, bottom nav đè
-│                              nổi lên nav_host, chuyển tab Home↔Collection); release
+│                              nổi lên nav_host, chuyển tab Home↔Collection, nút camera giữa mở camera không effect); release
 │                              HandLandmarkerProvider ở onDestroy
 ├── effect/
-│   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp từ khai trực tiếp + catalog/
+│   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp hoàn toàn từ catalog/ (10 effect)
 │   ├── HandLandmarkerProvider.kt
 │   ├── model/                   EffectDefinition / EffectState / EffectAsset / EffectBackground /
 │   │                            EffectBgm / AnchorSource / SizeSource / StateMode
@@ -269,12 +276,13 @@ app/src/main/java/com/example/handar/
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
                                 3 hàm: padding/margin/match-height cho status bar & nav bar),
                                 RecordingPerfLogger, VideoStatsLogger
-
+.github/workflows/release-debug.yml   CI build + release APK debug
 app/src/main/res/
 ├── drawable/  ảnh & GIF hiệu ứng      raw/  file .wav tiếng hiệu ứng
 ├── navigation/ nav_graph.xml    values/  · values-vi/   xml/file_paths.xml · xml/locales_config.xml
 app/src/main/assets/hand_landmarker.task   model MediaPipe (~7.5 MB)
 docs/                                      tài liệu thiết kế & vận hành
+.github/workflows/release-debug.yml         CI: push main → assembleDebug → APK lên GitHub Release tag `latest`
 ```
 
 ## Danh sách hiệu ứng
@@ -311,7 +319,7 @@ xem `docs/Code_Walkthrough.md` mục 1 và 3.
    - **WAV**: **PCM 16-bit / Mono / 44100 Hz**, dài 0.3–3s (sai thông số không crash, chỉ ra tiếng rè/lệch tốc độ).
    - Đặt sprite sheet và ảnh tĩnh hiệu ứng trong `res/drawable-nodpi/` để tránh bị phóng theo mật độ màn hình.
 2. Thêm cử chỉ mới vào `object Gestures` nếu cần (thiết kế các công thức loại trừ lẫn nhau rõ ràng).
-3. Thêm một `EffectDefinition` vào `EffectRepository.all`, khai đúng `requiredNumHands`.
+3. Tạo 1 file factory mới trong `effect/catalog/` (hàm trả `EffectDefinition`, khai đúng `requiredNumHands`) rồi thêm lời gọi vào `EffectRepository.all`.
 4. Chạy lại Checklist **B** (live preview) và **D** (chống regression) trong `docs/Test_Checklist.md`.
 
 ## Hiệu năng
@@ -356,8 +364,11 @@ App được kiểm thử chủ yếu bằng **checklist thủ công** — `docs
 | F | Edge case & độ bền |
 | G | Điều hướng giữa các màn (kể cả 3 trạng thái của quyền camera) |
 | H | **Vòng đời Fragment & rò rỉ tài nguyên** — nhóm bug chỉ lộ ra sau nhiều lần vào/ra màn |
+| I | Cử chỉ tay tĩnh 1 & 2 tay; I.10 là 8 cử chỉ “mồ côi” (chưa effect nào dùng) phải test bằng cách gán tạm |
+| J–L | Hiệu ứng procedural/canvas, anchor/size/handedness, race thread `AnimatedGifVisual` khi ghi hình |
+| M | Tia sét & Dragon Ball — góc xoay tia và ngưỡng cổ tay chụm (suy luận, chưa chạy máy thật) |
 
-Chạy đầy đủ A–H sau mỗi phase, trên ít nhất 2 máy (1 máy mới + 1 máy yếu).
+Chạy đầy đủ A–H sau mỗi phase; I sau mỗi lần thêm/sửa cử chỉ; J–M khi đụng tới hạ tầng/effect tương ứng, trên ít nhất 2 máy (1 máy mới + 1 máy yếu).
 Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 
 ## Tài liệu trong `docs/`
@@ -372,7 +383,7 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 | `Asset_Format_Guidelines.md` | Quy chuẩn ảnh tĩnh / ảnh động (`.webp`) / sprite sheet / WAV, mỗi quy tắc gắn với dòng code sinh ra nó |
 | `Perf_Notes.md` | Kết quả điều tra hiệu năng, quy trình đo chuẩn, thí nghiệm GIF vs sprite sheet |
 | `App_Size_Optimization_16KB_Compliance.md` | Hành trình 90 MB → 33.8 MB và cách xử lý cảnh báo 16 KB |
-| `Test_Checklist.md` | Kịch bản test thủ công A–H |
+| `Test_Checklist.md` | Kịch bản test thủ công A–M |
 | `Code_Walkthrough.md` | Giải thích code chi tiết từng file/hàm + sơ đồ quan hệ giữa các file trong package `effect/`, `recording/`, `ui/camera/` — đọc khi cần hiểu đoạn code cụ thể làm gì thay vì chỉ biết kiến trúc tổng quát |
 
 ## Quy ước & bài học quan trọng

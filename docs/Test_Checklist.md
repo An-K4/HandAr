@@ -7,6 +7,7 @@
 > **Mục G-H**: thêm từ Phase B — điều hướng giữa màn hình và vòng đời/leak của Fragment. Đây là lớp bug mới xuất hiện kể từ khi app có nhiều màn; chúng **không** biểu hiện ở lần chạy đầu tiên mà chỉ lộ ra sau nhiều lần vào/ra màn, nên phải test riêng.
 > **Mục I**: thêm từ đợt mở rộng `Gestures` (1 tay + 2 tay) — xem chi tiết công thức/lý do tại `Camera_X_Hand_Landmarker.md` Mục 11. Chạy mục này sau bất kỳ lần nào sửa `GestureRecognizer.kt`/`GestureUtils.kt`/`EffectRepository.kt`.
 > **Mục J-L**: thêm từ Phase M (hiệu ứng procedural/canvas, `SizeSource`/`AnchorSource`/`handedness`, và race condition `AnimatedGifVisual` khi ghi hình). Chạy sau bất kỳ lần nào sửa `HandFrame.kt`, `EffectScope.kt`, `ProceduralVisual.kt`, `OverlayView.kt` (phần `setResult`/`drawFrame`), hoặc thêm effect procedural/anchor-size mới.
+> **Mục M**: Tia sét & Dragon Ball — 2 chỗ rủi ro suy luận (góc xoay tia, ngưỡng cổ tay chụm) chưa từng chạy trên máy thật.
 >
 > Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi. Chạy Mục I sau mỗi lần thêm/sửa cử chỉ. Chạy Mục J-L sau mỗi lần đụng tới hạ tầng Phase M nói trên.
 
@@ -16,7 +17,7 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash → ngôn ngữ → onboarding 1–3 → khảo sát → chào mừng tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, 2 switch (Camera, Thông báo) đang tắt (Android < 13: switch Thông báo luôn bật, không có popup). Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
+| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash (~5s) → chào mừng → onboarding 1–3 → khảo sát 1–2 tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, 2 switch (Camera, Thông báo) đang tắt (Android < 13: switch Thông báo luôn bật, không có popup). Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
 | A2 | Từ chối quyền Camera | App hiện Toast từ chối, không crash |
 | A3 | Vào Settings hệ thống → cấp lại quyền Camera → mở lại app | App hoạt động bình thường, live preview hiện đúng |
 
@@ -121,7 +122,7 @@ git checkout main && git stash pop
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| G1 | Mở app (cold start), đi hết luồng: splash (~1s, tự chuyển) → ngôn ngữ → onboarding 1–3 → khảo sát → chào mừng → xin quyền → bấm nút bắt đầu | Bắt đầu ở **splash** (start destination), kết thúc ở màn **danh sách hiệu ứng** (không phải màn camera). Ở danh sách bấm Back thì thoát app, không quay lại xin quyền/chào mừng/khảo sát (mỗi bước `popUpTo` inclusive). Hiện chưa có cờ "đã xem onboarding" nên **mỗi lần** mở app đều chạy lại luồng này |
+| G1 | Mở app (cold start), đi hết luồng: splash (~5s, tự chuyển) → chào mừng → onboarding 1–3 → khảo sát 1–2 → xin quyền → bấm nút bắt đầu | Bắt đầu ở **splash** (start destination), kết thúc ở màn **danh sách hiệu ứng** (không phải màn camera). Ở danh sách bấm Back thì thoát app, không quay lại xin quyền/chào mừng/khảo sát (mỗi bước `popUpTo` inclusive). Hiện chưa có cờ "đã xem onboarding" nên **mỗi lần** mở app đều chạy lại luồng này |
 | G2 | Chọn 1 hiệu ứng → sang màn xem trước → bấm **Create** → vào màn camera | Preview lên bình thường, hiệu ứng hiển thị đúng **hiệu ứng vừa chọn** (không phải hiệu ứng mặc định) |
 | G3 | Bấm Back từ màn camera | Quay lại màn danh sách, **không** thoát app (nếu thoát app: thiếu `app:defaultNavHost="true"`) |
 | G4 | Back tiếp ở màn danh sách | Thoát app bình thường, không crash |
@@ -143,6 +144,9 @@ git checkout main && git stash pop
 | G17 | Camera → Effect → chọn effect khác → tick → ở màn xem trước bấm Back | Về **màn danh sách** (camera cũ + màn chọn đã bị gỡ — cố ý, xem `nav_graph.xml`), không quay về camera cũ |
 | G18 | Ở màn xem trước: bấm đúp thật nhanh nút Create, rồi lặp lại với nút back | Không crash (không `IllegalArgumentException`), không pop luôn màn phía dưới — chỉ đi đúng 1 bước |
 | G19 | Màn danh sách + màn chọn: effect có tên dài (vd `dragon_ball` — “Chưởng năng lượng Dragon Ball”) | Tên chỉ 1 dòng, cắt bằng “…”; ở màn danh sách dấu “…” **không** nằm dưới icon tim |
+| G20 | *(nút camera bottom nav)* Ở tab Home bấm nút camera giữa bottom nav | Vào camera không effect: preview lên, nút Effect nền đen, cột Action ẩn nhưng nút Record vẫn đúng tâm; quay được video thường. Back về Home |
+| G21 | Như G20 nhưng bấm từ tab Collection, rồi Back | Về tab Collection (không nhảy sang Home) |
+| G22 | Từ camera không effect: Effect → chọn effect → tick → Create → Back (làm 1 lần từ Home, 1 lần từ Collection) | Ghi lại màn thật sự hiện ra. Kỳ vọng theo bất biến là về danh sách hiệu ứng; nếu ca từ Collection cho kết quả khác thì bất biến đã bị phá (xem `AGENTS.md` mục 5, bullet "Camera không effect") |
 
 > **Về G7c — hành vi hệ thống, không phải lỗi app:** từ Android 11 (API 30), sau **2 lần từ chối**, hệ thống chuyển quyền sang trạng thái *permanently denied*: `launch()` vẫn chạy, callback vẫn trả kết quả "denied", nhưng **không dialog nào hiện ra**. Không có API nào bắt hệ thống hỏi lại được — chỉ người dùng tự cấp trong Settings. Vì vậy app bắt buộc phải phân biệt 3 trạng thái bằng `shouldShowRequestPermissionRationale()`:
 >
@@ -277,19 +281,23 @@ git checkout main && git stash pop
 > ứng 1 tay bất kỳ (ví dụ `MagicShieldEffect.kt`), đổi tạm `gesture = Gestures.xxx` của 1
 > state sang đúng cử chỉ muốn test, build/cài lại, làm cử chỉ đó trên effect vừa sửa, quan
 > sát hiệu ứng có kích hoạt đúng không, rồi **`git checkout`** lại file đó trước khi chuyển
-> sang cử chỉ tiếp theo. Với 2 cử chỉ 2 tay (`bothHandsFist`, `twoHandsHeart`,
+> sang cử chỉ tiếp theo. Với 3 cử chỉ 2 tay (`bothHandsFist`, `twoHandsHeart`,
 > `twoHandsCrossedFingers`) đổi tạm trên 1 hiệu ứng đã khai `requiredNumHands = 2` (ví dụ
 > `BlackHoleEffect.kt`) để `HandLandmarkerProvider` khởi động đúng chế độ 2 tay.
+>
+> ⚠️ Vì cùng lý do, các ca I8 (`bothHandsFist`), I10–I12 (`twoHandsHeart`) và I13–I15
+> (`twoHandsCrossedFingers`) ở trên hiện cũng không có effect thật để quan sát — làm theo cách gán
+> tạm này, đối chiếu với I32–I34 bên dưới.
 
 | # | Cử chỉ | Bước | Kỳ vọng |
 |---|---|---|---|
 | I27 | `singleHandOkSign` (👌) | Gán tạm vào 1 state 1 tay, làm dấu OK | Kích hoạt đúng; không nhầm với cử chỉ 3 ngón hoặc nắm tay (công thức dùng `thumbIndexPinchRatio`, khác `isThumbExtended` của các cử chỉ khác — xem `Code_Walkthrough.md` mục 2) |
-| I28 | `singleHandThumbsUp` (👍) | Tương tự | Kích hoạt đúng; thử thêm cử chỉ nắm tay thường (không giơ ngón cái) để xác nhận KHÔNG bị nhầm — công thức `isThumbExtended` được comment là chưa chặt, đây là cơ hội duy nhất để phát hiện sai từ lúc 2 hiệu ứng test cũ bị gỡ |
+| I28 | `singleHandThumbsUp` (👍) | Tương tự | Kích hoạt đúng; thử thêm cử chỉ nắm tay thường (không giơ ngón cái) để xác nhận KHÔNG bị nhầm — công thức `isThumbExtended` được comment là chưa chặt, đây là cơ hội duy nhất để phát hiện sai từ lúc 4 hiệu ứng test cũ bị gỡ |
 | I29 | `singleHandCall` (🤙) | Tương tự | Kích hoạt đúng, phân biệt được với `singleHandRockOn` (I30) dù cả 2 đều giơ ngón cái + 1 ngón khác |
 | I30 | `singleHandRockOn` (🤘) | Tương tự | Kích hoạt đúng, phân biệt được với I29 |
 | I31 | `singleHandILoveYou` (🤟) | Tương tự | Kích hoạt đúng, không bị nhầm với `singleHandRockOn` (cả 2 gần giống, khác ở ngón cái) |
-| I32 | `bothHandsFist` (✊✊) | Gán tạm vào effect 2 tay, cả 2 tay cùng nắm | Kích hoạt đúng; chỉ 1 tay nắm tay kia xòe/vắng → KHÔNG kích hoạt (guạrd `hands.size >= 2 && hands.all { ... }` — xem I9) |
-| I33 | `twoHandsHeart` (🫂) | Tương tự, làm dấu tim 2 tay | Áp dụng đúng giới hạn đã biết ở I10–I12 (nghiêng tay có thể mất hiệu ứng, hình tam giác bằng ngón thẳng không được kích hoạt) |
+| I32 | `bothHandsFist` (✊✊) | Gán tạm vào effect 2 tay, cả 2 tay cùng nắm | Kích hoạt đúng; chỉ 1 tay nắm tay kia xòe/vắng → KHÔNG kích hoạt (guard `hands.size >= 2 && hands.all { ... }` — xem I9) |
+| I33 | `twoHandsHeart` (🫶) | Tương tự, làm dấu tim 2 tay | Áp dụng đúng giới hạn đã biết ở I10–I12 (nghiêng tay có thể mất hiệu ứng, hình tam giác bằng ngón thẳng không được kích hoạt) |
 | I34 | `twoHandsCrossedFingers` (❌) | Tương tự, bắt chéo 2 ngón bất kỳ trong 4 cặp (trỏ/giữa/áp út/út) | Áp dụng đúng giới hạn đã biết ở I13–I15 (bắt chéo thật mới tính, chỉ để gần nhau thì không) |
 
 ---
@@ -329,6 +337,35 @@ git checkout main && git stash pop
 | L1 | Chọn effect dùng `AnimatedGif` (`fire_ball`, `magic_shield`, hay `black_hole`), bấm Record, đổi cử chỉ qua lại liên tục ~10 lần trong 20-30s | Video mượt, KHÔNG có khung hình đứng/giật cục đúng lúc đổi cử chỉ |
 | L2 | Effect "Gojo": chạm 2 tay để trigger hoạt ảnh hợp nhất **trong lúc đang quay**, lặp lại vài lần | Hoạt ảnh phát trọn vẹn mỗi lần trong video, không bị đứng hình/giật ở khung đầu hoạt ảnh |
 | L3 | Bất kỳ effect `AnimatedGif` nào: quay 1 clip dài (~60s), đổi cử chỉ liên tục suốt clip | App không crash, không ANR — nếu crash log có `IllegalStateException`/liên quan `AnimatedImageDrawable`, đây là regression của đúng race đã sửa |
+
+## M. Tia sét & Dragon Ball — 2 chỗ rủi ro suy luận chưa từng chạy thật
+
+> Chạy sau bất kỳ lần nào sửa `LightningVisual.kt`, `KamehamehaVisual.kt`, `DragonBallEffect.kt`, `Gesture.kt` (`anyFingerExtendedNoThumb`, `twoHandsWristsTogetherOpen`) hoặc nhánh `TwoWristMidpoint` trong `OverlayView.drawFrame()`. Hai số liệu suy luận: góc xoay tia sét `computeAngleDeg()` và ngưỡng cổ tay chụm `WRIST_TOGETHER_RATIO_THRESHOLD = 0.6` (khoảng cách 2 cổ tay / `palmLength` trung bình).
+
+### M.1. Tia sét (`lightning`)
+
+| # | Bước | Kỳ vọng | Nếu sai thì chỉnh |
+|---|---|---|---|
+| M1 | Chỉ duỗi ngón trỏ, hướng thẳng lên trên | 1 tia sét chân đặt đúng đầu ngón, mũi hướng lên, cùng chiều ngón tay | Tia ngược 180° → đổi dấu `computeAngleDeg()`; bị lật gương → đổi dấu `dx` |
+| M2 | Xoay cổ tay để ngón trỏ chỉ ngang trái, ngang phải, xuống dưới | Tia luôn nằm dọc theo ngón tay (pip → tip) ở cả 4 hướng, không lệch nhất quán | Lệch cùng 1 góc ở mọi hướng = sai hằng số; lệch khác nhau theo hướng = sai công thức `atan2` |
+| M3 | Duỗi lần lượt 1, 2, 3, 4 ngón (trỏ/giữa/áp út/út), không tính ngón cái | Đúng số tia = số ngón đang duỗi, mỗi tia ở đầu đúng ngón đó | |
+| M4 | Chỉ giơ ngón cái (các ngón khác gập), rồi nắm tay | KHÔNG có tia nào — xác nhận `anyFingerExtendedNoThumb` bỏ qua ngón cái | |
+| M5 | Đưa 2 tay vào khung, mỗi tay duỗi 1–2 ngón | Cả 2 tay đều có tia (`LightningVisual` duyệt mọi tay trong `frame.hands`) | |
+| M6 | Tay gần/xa camera | Độ dài tia co giãn theo `frame.r` (~1.15 × bán kính lòng bàn tay), không quá ngắn/dài bất thường | Đổi `BOLT_LENGTH_SCALE` |
+| M7 | Lặp M1–M3 **trong lúc đang ghi hình**, xem lại video | Video khớp live: cùng hướng tia, không bị lật/lệch (canvas ghi hình dùng `frame.px/py` với mirror khác live) | |
+| M8 | Tiếng điện xẹt | Lặp mượt khi còn tia, dừng khi hạ tay/nắm tay | |
+
+### M.2. Dragon Ball (`dragon_ball`)
+
+| # | Bước | Kỳ vọng | Nếu sai thì chỉnh |
+|---|---|---|---|
+| M9 | 1 tay xòe (không đưa tay còn lại vào) | Quả cầu năng lượng nhỏ bám lòng bàn tay + tiếng tụ khí (state `charge`) | |
+| M10 | Đưa tay thứ 2 vào, 2 tay cùng xòe, cách xa nhau rồi **chụm 2 cổ tay** lại gần | Chuyển sang kamehameha: quả cầu **to hơn (~2.2×)** và xoáy nhanh hơn, neo ở trung điểm 2 cổ tay, không còn tiếng tụ khí | Ghi lại khoảng cách cổ tay thực tế khi cảm thấy “đã chụm” mà không kích hoạt → tăng `WRIST_TOGETHER_RATIO_THRESHOLD` (0.6) |
+| M11 | 2 tay xòe nhưng cổ tay **cách xa** nhau (đứng rộng bằng vai) | KHÔNG vào kamehameha, vẫn là quả cầu nhỏ 1 tay | Ngưỡng quá lỏng → giảm `WRIST_TOGETHER_RATIO_THRESHOLD` |
+| M12 | Chụm 2 cổ tay nhưng 1 tay nắm hoặc chỉ còn ít ngón | KHÔNG vào kamehameha (đòi cả 2 tay `isPalmOpen`) | |
+| M13 | Chụm cổ tay rồi tách ra, lặp 5 lần nhanh | Chuyển qua lại đúng state mỗi lần; tiếng tụ khí phát lại khi về state `charge` (debounce 200ms), không phát chồng | |
+| M14 | Chụm cổ tay để kamehameha → quan sát vị trí quả cầu khi 2 tay di chuyển | Quả cầu luôn ở giữa 2 cổ tay (landmark 0), không nhảy về giữa 2 khớp ngón giữa | Kiểm tra nhánh `TwoWristMidpoint` trong `OverlayView.drawFrame()` |
+| M15 | Lặp M9–M10 **trong lúc đang ghi hình**, xem lại video | Video khớp live: chuyển state đúng lúc, kích thước/xoáy giống live | |
 
 ---
 

@@ -10,7 +10,7 @@
     <string name="exit_without_save_message">Bạn có chắc muốn thoát?\nVideo sẽ không được lưu</string>
     <string name="permission_denied">Quyền truy cập bị từ chối</string>
     <string name="denied_permission_message">Tính năng này không thể hoạt động khi chưa được cấp quyền.
-        Vui lòng truy cập Cài đặt -> HandAr -> Cho phép quyền Máy ảnh để tiếp tục sử dụng.
+        Vui lòng truy cập Cài đặt -> Magic Hand -> Cho phép quyền Máy ảnh để tiếp tục sử dụng.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Không phát được video</string>
@@ -29,7 +29,7 @@
     <string name="start">Bắt đầu</string>
     <string name="welcome_content">Chào mừng đến với Magic Hand</string>
     <string name="permission_title">Cấp quyền</string>
-    <string name="permission_subtitle">HandAr cần quyền truy cập máy ảnh và quyền gửi thông báo để mang lại trải nghiệm tốt nhất.</string>
+    <string name="permission_subtitle">Magic Hand cần quyền truy cập máy ảnh và quyền gửi thông báo để mang lại trải nghiệm tốt nhất.</string>
     <string name="permission_camera">Máy ảnh</string>
     <string name="permission_notification">Cho phép thông báo</string>
     <string name="get_started">Bắt đầu ngay</string>
