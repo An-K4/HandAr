@@ -81,8 +81,8 @@
 ./gradlew :app:bundleRelease
 ```
 
-**CI:** `.github/workflows/release-debug.yml` — mỗi lần push lên `main`, GitHub Actions build `assembleDebug`
-và đẩy APK debug lên GitHub Release tag `latest` (tên bản build "Magic Hand Latest Build" — *Magic Hand* là
+**CI:** `.github/workflows/release.yml` — mỗi lần push lên `main`, GitHub Actions build `bundleRelease`, ghi
+dung lượng tải từ Google Play (ước tính bằng `bundletool`) vào mô tả Release và đẩy APK release lên GitHub Release tag `latest` (tên bản build "Magic Hand Latest Build" — *Magic Hand* là
 tên hiển thị của app, *HandAr* là tên repo/package).
 
 > `local.properties` (đường dẫn SDK) là file máy cá nhân, không commit.
@@ -276,13 +276,13 @@ app/src/main/java/com/example/handar/
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
                                 3 hàm: padding/margin/match-height cho status bar & nav bar),
                                 RecordingPerfLogger, VideoStatsLogger
-.github/workflows/release-debug.yml   CI build + release APK debug
+.github/workflows/release.yml         CI build release + ước tính dung lượng Play
 app/src/main/res/
 ├── drawable/  ảnh & GIF hiệu ứng      raw/  file .wav tiếng hiệu ứng
 ├── navigation/ nav_graph.xml    values/  · values-vi/   xml/file_paths.xml · xml/locales_config.xml
 app/src/main/assets/hand_landmarker.task   model MediaPipe (~7.5 MB)
 docs/                                      tài liệu thiết kế & vận hành
-.github/workflows/release-debug.yml         CI: push main → assembleDebug → APK lên GitHub Release tag `latest`
+.github/workflows/release.yml              CI: push main → bundleRelease → APK release lên GitHub Release tag `latest`
 ```
 
 ## Danh sách hiệu ứng
