@@ -283,7 +283,7 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
 | `bothHandsPalmOpen` / `bothHandsFist` | cần **cả 2** tay cùng cử chỉ | `hands.size >= 2 && hands.all { ... }` |
 | `twoHandsHeart` | 🫶 trái tim 2 tay | dùng `fingerCurlRatio`, ngưỡng khoảng cách chuẩn hoá theo `palmLength` trung bình 2 tay |
 | `twoHandsCrossedFingers` | ❌ | dùng `segmentsCross`, thử lần lượt 4 cặp ngón (trỏ/giữa/áp út/út), chỉ cần 1 cặp chéo là đủ |
-| `anyFingerExtendedNoThumb` | ≥ 1 trong 4 ngón trỏ/giữa/áp út/út đang duỗi, không tính ngón cái | `lightningEffect()` — mỗi ngón duỗi có 1 tia riêng nên không ép các ngón còn lại phải gập |
+| `anyFingerExtended` | ≥ 1 trong **5** ngón (kể cả ngón cái) của bất kỳ tay nào đang duỗi | `lightningEffect()` — mỗi ngón duỗi có 1 tia riêng nên không ép các ngón còn lại phải gập. Ngón cái dùng `isThumbExtendedStrict` (duỗi **và** thẳng), không phải `isThumbExtended` |
 | `twoHandsWristsTogetherOpen` | cả 2 tay xòe + 2 cổ tay chụm (khoảng cách cổ tay / `palmLength` trung bình < 0.6) | state kamehameha của `dragonBallEffect()`; ngưỡng là `WRIST_TOGETHER_RATIO_THRESHOLD` |
 
 8 cử chỉ (`singleHandOkSign`, `singleHandThumbsUp`, `singleHandCall`, `singleHandRockOn`, `singleHandILoveYou`,
@@ -454,11 +454,17 @@ Tất cả implement `EffectVisual` trực tiếp (không kế thừa `Procedura
   trả lại `originalR` (frame dùng chung, không được giữ thay đổi — xem mục 12.6). Dùng ở `magicShieldEffect()`
   state `shield_hide` (nắm tay); state `shield_show` (xòe tay) là `AnimatedGif` thường.
 - **`LightningVisual(context)`**: decode `lightning_bolt` thành `AnimatedImageDrawable` (software, lặp vô hạn), mỗi
-  `draw()` **render 1 lần vào buffer 256×256** rồi **vẽ nhiều bản** buffer đó — mỗi ngón trỏ(8)/giữa(12)/áp út(16)/
-  út(20) đang duỗi của **mọi tay** trong `frame.hands`. Mỗi bản: pivot ở giữa cạnh dưới ảnh, scale
-  `frame.r * BOLT_LENGTH_SCALE(1.15) / 256`, xoay theo vector khớp gần đầu ngón (pip) → đầu ngón (tip)
-  (`computeAngleDeg = atan2(dx, -dy)`, vì hướng "lên" mặc định của ảnh là (0,-1)), đặt chân tia vào đầu ngón.
-  Không dùng `frame.cx/cy`, chỉ `frame.px/py(landmark)`. Đi với `Gestures.anyFingerExtendedNoThumb`.
+  `draw()` **render 1 lần vào buffer 256×256** rồi **vẽ nhiều bản** buffer đó — **cả 5 ngón**
+  cái(4)/trỏ(8)/giữa(12)/áp út(16)/út(20) đang duỗi, của **mọi tay** trong `frame.hands` (effect khai
+  `requiredNumHands = 2`). Mỗi bản: pivot ở giữa cạnh dưới ảnh, scale `radius * lengthScale / 256`, xoay theo vector
+  khớp gần đầu ngón (pip) → đầu ngón (tip) (`computeAngleDeg = atan2(dx, -dy)`, vì hướng "lên" mặc định của ảnh là
+  (0,-1)), đặt chân tia vào đầu ngón. Không dùng `frame.cx/cy`, chỉ `frame.px/py(landmark)`.
+  Đi với `Gestures.anyFingerExtended`.
+  - **Ngón cái là ca riêng**: gốc hướng lấy MCP(2) chứ không phải IP(3) — đoạn 3→4 quá ngắn nên góc xoay rung theo
+    nhiễu landmark; và dùng `THUMB_LENGTH_SCALE(0.85)` thay vì `BOLT_LENGTH_SCALE(1.15)` vì ngón cái ngắn hơn.
+  - **`radius` tính riêng cho từng tay** (`handRadiusPx`: cổ tay(0) → gốc ngón giữa(9)), KHÔNG dùng `frame.r`:
+    với 2 tay `frame.r` là trung bình cộng của cả hai (xem `OverlayView`, `SizeSource.PalmRadius`) nên tay gần
+    camera bị tia quá ngắn còn tay xa bị tia quá dài. `frame.r` chỉ còn là fallback.
 - **`KamehamehaVisual(context)`**: buffer-render `dragon_ball_energy` giống trên, vẽ 1 bản tại `(frame.cx, frame.cy)`,
   kích thước `frame.r * SIZE_MULTIPLIER(2.2)`, xoay thêm `SPIN_DEGREES_PER_SEC(320)` độ/giây tính từ `activatedAtMs`
   (lớn hơn và xoáy nhanh hơn state 1 tay). Dùng ở `dragonBallEffect()` state `kamehameha`:

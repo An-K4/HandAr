@@ -160,7 +160,8 @@ app/src/main/java/com/example/handar/
 │   │       ├── gojo/             GojoModel/GojoVisual (composition: chứa 1 AnimatedGifVisual con + gojo_merge oneShot)
 │   │       ├── fireball/         FireBallBurstVisual (burst oneShot rồi tự chuyển sang big loop)
 │   │       ├── magicshield/      ShieldHideVisual (thu nhỏ theo thời gian bằng code, dùng chung asset lúc hiện)
-│   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi)
+│   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
+│   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
 │   │       └── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng

@@ -1262,7 +1262,7 @@ Hợp đồng hiện tại chỉ đưa được **tâm lòng bàn tay** (landmar
 | Vẽ canvas | đầu ngón trỏ (landmark 8) |
 | Trái Đất | khoảng cách ngón cái ↔ ngón trỏ |
 | Cổng dịch chuyển / Hố đen | khoảng cách giữa **hai** tay |
-| Tia sét | từng đầu ngón đang duỗi |
+| Tia sét | từng đầu ngón đang duỗi (cả 5 ngón, cả 2 tay) |
 | Gojo | hai đầu ngón trỏ, và lúc chúng chạm nhau |
 
 Bảy trên mười hiệu ứng trong `Design_App_HandAr.md` cần nhiều hơn `cx/cy/r`.

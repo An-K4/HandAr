@@ -107,13 +107,19 @@ object Gestures {
         hands.any { isPointing(it, it[0]) }
     }
 
-    /** ≥ 1 trong 4 ngón trỏ/giữa/áp út/út đang duỗi, KHÔNG tính ngón cái — dùng cho hiệu ứng "Tia sét":
-     *  mỗi ngón đang duỗi sẽ có 1 tia sét riêng, nên không giới hạn số ngón giống như các cử chỉ số
-     *  (singleHandPointing, singleHandPeaceSign...) vốn yêu cầu đúng cả những ngón còn lại phải gập. */
-    val anyFingerExtendedNoThumb = GestureRecognizer { hands ->
+    /** ≥ 1 trong **5** ngón (kể cả ngón cái) của **bất kỳ tay nào** đang duỗi — dùng cho hiệu ứng "Tia sét":
+     *  mỗi ngón đang duỗi sẽ có 1 tia sét riêng, nên không giới hạn số ngón giống như các cử chỉ đếm ngón
+     *  (singleHandPointing, singleHandPeaceSign...) vốn yêu cầu đúng cả những ngón còn lại phải gập.
+     *
+     *  `hands.any` chứ không phải `hands.all`: giơ 2 tay thì cả 2 đều có tia, nhưng chỉ cần 1 tay
+     *  duỗi ngón là hiệu ứng đã bật — hạ 1 tay xuống không làm tắt tia của tay còn lại.
+     *  Ngón cái dùng [isThumbExtendedStrict] (duỗi **và** thẳng) thay vì [isThumbExtended]:
+     *  ở đây một lần nhận nhầm là mọc hẳn ra một tia sét thừa, xem ghi chú tại `GestureUtils.kt`. */
+    val anyFingerExtended = GestureRecognizer { hands ->
         hands.any { landmark ->
             val wrist = landmark[0]
-            isIndexExtended(landmark, wrist) || isMiddleExtended(landmark, wrist) ||
+            isThumbExtendedStrict(landmark, wrist) ||
+                    isIndexExtended(landmark, wrist) || isMiddleExtended(landmark, wrist) ||
                     isRingExtended(landmark, wrist) || isPinkyExtended(landmark, wrist)
         }
     }

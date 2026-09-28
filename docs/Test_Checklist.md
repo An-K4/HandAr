@@ -349,7 +349,7 @@ git checkout main && git stash pop
 
 ## M. Tia sét & Dragon Ball — 2 chỗ rủi ro suy luận chưa từng chạy thật
 
-> Chạy sau bất kỳ lần nào sửa `LightningVisual.kt`, `KamehamehaVisual.kt`, `DragonBallEffect.kt`, `Gesture.kt` (`anyFingerExtendedNoThumb`, `twoHandsWristsTogetherOpen`) hoặc nhánh `TwoWristMidpoint` trong `OverlayView.drawFrame()`. Hai số liệu suy luận: góc xoay tia sét `computeAngleDeg()` và ngưỡng cổ tay chụm `WRIST_TOGETHER_RATIO_THRESHOLD = 0.6` (khoảng cách 2 cổ tay / `palmLength` trung bình).
+> Chạy sau bất kỳ lần nào sửa `LightningVisual.kt`, `KamehamehaVisual.kt`, `DragonBallEffect.kt`, `Gesture.kt` (`anyFingerExtended`, `twoHandsWristsTogetherOpen`), `GestureUtils.kt` (`isThumbExtendedStrict`/`isThumbCurled`) hoặc nhánh `TwoWristMidpoint` trong `OverlayView.drawFrame()`. Hai số liệu suy luận: góc xoay tia sét `computeAngleDeg()` và ngưỡng cổ tay chụm `WRIST_TOGETHER_RATIO_THRESHOLD = 0.6` (khoảng cách 2 cổ tay / `palmLength` trung bình).
 
 ### M.1. Tia sét (`lightning`)
 
@@ -357,10 +357,14 @@ git checkout main && git stash pop
 |---|---|---|---|
 | M1 | Chỉ duỗi ngón trỏ, hướng thẳng lên trên | 1 tia sét chân đặt đúng đầu ngón, mũi hướng lên, cùng chiều ngón tay | Tia ngược 180° → đổi dấu `computeAngleDeg()`; bị lật gương → đổi dấu `dx` |
 | M2 | Xoay cổ tay để ngón trỏ chỉ ngang trái, ngang phải, xuống dưới | Tia luôn nằm dọc theo ngón tay (pip → tip) ở cả 4 hướng, không lệch nhất quán | Lệch cùng 1 góc ở mọi hướng = sai hằng số; lệch khác nhau theo hướng = sai công thức `atan2` |
-| M3 | Duỗi lần lượt 1, 2, 3, 4 ngón (trỏ/giữa/áp út/út), không tính ngón cái | Đúng số tia = số ngón đang duỗi, mỗi tia ở đầu đúng ngón đó | |
-| M4 | Chỉ giơ ngón cái (các ngón khác gập), rồi nắm tay | KHÔNG có tia nào — xác nhận `anyFingerExtendedNoThumb` bỏ qua ngón cái | |
-| M5 | Đưa 2 tay vào khung, mỗi tay duỗi 1–2 ngón | Cả 2 tay đều có tia (`LightningVisual` duyệt mọi tay trong `frame.hands`) | |
-| M6 | Tay gần/xa camera | Độ dài tia co giãn theo `frame.r` (~1.15 × bán kính lòng bàn tay), không quá ngắn/dài bất thường | Đổi `BOLT_LENGTH_SCALE` |
+| M3 | Xòe cả bàn tay (5 ngón) | Đúng **5** tia, mỗi tia ở đầu đúng 1 ngón — **kể cả ngón cái**. Tia ngón cái ngắn hơn 4 tia kia (`THUMB_LENGTH_SCALE` 0.85 vs 1.15) | Không có tia ngón cái → xem `isThumbExtendedStrict`; tia ngón cái rung/đảo hướng → kiểm tra `pip = 2` (MCP), không phải 3 |
+| M3b | Duỗi lần lượt 1, 2, 3, 4 ngón (trỏ/giữa/áp út/út), ngón cái gập vào lòng bàn tay | Đúng số tia = số ngón đang duỗi, **không** có tia thừa mọc ra từ ngón cái đang gập | Có tia thừa → ngưỡng `isThumbCurled` (0.88) quá lỏng |
+| M4 | Chỉ giơ ngón cái (👍, 4 ngón kia gập) | Có **đúng 1** tia, ở đầu ngón cái, hướng dọc theo ngón cái. Đây là thay đổi so với bản cũ (trước đây cố ý bỏ qua ngón cái) | |
+| M4b | Nắm tay hoàn toàn (✊) | KHÔNG có tia nào, tiếng tắt | |
+| M5 | Đưa **2 tay** vào khung, mỗi tay duỗi số ngón khác nhau | Cả 2 tay đều có tia, đúng số ngón của từng tay. **Ca này trước đây không thể pass** vì effect khai `requiredNumHands = 1` nên MediaPipe chỉ trả về 1 tay — nay đã là 2 | Chỉ 1 tay có tia → kiểm tra `requiredNumHands` và `HandLandmarkerProvider.getOrCreate` có tạo lại detector khi đổi effect không |
+| M5b | 2 tay ở **2 khoảng cách khác nhau** với camera (1 tay gần, 1 tay xa) | Tia của mỗi tay co giãn theo **chính tay đó**, không phải trung bình 2 tay (tay gần tia không bị ngắn hụt, tay xa tia không bị dài quá) | Sai → `handRadiusPx` đang không được dùng, rơi về `frame.r` |
+| M5c | Hạ 1 tay ra khỏi khung khi tay kia vẫn đang duỗi ngón | Tia của tay còn lại vẫn giữ nguyên, tiếng không tắt (`hands.any`, không phải `hands.all`) | |
+| M6 | Tay gần/xa camera | Độ dài tia co giãn theo bán kính lòng bàn tay của chính tay đó (~1.15×, ngón cái ~0.85×), không quá ngắn/dài bất thường | Đổi `BOLT_LENGTH_SCALE` / `THUMB_LENGTH_SCALE` |
 | M7 | Lặp M1–M3 **trong lúc đang ghi hình**, xem lại video | Video khớp live: cùng hướng tia, không bị lật/lệch (canvas ghi hình dùng `frame.px/py` với mirror khác live) | |
 | M8 | Tiếng điện xẹt | Lặp mượt khi còn tia, dừng khi hạ tay/nắm tay | |
 

@@ -8,7 +8,7 @@ import com.example.handar.R
 data class GestureDisplay(@StringRes val nameRes: Int, @DrawableRes val iconRes: Int)
 
 val gestureDisplayMap: Map<GestureRecognizer, GestureDisplay> = mapOf(
-    Gestures.anyFingerExtendedNoThumb to GestureDisplay(R.string.gesture_finger_extended, R.drawable.ic_action),
+    Gestures.anyFingerExtended to GestureDisplay(R.string.gesture_finger_extended, R.drawable.ic_action),
     Gestures.anyHandPresent to GestureDisplay(R.string.gesture_any_hand, R.drawable.ic_action),
     Gestures.anyHandPointing to GestureDisplay(R.string.gesture_pointing, R.drawable.ic_action),
     Gestures.singleHandPalmOpen to GestureDisplay(R.string.gesture_open_palm, R.drawable.ic_action),

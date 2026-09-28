@@ -90,6 +90,24 @@ fun isRingCurled(landmark: List<NormalizedLandmark>): Boolean =
 fun isPinkyCurled(landmark: List<NormalizedLandmark>): Boolean =
     fingerCurlRatio(landmark, 17, 18, 19, 20) < 0.88
 
+/** ngón cái cũng đo độ cong như 4 ngón kia, chỉ khác bộ khớp: CMC(1) - MCP(2) - IP(3) - TIP(4). */
+fun isThumbCurled(landmark: List<NormalizedLandmark>): Boolean =
+    fingerCurlRatio(landmark, 1, 2, 3, 4) < 0.88
+
+/** Bản chặt hơn của [isThumbExtended], dùng khi một ngón cái nhận nhầm sẽ đẻ ra hiệu ứng thừa
+ *  (ví dụ "Tia sét" vẽ 1 tia cho MỖI ngón đang duỗi — nhận nhầm = có tia mọc ra từ ngón cái đang gập).
+ *
+ *  [isThumbExtended] một mình chỉ đo ngón cái có **dang ra** khỏi lòng bàn tay không
+ *  (so khoảng cách tới gốc ngón út), nên tư thế "ngón cái duỗi thẳng nhưng quặp vào trong"
+ *  hoặc "gập ở khớp IP mà gốc vẫn dang" đều lọt. Thêm điều kiện ngón cái phải **thẳng**
+ *  ([isThumbCurled] = false) thì cả hai kiểu đó bị loại.
+ *
+ *  Cố ý KHÔNG sửa thẳng [isThumbExtended] vì [isPalmOpen]/[isFist] và các cử chỉ đếm ngón
+ *  đang dùng nó và đã được test thật (Test_Checklist mục I.8) — siết ở đó sẽ làm xòe tay
+ *  khó nhận hơn. */
+fun isThumbExtendedStrict(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean =
+    isThumbExtended(landmark, wrist) && !isThumbCurled(landmark)
+
 fun isPalmOpen(landmark: List<NormalizedLandmark>, wrist: NormalizedLandmark): Boolean {
     return isThumbExtended(landmark, wrist) &&
             isIndexExtended(landmark, wrist) &&

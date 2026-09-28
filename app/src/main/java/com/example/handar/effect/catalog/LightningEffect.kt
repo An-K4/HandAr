@@ -11,11 +11,12 @@ fun lightningEffect(): EffectDefinition = EffectDefinition(
     id = "lightning",
     displayName = "Tia sét",
     thumbnailRes = R.drawable.lightning_thumbnail,
-    requiredNumHands = 1,
+    // 2 tay: mỗi ngón duỗi của MỖI tay đều có tia sét riêng (xem LightningVisual.draw).
+    requiredNumHands = 2,
     states = listOf(
         EffectState(
             id = "lightning",
-            gesture = Gestures.anyFingerExtendedNoThumb,
+            gesture = Gestures.anyFingerExtended,
             asset = EffectAsset.Procedural("lightning") { ctx, _ -> LightningVisual(ctx) },
             soundRes = R.raw.lightning_zap
         )
