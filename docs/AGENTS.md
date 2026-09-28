@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `9fb0b06`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `8f810f4`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -37,6 +37,12 @@ chạy `./gradlew bundleRelease packageReleaseUniversalApk`, ước tính dung l
 (ghi vào mô tả Release) rồi đẩy APK universal release lên GitHub Release tag `latest` (tên "Magic Hand Latest Build").
 Bản release ký bằng keystore riêng của CI (secrets `CI_KEYSTORE_BASE64`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`,
 `CI_KEY_PASSWORD`) — không phải upload key của Play; build local không có biến môi trường thì ký bằng debug keystore. Không chạy lint/test trong CI, vẫn phải tự chạy `assembleDebug lintDebug` trước khi commit.
+
+**Bản release bật R8 nên phải giữ keep rule** (`app/src/main/keepRules/rules.keep`, từ commit `7f43107`): MediaPipe
+tra class/method qua JNI theo tên, protobuf-lite đọc field theo tên (`GeneratedMessageLite`), Flogger dò stack tìm
+class của chính nó. Thiếu 3 nhóm rule này thì bản debug vẫn chạy còn bản release crash ngay khi khởi tạo
+`HandLandmarker` — lỗi kiểu này KHÔNG lộ ra khi chỉ test bản debug, nên sau mỗi lần đổi thư viện native/reflection
+phải cài thử bản release trên máy thật.
 
 ## 3. Kiến trúc cốt lõi (bắt buộc hiểu trước khi sửa)
 
@@ -169,7 +175,8 @@ app/src/main/java/com/example/handar/
 ├── ui/
 │   ├── splash|onboarding|survey|welcome|permission/   luồng mở app 1 lần (thứ tự: splash → welcome →
 │   │                    onboarding1-3 → survey → permission), mỗi cụm tự popUpTo+inclusive
-│   │                    (permission/: PermissionFragment, 2 switch xin quyền Camera + Thông báo;
+│   │                    (permission/: PermissionFragment, switch xin quyền Camera + Thông báo — card
+│   │                     Thông báo bị ẩn hẳn trên Android < 13 vì không có POST_NOTIFICATIONS để xin;
 │   │                     onboarding1/: có nút Skip nhảy thẳng sang survey)
 │   ├── language/        LanguageFragment — KHÔNG còn trong luồng mở app 1 lần, chỉ mở từ settings/
 │                        (2 dòng chọn cờ vi/en dạng radio, `AppCompatDelegate.setApplicationLocales`)
@@ -190,9 +197,12 @@ app/src/main/java/com/example/handar/
 │                        VideoSeekBarController (đồng bộ 1 SeekBar + 2 nhãn thời gian với 1 ExoPlayer, tách
 │                        từ recordedpreview để dùng lại ở share/), VideoThumbnailView (ảnh thumbnail +
 │                        nút expand tùy chọn, dùng bởi `item_video.xml`), RenameDialog (dialog đổi tên
-│                        video, mở từ menu ⋮ của videoPlayerFragment, xem `dialog_rename.xml`)
+│                        video, mở từ menu ⋮ của videoPlayerFragment, xem `dialog_rename.xml`),
+                        PermissionDeniedDialog (dialog 2 nút Thoát/Cài đặt khi quyền bị từ chối vĩnh viễn,
+                        xem `dialog_permission_denied.xml`)
 ├── OverlayView.kt         canvas vẽ hiệu ứng, dùng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                 AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge),
+                           PermissionUtils (Context.openAppSettings() — mở màn App info của chính app),
                            RecordingPerfLogger (TẠM), VideoStatsLogger
 .github/workflows/release.yml   CI: push main → bundleRelease + ước tính dung lượng Play → APK release lên GitHub Release tag `latest`
 app/src/main/res/drawable/  ảnh UI, thumbnail, và các ảnh hiệu ứng cũ (.webp) | drawable-nodpi/  ảnh + nền của các hiệu ứng
@@ -303,6 +313,15 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   khi bị từ chối) và **POST_NOTIFICATIONS** (Android 13+, switch ở `PermissionFragment`), không xin `RECORD_AUDIO` —
   nếu thấy yêu cầu thêm mic, đó là
   dấu hiệu sai kiến trúc (xem mục 3.2).
+- **Từ chối quyền có 2 trạng thái khác nhau, xử lý khác nhau** (từ commit `8f810f4`): `shouldShowRequestPermissionRationale`
+  trả `true` = từ chối thường, xin lại được → `CameraRecordFragment` báo Toast rồi `popBackStack()`,
+  `PermissionFragment` để nguyên switch tắt cho user bấm lại. Trả `false` (sau khi đã từ chối) = "Don't ask again",
+  hệ thống nuốt luôn mọi lần `launch()` sau nên bấm nút/switch sẽ **không có phản hồi gì** → phải mở
+  `PermissionDeniedDialog` (`ui/widget/`) dẫn sang màn cài đặt quyền bằng `Context.openAppSettings()`
+  (`utils/PermissionUtils.kt`, `ACTION_APPLICATION_DETAILS_SETTINGS`). Đừng thay bằng `MaterialAlertDialogBuilder`:
+  dialog hệ thống không ăn theme app nên mất font Noto Serif. Sau khi user quay lại từ Settings phải kiểm tra quyền
+  lần nữa trong `onResume` (`CameraRecordFragment` dùng cờ `awaitingSettingsResult`, `PermissionFragment` gọi sẵn
+  `refreshSwitchStates()`).
 - Asset hiệu ứng phải theo đúng `Asset_Format_Guidelines.md` (mọi ảnh dùng `.webp`: ảnh tĩnh có alpha 512–768px; ảnh động
   ≤256×256, ≤20 frame, ≤500KB; sprite sheet chia lưới hết; WAV PCM16/Mono/44100Hz, 0.3–3s; tên theo mẫu `<effect_id>_<trạng thái>`, xem `Design_App_HandAr.md` mục 5.1) và
   đặt trong `res/drawable-nodpi/` để tránh bị phóng theo mật độ màn hình.
@@ -325,6 +344,7 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
 | `Asset_Format_Guidelines.md` | Mỗi khi thêm hiệu ứng/asset mới |
 | `Perf_Notes.md` | Trước khi đổi cấu hình liên quan hiệu năng (resolution, bitrate, GIF vs sprite sheet) |
 | `App_Size_Optimization_16KB_Compliance.md` | Trước khi đụng cấu hình build/R8/shrinkResources hoặc bản 16KB page size |
+| `App_Size_Optimization_Plan.md` | Giai đoạn 2 của việc giảm dung lượng: mốc đo bằng bản release, keep rule R8, CI + `bundletool`, và danh sách việc đã cố ý loại bỏ (WAV→OGG, split ABI, PAD…) |
 | `Test_Checklist.md` | Sau mỗi thay đổi — chạy checklist A–H phù hợp (đặc biệt D: chống regression 6 bug đã fix) |
 | `Code_Walkthrough.md` | **Đọc trước khi sửa bất kỳ file .kt nào** — giải thích code từng file/từng hàm, sơ đồ quan hệ import giữa các file, và mục 12 liệt kê các liên kết chéo dễ nhầm khi debug (ví dụ 2 bộ nhận diện gesture độc lập nói ở mục 3 trên) |
 

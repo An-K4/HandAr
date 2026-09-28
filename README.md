@@ -67,7 +67,7 @@
 ## Yêu cầu & cách chạy
 
 - **minSdk 28** (Android 9) · **targetSdk / compileSdk 37** · Java 11
-- Quyền cần cấp: **CAMERA** (bắt buộc) và **POST_NOTIFICATIONS** (Android 13+), đều xin qua màn cấp quyền lần đầu mở app; app **không** dùng mic — xem [Kiến trúc](#kiến-trúc)
+- Quyền cần cấp: **CAMERA** (bắt buộc) và **POST_NOTIFICATIONS** (Android 13+ — trên máy cũ hơn switch này bị ẩn vì không có quyền để xin), đều xin qua màn cấp quyền lần đầu mở app; app **không** dùng mic — xem [Kiến trúc](#kiến-trúc). Nếu quyền camera bị từ chối kèm "Don't ask again", app hiện dialog 2 nút **Thoát / Cài đặt** đưa thẳng sang màn App info để bật tay, vì từ lúc đó hệ thống không cho app hỏi lại nữa
 - Video được lưu tại `getExternalFilesDir(Environment.DIRECTORY_MOVIES)` của app
 
 ```bash
@@ -77,7 +77,7 @@
 # Build kiểm tra nhanh trước khi commit
 ./gradlew :app:assembleDebug :app:lintDebug
 
-# Build bản phát hành (đã bật R8 + shrinkResources)
+# Build bản phát hành (đã bật R8 + shrinkResources — keep rule cho MediaPipe/protobuf/Flogger ở app/src/main/keepRules/rules.keep)
 ./gradlew :app:bundleRelease
 ```
 
@@ -245,7 +245,8 @@ app/src/main/java/com/example/handar/
 ├── ui/
 │   ├── splash/ · onboarding/ · survey/ · welcome/ · permission/   luồng mở app lần đầu, 1 chiều (thứ
 │   │                 tự: splash → welcome → onboarding1-3 → survey1 → survey2 → permission)
-│   │                 (permission/: PermissionFragment — 2 switch xin quyền Camera + Thông báo;
+│   │                 (permission/: PermissionFragment — switch xin quyền Camera + Thông báo, card Thông báo
+│   │                  ẩn hẳn trên Android < 13; từ chối vĩnh viễn → PermissionDeniedDialog;
 │   │                  onboarding/: onboarding1 có nút Skip nhảy thẳng sang survey1; survey/:
 │   │                  Survey1Fragment/Survey2Fragment, khảo sát 2 bước đã có nội dung thật, chưa lưu lựa chọn)
 │   ├── language/     LanguageFragment — KHÔNG còn trong luồng mở app lần đầu, chỉ mở từ settings/ (2 dòng
@@ -263,7 +264,8 @@ app/src/main/java/com/example/handar/
 │   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),
 │   │                 CurvedNavBackgroundView, RoundedOutline (bo góc ảnh bằng ViewOutlineProvider —
 │   │                 clipToOutline trên parent không tự cắt View con), ConfirmDialog (dialog xác nhận
-│   │                 dùng chung, dùng bởi RecordedPreviewFragment), VideoSeekBarController (đồng bộ SeekBar + nhãn
+│   │                 dùng chung, dùng bởi RecordedPreviewFragment), PermissionDeniedDialog (2 nút
+│   │                 Thoát/Cài đặt khi quyền bị từ chối vĩnh viễn), VideoSeekBarController (đồng bộ SeekBar + nhãn
 │   │                 thời gian với ExoPlayer, tách từ recordedpreview để dùng lại ở share/),
 │   │                 VideoThumbnailView (ảnh thumbnail + nút expand tùy chọn, root của item_video.xml)
 │   ├── share/         ShareFragment  (mở từ recordedpreview.save() HOẶC từ menu ⋮ của videoPlayer;
@@ -275,6 +277,7 @@ app/src/main/java/com/example/handar/
 ├── OverlayView.kt                canvas vẽ hiệu ứng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
                                 3 hàm: padding/margin/match-height cho status bar & nav bar),
+                                PermissionUtils (openAppSettings — mở màn App info của app),
                                 RecordingPerfLogger, VideoStatsLogger
 .github/workflows/release.yml         CI build release + ước tính dung lượng Play
 app/src/main/res/
@@ -345,7 +348,18 @@ Số liệu đo trên máy test (09/2026, máy nguội, clip 60–90s, 720×1560
 |---|---|
 | Ban đầu (tắt tối ưu hoá) | 90 MB |
 | Bật `optimization { enable = true }` (R8 + shrinkResources) | ~53.7 MB |
-| Sau khi thay/nén asset (`res/drawable` 15.1 → 3.74 MB, dù số hiệu ứng tăng 2 → 10) | **~33.8 MB** (`.aab` raw) |
+| Sau khi thay/nén asset (`res/drawable` 15.1 → 3.74 MB, dù số hiệu ứng tăng 2 → 10) | ~33.8 MB (`.aab` raw) |
+| Sau khi đổi 6 ảnh nền `bg_*` từ PNG sang WebP (2.25 → 0.20 MB) | **23.4 MB** (`.aab` upload lên Play) |
+| → **Dung lượng người dùng thật sự tải từ Play** (máy arm64, xxhdpi, tiếng Việt) | **~20.4 MB** |
+| APK universal đính kèm GitHub Release (nặng hơn bản Play, chỉ để cài thử) | 30.5 MB |
+
+Con số "tải từ Play" được CI đo lại mỗi lần push `main` bằng `bundletool get-size` và ghi vào mô tả Release —
+đừng đọc dung lượng file APK trên GitHub như dung lượng Play. Chi tiết mốc đo, việc còn lại và những hướng đã
+cố ý loại bỏ: [`docs/App_Size_Optimization_Plan.md`](docs/App_Size_Optimization_Plan.md).
+
+> Bản release bật R8 nên **bắt buộc** giữ keep rule ở `app/src/main/keepRules/rules.keep` (MediaPipe tra class qua
+> JNI theo tên, protobuf-lite đọc field theo tên, Flogger dò stack). Thiếu chúng thì bản debug vẫn chạy còn bản
+> release crash ngay khi khởi tạo `HandLandmarker` — luôn cài thử bản release trên máy thật trước khi phát hành.
 
 App đã đạt **16 KB page size compliance** (bắt buộc để phát hành lên Google Play với `targetSdk ≥ 35`)
 nhờ nâng MediaPipe lên `0.10.26` và CameraX lên `1.4.2`. Kiểm tra bằng **Build → Analyze APK/Bundle** → cột *Alignment*.

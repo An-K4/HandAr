@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `9fb0b06`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `8f810f4`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -44,10 +44,18 @@ settings mở từ icon hamburger ở view_top_bar.xml, có sẵn mọi lúc; la
 
 ui/permission/PermissionFragment.kt   (màn cuối của cụm mở app 1 lần, giữa survey và effectList)
     → PermissionFragment: 2 SwitchMaterial (Camera = CAMERA, Thông báo = POST_NOTIFICATIONS — Android < 13 không có quyền này
-      nên luôn coi là granted). Switch chỉ phản ánh trạng thái quyền thật (`refreshSwitchStates()` ở onViewCreated + onResume để
-      cập nhật khi user vừa cấp tay trong Settings): bật khi chưa cấp → xin quyền; tắt khi đã cấp → trả về bật (Android không
-      cho app tự thu hồi quyền). Nút bắt đầu → action_permission_to_effectList (popUpTo inclusive), **không chặn** khi chưa
+      nên luôn coi là granted, và từ commit `8f810f4` cả card `card_permission_notification` bị `isVisible = false` luôn trên
+      máy < 13 thay vì để một switch bấm không có tác dụng; layout bù khoảng trống bằng `layout_goneMarginBottom` trên card
+      Camera vì ConstraintLayout coi View GONE là 1 điểm và bỏ margin của nó). Switch chỉ phản ánh trạng thái quyền thật
+      (`refreshSwitchStates()` ở onViewCreated + onResume để cập nhật khi user vừa cấp tay trong Settings): bật khi chưa cấp
+      → xin quyền; tắt khi đã cấp → trả về bật (Android không cho app tự thu hồi quyền). Từ chối kèm "Don't ask again"
+      (`shouldShowRequestPermissionRationale` = false sau khi đã hỏi) → `PermissionDeniedDialog` dẫn sang màn cài đặt,
+      vì từ lúc đó mọi `launcher.launch()` đều bị hệ thống nuốt, bấm switch sẽ không có phản hồi gì.
+      Nút bắt đầu → action_permission_to_effectList (popUpTo inclusive), **không chặn** khi chưa
       cấp quyền — màn camera có nhánh xin lại (mục 6.2)
+    → ui/widget/PermissionDeniedDialog.kt   (dialog 2 nút; ở màn này nút trái là **Đóng** chỉ dismiss,
+      vì onboarding không có màn nào để thoát về — khác màn camera, xem mục 6.2)
+    → utils/PermissionUtils.kt (openAppSettings)   (mở màn App info của app)
 
 ui/effectlist/EffectListFragment.kt
     → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(query) cho
@@ -88,6 +96,7 @@ ui/camera/CameraRecordFragment.kt   ★ file trung tâm, "nhạc trưởng" củ
     → audio/BgmPlayer.kt                  (phát nhạc nền ra loa)
     → utils/AudioUtils.kt (loadWavPcm)    (đọc file .wav → PCM để feed vào AudioMixer)
     → utils/RecordingPerfLogger.kt, utils/VideoStatsLogger.kt (đo đạc, KHÔNG phải logic chính)
+    → ui/widget/PermissionDeniedDialog.kt + utils/PermissionUtils.kt (quyền camera bị từ chối vĩnh viễn, mục 6.2)
 
 OverlayView.kt                      ★ file trung tâm thứ hai, "bộ não vẽ"
     → effect/model/*.kt                   (đọc cấu hình EffectDefinition/EffectState đang chọn)
@@ -673,6 +682,33 @@ giật do I/O:
 
 `checkAndRequestPermission()` → (nếu đã có quyền CAMERA) → `setupMediaPipe()` + `startCamera()`.
 
+Nếu chưa có thì `requestPermissionLauncher.launch(...)`, và kết quả trả về rẽ **3 nhánh** (từ commit `8f810f4`):
+
+| Kết quả | Điều kiện | Xử lý |
+|---|---|---|
+| Đã cấp | `permission[CAMERA] == true` | `setupMediaPipe()` + `startCamera()` |
+| Từ chối thường | `shouldShowRequestPermissionRationale(CAMERA) == true` | Toast `camera_permission_denied` rồi `popBackStack()` — lần sau vào lại màn camera vẫn hỏi được |
+| Từ chối vĩnh viễn | `shouldShowRequestPermissionRationale(CAMERA) == false` | `showPermissionDeniedDialog()` |
+
+Nhánh thứ 3 là nhánh dễ làm sai nhất: khi user đã chọn "Don't ask again" (hoặc từ chối 2 lần trên Android 11+),
+hệ thống **nuốt luôn** mọi `launch()` sau đó — callback trả về `false` ngay lập tức mà không hiện dialog nào, nên
+nếu chỉ `popBackStack()` thì user không hiểu vì sao app không mở camera. Vì vậy màn này mở
+`PermissionDeniedDialog` (`ui/widget/`, layout `dialog_permission_denied.xml`, 2 nút **Thoát** / **Cài đặt** theo
+đúng bố cục `dialog_confirm.xml`):
+
+- **Thoát** → `popBackStack()`.
+- **Cài đặt** → bật cờ `awaitingSettingsResult = true` rồi `ctx.openAppSettings()` (`utils/PermissionUtils.kt` —
+  `ACTION_APPLICATION_DETAILS_SETTINGS` với uri `package:<packageName>`, fallback `ACTION_APPLICATION_SETTINGS`
+  cho máy không có màn App info).
+- `onResume()` thấy cờ `awaitingSettingsResult` thì kiểm tra lại quyền: cấp rồi → `setupMediaPipe()` + `startCamera()`,
+  chưa cấp → `popBackStack()`. Đây là cách duy nhất biết kết quả, vì mở Settings không đi qua `ActivityResultLauncher`.
+- Dialog giữ tham chiếu ở `permissionDeniedDialog` và `dismiss()` trong `onDestroyView` — dialog dùng `requireContext()`
+  của Fragment nên còn treo sau khi view chết là leak window.
+
+> Dialog này **không** dùng `MaterialAlertDialogBuilder`: dialog hệ thống chạy theme riêng nên mất font Noto Serif
+> của app. Cả `ConfirmDialog`, `GestureGuideDialog` và `PermissionDeniedDialog` đều là `Dialog(context, R.style.Theme_HandAr)`
+> rồi tự ép `setLayout`/`setGravity`/`FLAG_DIM_BEHIND` (xem mục 12) — thêm dialog mới thì theo đúng mẫu đó.
+
 `setupMediaPipe()`:
 ```kotlin
 handLandmarker = HandLandmarkerProvider.getOrCreate(requireContext(), currentEffect.requiredNumHands)
@@ -991,6 +1027,7 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | Đổi top bar (back + tên effect) của màn camera/xem trước | `res/layout/view_effect_top_bar.xml` — dùng chung qua `<include>`, đừng nhân bản vào thư mục qualifier (xem `docs/AGENTS.md` mục 5) |
 | Đổi tên/xoá/chia sẻ video từ thư viện | `ui/player/VideoPlayerFragment.kt` (menu ⋮) + `ui/widget/RenameDialog.kt` / `ui/widget/ConfirmDialog.kt` |
 | Sửa logic mở app MXH khi chia sẻ | `utils/SocialShare.kt` (`shareVideoToSocialApp`, `SocialTarget`) |
+| Sửa dialog/luồng khi quyền bị từ chối | `ui/widget/PermissionDeniedDialog.kt` + `res/layout/dialog_permission_denied.xml` + `utils/PermissionUtils.kt`; nơi gọi: `ui/camera/CameraRecordFragment.kt` (mục 6.2) và `ui/permission/PermissionFragment.kt` |
 
 ---
 
@@ -1029,3 +1066,16 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
    (nút Thử lại bị ẩn ở tầng UI, nhưng nếu sau này có code nào lỡ gọi `actionShareToCameraRecord`
    bất chấp cờ này thì sẽ mở camera với effect rỗng — kiểm tra `args.fromRecordedPreview` trước khi
    sửa gì liên quan tới nút Thử lại).
+9. **Mọi dialog của app đều là `Dialog(context, R.style.Theme_HandAr)` tự dựng, KHÔNG phải
+   `MaterialAlertDialogBuilder`** (`ConfirmDialog`, `RenameDialog`, `GestureGuideDialog`,
+   `PermissionDeniedDialog`). Lý do: dialog hệ thống chạy theme riêng của nó nên `TextView` bên trong
+   mất font Noto Serif mà theme app khai báo. Đổi lại, vì `Theme_HandAr` là theme **toàn màn** của
+   Activity (`windowIsFloating` không chắc true), mỗi dialog phải tự ép
+   `setBackgroundDrawable(TRANSPARENT)` + `setLayout(WRAP_CONTENT, WRAP_CONTENT)` + `setGravity(CENTER)`
+   + `FLAG_DIM_BEHIND`; quên đoạn này thì dialog tràn kín màn hình. Thêm dialog mới → copy nguyên khối
+   `init` của `ConfirmDialog`.
+10. **`shouldShowRequestPermissionRationale` được đọc ở 2 nơi với 2 cách xử lý khác nhau**:
+   `CameraRecordFragment` (true → Toast + `popBackStack()`; false → `PermissionDeniedDialog` với nút
+   **Thoát**) và `PermissionFragment` (true → không làm gì, để user bấm switch lại; false →
+   `PermissionDeniedDialog` với nút **Đóng**, vì màn onboarding không có chỗ nào để thoát về). Cùng 1
+   dialog, khác text nút và khác callback — sửa 1 bên nhớ xem bên kia.

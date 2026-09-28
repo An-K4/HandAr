@@ -67,7 +67,7 @@ Phát hiện quan trọng:
    - Tạo **một keystore riêng cho CI** (`keytool -genkeypair ...`), mã hoá base64, lưu vào GitHub Secrets.
    - **Không dùng upload key của Play** trên GitHub — lộ secret CI không được ảnh hưởng tới việc phát hành Play.
    - Keystore cố định giúp các bản trên GitHub cài đè lên nhau được (hiện tại runner sinh debug keystore mới mỗi lần build, có thể khiến bản mới không cài đè lên bản cũ được).
-3. `.github/workflows/release-debug.yml` → đổi tên thành `release.yml`
+3. `.github/workflows/release-debug.yml` → đổi tên thành `release.yml` (đã đổi ở commit `7f43107`)
    - `./gradlew bundleRelease packageReleaseUniversalApk` (task có sẵn của AGP, sinh APK universal từ chính `.aab`, ký bằng keystore CI).
    - Tải `bundletool` từ `google/bundletool` releases (đang ghim `1.18.3`, trùng bản AGP dùng).
    - `bundletool build-apks` rồi `get-size total` hai lần: một lần với `device.json` (arm64, xxhdpi, vi-VN, SDK 34), một lần không lọc để lấy MIN/MAX mọi cấu hình.
@@ -111,8 +111,9 @@ Phần "phình to sau thời gian dùng" ở các app khác gần như luôn đ�
 | Mục | Trạng thái |
 |---|---|
 | Đo lại mốc bằng bản release | ✅ Xong (33.5 MB APK release) |
-| PNG → WebP cho 6 ảnh `bg_*` | ✅ Xong, chờ kiểm tra hiển thị trên máy |
-| P1 — CI + bundletool + keystore CI + keep rule R8 | 🔧 Code xong, chờ tạo keystore + secrets và chạy thử CI lần đầu |
+| PNG → WebP cho 6 ảnh `bg_*` | ✅ Xong ở commit `3d3c414`, chờ kiểm tra hiển thị trên máy |
+| Keep rule R8 (MediaPipe / protobuf-lite / Flogger) | ✅ Xong ở commit `7f43107` — **phải cài thử bản release trên máy thật**, lỗi loại này không lộ ở bản debug |
+| P1 — CI + bundletool + keystore CI | 🔧 Code xong ở commit `e6aee7c`, chờ tạo keystore + secrets và chạy thử CI lần đầu |
 | P2 — Dọn thư viện / `localeFilters` | ⏳ Tuỳ chọn |
 | P3 — Rà soát cache/recording | ⏳ Tuỳ chọn |
 

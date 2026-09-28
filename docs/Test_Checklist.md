@@ -17,8 +17,13 @@
 
 | # | Bước | Kỳ vọng |
 |---|---|---|
-| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash (~5s) → chào mừng → onboarding 1–3 → khảo sát 1–2 tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, 2 switch (Camera, Thông báo) đang tắt (Android < 13: switch Thông báo luôn bật, không có popup). Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
-| A2 | Từ chối quyền Camera | App hiện Toast từ chối, không crash |
+| A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash (~5s) → chào mừng → onboarding 1–3 → khảo sát 1–2 tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, switch Camera đang tắt. Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
+| A1b | **Chạy trên máy Android < 13** (hoặc emulator API 32), vào màn xin quyền | Card "Allow notification" **không hiện** (bị ẩn cả dòng, không phải chỉ tắt switch). Card Camera nằm ngay trên nút bắt đầu, khoảng cách cân đối như khi có 2 card — không bị tụt sát nút hay hở một mảng trống |
+| A2 | Ở màn xin quyền: bật switch Camera rồi **từ chối** popup (1 lần) | Switch tự trả về tắt, **không** có dialog nào, không crash. Bấm lại switch → popup hiện lại bình thường |
+| A2b | Từ chối tiếp cho tới khi Android chuyển sang *permanently denied* (Android 11+: từ chối 2 lần, hoặc tick "Don't ask again") | Hiện `PermissionDeniedDialog`: tiêu đề "Quyền truy cập bị từ chối", 2 nút **Đóng** / **Cài đặt** (đúng bố cục `dialog_confirm.xml`, có font Noto Serif, không phải dialog trắng mặc định của hệ thống). Bấm ra ngoài dialog **không** đóng được |
+| A2c | Ở dialog A2b bấm **Đóng** | Dialog đóng, vẫn ở màn xin quyền, switch tắt, không điều hướng đi đâu |
+| A2d | Ở dialog A2b bấm **Cài đặt** | Mở đúng màn App info của Magic Hand (không phải màn Settings tổng). Bật quyền Camera rồi back về app → switch Camera **tự bật** mà không cần thao tác gì thêm |
+| A2e | Lặp A2b–A2d với quyền **Thông báo** trên Android 13+ | Dialog hiện đúng nội dung về Thông báo (không phải nội dung Máy ảnh); nút Cài đặt cũng mở App info; quay lại thì switch Thông báo tự cập nhật |
 | A3 | Vào Settings hệ thống → cấp lại quyền Camera → mở lại app | App hoạt động bình thường, live preview hiện đúng |
 
 ## B. Live preview (chưa ghi hình)
@@ -130,7 +135,11 @@ git checkout main && git stash pop
 | G6 | Chọn qua lại nhiều hiệu ứng khác nhau rồi mới bấm Record | Video ghi ra dùng đúng hiệu ứng của lần chọn **cuối cùng**, cả GIF lẫn tiếng |
 | G7 | Vào màn camera, **từ chối** quyền camera lần đầu | Hiện Toast từ chối, không crash, không đứng lại ở màn đen (tự quay về màn danh sách) |
 | G7b | Back, vào camera lại | Hệ thống **vẫn hỏi quyền** lần thứ 2 |
-| G7c | Từ chối lần 2, Back, vào camera lại lần nữa | **Không còn dialog nào** — đây là hành vi đúng của Android, không phải bug (xem ghi chú dưới). App phải hiện hướng dẫn mở Settings, tuyệt đối không im lặng hoặc kẹt ở màn đen |
+| G7c | Từ chối lần 2, Back, vào camera lại lần nữa | Hệ thống **không** hiện popup quyền nữa (hành vi đúng của Android, không phải bug — xem ghi chú dưới), nhưng app phải hiện `PermissionDeniedDialog` 2 nút **Thoát** / **Cài đặt**. Tuyệt đối không im lặng, không kẹt ở màn đen |
+| G7c1 | Ở dialog G7c bấm **Thoát** | Về màn trước (danh sách hiệu ứng / Home), không kẹt lại màn camera đen |
+| G7c2 | Ở dialog G7c bấm **Cài đặt**, KHÔNG bật quyền, bấm back về app | App tự thoát màn camera về màn trước (không đứng ở màn đen chờ mãi) |
+| G7c3 | Ở dialog G7c bấm **Cài đặt**, bật quyền Camera, bấm back về app | Camera khởi động ngay tại màn đang đứng, không cần vào lại màn camera |
+| G7c4 | Ở dialog G7c, xoay máy / bật recent apps rồi quay lại khi dialog đang mở | Không crash, không `WindowLeaked` trong logcat |
 | G7d | Vào Settings hệ thống cấp lại quyền Camera → quay lại app | Camera hoạt động bình thường (trùng ca A3) |
 | G8 | *(màn chọn effect)* Ở màn camera bấm nút **Effect** | Mở màn "Template": top bar riêng (back, tiêu đề có gạch chân, tick cyan) và lưới 2 cột; **top bar/bottom nav chung không hiện**; effect đang dùng có viền cyan, các item khác không viền |
 | G9 | Ở màn chọn: chọn 1 effect **khác** → bấm tick | Sang **màn xem trước** đúng effect vừa chọn (tên trên top bar). Bấm **Create** → camera mới đúng effect đó (tên trên top bar, thumbnail nút Effect, hiệu ứng + tiếng đúng). Bấm Back ở camera mới thì về **màn danh sách**, không quay lại màn xem trước, màn chọn hay camera cũ |
@@ -154,7 +163,7 @@ git checkout main && git stash pop
 > |---|---|---|---|
 > | GRANTED | — | có quyền | chạy camera |
 > | DENIED | `true` | còn hỏi lại được | giải thích lý do rồi `launch()` lại |
-> | DENIED | `false` (sau khi đã hỏi) | từ chối vĩnh viễn | dialog + nút mở `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` |
+> | DENIED | `false` (sau khi đã hỏi) | từ chối vĩnh viễn | `PermissionDeniedDialog` + nút Cài đặt gọi `Context.openAppSettings()` (`utils/PermissionUtils.kt` → `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`) |
 >
 > ⚠️ `shouldShowRationale` cũng trả `false` **trước khi hỏi lần nào** (app vừa cài). Nên chỉ dùng nó để kết luận "từ chối vĩnh viễn" khi đang ở **trong callback kết quả** (chắc chắn vừa hỏi xong), hoặc kèm một cờ "đã từng hỏi" lưu ở `SharedPreferences`.
 >
