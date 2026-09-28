@@ -10,3 +10,19 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# MediaPipe: native code looks up Java classes/methods by name through JNI, and its
+# bundled protos are read by reflection — keep the whole package unobfuscated.
+-keep class com.google.mediapipe.** { *; }
+
+# protobuf-lite resolves message fields by name (e.g. `platform_`) via reflection;
+# without this R8 renames/strips them -> "Field platform_ for ... not found" at runtime.
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
+
+# Referenced only by MediaPipe's profiler/graph-template APIs, which tasks-vision does not ship.
+-dontwarn com.google.mediapipe.proto.CalculatorProfileProto$CalculatorProfile
+-dontwarn com.google.mediapipe.proto.GraphTemplateProto$CalculatorGraphTemplate
+
+# Flogger (used by MediaPipe) finds the calling class by scanning the stack for its own class
+# names; if R8 renames them -> "no caller found on the stack" in Graph.<clinit>.
+-keep class com.google.common.flogger.** { *; }
