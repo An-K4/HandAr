@@ -1,6 +1,6 @@
 # Kế hoạch chuyển sang MVVM — HandAr
 
-> **Cập nhật lần cuối tại commit `abfb32a`** (2026-09-29). **Note cho agent:** sau khi hoàn
+> **Cập nhật lần cuối tại commit `b5c2d0f`** (2026-09-29). **Note cho agent:** sau khi hoàn
 > thành bất kỳ Bước nào dưới đây, tick ô trạng thái ở Mục 2, cập nhật commit hash ở dòng này,
 > và nếu Bước đó đổi cấu trúc thư mục/quy ước, cập nhật `AGENTS.md` mục 4 + `Code_Walkthrough.md`
 > theo đúng Bước 7.
@@ -43,7 +43,7 @@ lifecycle = "2.11.0"
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-savedstate = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-savedstate", version.ref = "lifecycle" }
-androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version = "1.8.5" }
+androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment" }  # fragment = "1.9.1" — bản stable mới nhất lúc làm Bước 1 (23/09/2026), không phải 1.8.5
 ```
 
 ```kotlin
@@ -204,7 +204,7 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 
 ## 2. Trạng thái tổng quan (tick khi xong)
 
-- [ ] **Bước 1** — Hạ tầng + quy ước
+- [x] **Bước 1** — Hạ tầng + quy ước (commit `90bb322`, `b5c2d0f`)
 - [ ] **Bước 2** — `VideoListFragment` (màn mẫu)
 - [ ] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment`
 - [ ] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager`
@@ -242,7 +242,7 @@ gì, phát hiện ở đây rẻ nhất.
 
 | # | Nội dung |
 |---|---|
-| 2.1 | `refactor: VideoRepository thành class nhận Context ở constructor` — chỉ đổi chữ ký, không đổi logic `loadAll`/`readMetadata` |
+| 2.1 | `refactor: make VideoRepository a class taking Context in its constructor` — chỉ đổi chữ ký, không đổi logic `loadAll`/`readMetadata` |
 | 2.2 | `refactor: add VideoListViewModel, wire VideoListFragment` |
 
 ### 2.1 — `VideoRepository`
@@ -544,7 +544,7 @@ code thật, đây không phải màn có giá trị cao như 3.2/3.3.
 
 | # | Nội dung |
 |---|---|
-| 4.1 | `refactor: FavouriteManager thành class nhận Context` |
+| 4.1 | `refactor: make FavouriteManager a class taking Context` |
 | 4.2 | `refactor: EffectListViewModel (search + favourite), wire EffectListFragment` |
 | 4.3 | `refactor: EffectPreviewViewModel, wire EffectPreviewFragment` |
 | 4.4 | `refactor: EffectPickerViewModel, wire EffectPickerFragment` |
@@ -813,12 +813,12 @@ này không tự hỏi "có cần VM không".
 
 | # | Nội dung | Có VM? |
 |---|---|---|
-| 6.1 | `refactor: SplashViewModel, wire SplashFragment` + fix `ObjectAnimator` không huỷ | Có |
+| 6.1 | `refactor: SplashViewModel, wire SplashFragment` + fix `ObjectAnimator` not being cancelled | Có |
 | 6.2 | `feat: SurveyRepository + SurveyViewModel (nav-graph scoped), wire Survey1/2Fragment` | Có |
 | 6.3 | `refactor: LanguageRepository + LanguageViewModel, wire LanguageFragment` | Có |
-| 6.4 | `feat: SettingsViewModel (sự kiện mở Store/Share/Feedback/URL), wire SettingsFragment` | Có |
-| 6.5 | `refactor: PermissionViewModel, wire PermissionFragment` + fix binding không chốt cửa trong callback | Có |
-| 6.6 | `docs: ghi quy tắc "màn tĩnh không cần ViewModel" vào AGENTS.md` | Không — chỉ tài liệu, không sửa `WelcomeFragment`/`Onboarding1-3Fragment` |
+| 6.4 | `feat: SettingsViewModel (events to open Store/Share/Feedback/URL), wire SettingsFragment` | Có |
+| 6.5 | `refactor: PermissionViewModel, wire PermissionFragment` + fix callback not guarding against a null binding | Có |
+| 6.6 | `docs: record the "static screens need no ViewModel" rule in AGENTS.md` | Không — chỉ tài liệu, không sửa `WelcomeFragment`/`Onboarding1-3Fragment` |
 
 ### 6.1 — `SplashFragment`
 
