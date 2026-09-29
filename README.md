@@ -49,6 +49,9 @@
   (2 dòng dạng radio); các mục Đánh giá/Chia sẻ app/Góp ý/Giới thiệu/Chính sách riêng tư mới chỉ có UI.
 - **Hướng dẫn cử chỉ**: nút Action ở màn quay mở dialog liệt kê từng cử chỉ của effect đang chọn (tên +
   icon, hiện icon dùng tạm chung 1 hình cho mọi cử chỉ).
+- **Loading overlay khi mở camera**: tạo `HandLandmarker` chạy ở luồng nền (không treo UI/ANR); trong lúc chờ,
+  một lớp phủ đen che kín top bar + bottom bar, disable nút Effect/Record/Action, giữ tối thiểu 500ms cho khỏi nhấp
+  nháy, hiện dòng phụ "Sắp xong…" nếu chờ quá ~3,5s.
 
 ## Công nghệ
 
@@ -58,7 +61,7 @@
 | UI | View/XML + View Binding (không dùng Compose) |
 | Điều hướng | Fragments + Navigation Component (`nav_graph.xml`) + **Safe Args** (`androidx.navigation.safeargs.kotlin`) |
 | Camera | CameraX 1.4.2 (`Preview` + `ImageAnalysis`) |
-| Nhận diện tay | MediaPipe Tasks Vision 0.10.26 (`hand_landmarker.task`, `Delegate.CPU`, `LIVE_STREAM`) |
+| Nhận diện tay | MediaPipe Tasks Vision 0.10.26 (`hand_landmarker.task`, `LIVE_STREAM`, **`Delegate.GPU` ưu tiên, tự rơi về `Delegate.CPU`** khi RAM < 3GB / init GPU > 5s / lỗi — xem `HandLandmarkerProvider.createWithFallback()`) |
 | Vẽ hiệu ứng | Android Canvas 2D (`OverlayView`) |
 | Ghi hình | `MediaCodec` (H.264 + AAC) + `MediaMuxer` |
 | Phát video | Media3 / ExoPlayer 1.8.0 |
@@ -66,7 +69,7 @@
 
 ## Yêu cầu & cách chạy
 
-- **minSdk 28** (Android 9) · **targetSdk / compileSdk 37** · Java 11
+- **minSdk 28** (Android 9) · **targetSdk / compileSdk 37** · Java 17 (`compileOptions` trong `app/build.gradle.kts`, CI dùng JDK 17)
 - Quyền cần cấp: **CAMERA** (bắt buộc) và **POST_NOTIFICATIONS** (Android 13+ — trên máy cũ hơn switch này bị ẩn vì không có quyền để xin), đều xin qua màn cấp quyền lần đầu mở app; app **không** dùng mic — xem [Kiến trúc](#kiến-trúc). Nếu quyền camera bị từ chối kèm "Don't ask again", app hiện dialog 2 nút **Thoát / Cài đặt** đưa thẳng sang màn App info để bật tay, vì từ lúc đó hệ thống không cho app hỏi lại nữa
 - Video được lưu tại `getExternalFilesDir(Environment.DIRECTORY_MOVIES)` của app
 
@@ -146,6 +149,10 @@ hưởng nơi còn lại, xem `docs/Code_Walkthrough.md` mục 12.
 
 `HandLandmarkerProvider` là singleton cache `HandLandmarker` theo `requiredNumHands` và phân phối kết quả
 qua `SharedFlow` (không dùng `setResultListener` trỏ thẳng vào Fragment — tránh leak khi vào/ra màn camera).
+Việc tạo model đi qua `createWithFallback()` và được `CameraRecordFragment` gọi trên `backgroundExecutor`
+(`withContext`), không phải main thread: GPU trước, tự fallback CPU (RAM < 3GB → CPU ngay; GPU init quá 5s hoặc
+ném lỗi → CPU; đã fallback thì giữ CPU cho cả phiên app qua `forcedCpuForSession`). Chi tiết:
+`docs/CameraLoading_Fallback_Plan.md`, `docs/Perf_Notes.md` mục 9.
 
 ### Luồng màn hình
 
@@ -218,7 +225,7 @@ app/src/main/java/com/example/handar/
 │                              HandLandmarkerProvider ở onDestroy
 ├── effect/
 │   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp hoàn toàn từ catalog/ (10 effect)
-│   ├── HandLandmarkerProvider.kt
+│   ├── HandLandmarkerProvider.kt   singleton cache + SharedFlow; `createWithFallback()` GPU → CPU
 │   ├── model/                   EffectDefinition / EffectState / EffectAsset / EffectBackground /
 │   │                            EffectBgm / AnchorSource / SizeSource / StateMode
 │   ├── gesture/                 Gesture.kt (object Gestures) · GestureRecognizer · GestureUtils
@@ -230,7 +237,7 @@ app/src/main/java/com/example/handar/
 │   │       ├── gojo/             GojoModel/GojoVisual (composition: 1 AnimatedGifVisual con + gojo_merge oneShot)
 │   │       ├── fireball/         FireBallBurstVisual (burst oneShot rồi tự chuyển sang big loop)
 │   │       ├── magicshield/      ShieldHideVisual (thu nhỏ theo thời gian bằng code)
-│   │       ├── lightning/        LightningVisual (buffer-render, vẽ nhiều bản xoay theo từng ngón đang duỗi)
+│   │       ├── lightning/        LightningVisual (buffer-render, vẽ nhiều bản xoay theo từng ngón đang duỗi, cả 2 tay)
 │   │       └── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 factory cho đủ 10/10 hiệu ứng (FireBall, MagicShield, Lightning,
@@ -256,7 +263,7 @@ app/src/main/java/com/example/handar/
 │   ├── effectlist/   EffectListFragment (có ô search real-time), EffectAdapter
 │   ├── effectpreview/ EffectPreviewFragment       (xem trước effect + nút Create, mở từ effectlist/effectpicker)
 │   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
-│   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình); GestureGuideDialog +
+│   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình + loading overlay `layout_camera_loading`); GestureGuideDialog +
 │   │                 GestureAdapter (dialog lưới 2 cột hướng dẫn cử chỉ, mở từ nút Action — map tên/icon
 │   │                 ở `effect/gesture/GestureDisplay.kt`, icon đang dùng tạm chung `ic_action`)
 │   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save điều hướng sang share/, back/Thoát qua ConfirmDialog xoá file)
@@ -278,7 +285,8 @@ app/src/main/java/com/example/handar/
 └── utils/                        AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge,
                                 3 hàm: padding/margin/match-height cho status bar & nav bar),
                                 PermissionUtils (openAppSettings — mở màn App info của app),
-                                RecordingPerfLogger, VideoStatsLogger
+                                DelegatePerfLogger, RecordingPerfLogger, VideoStatsLogger (3 công cụ đo hiệu năng,
+                                hiện KHÔNG còn chỗ nào gọi tới — xem mục Hiệu năng)
 .github/workflows/release.yml         CI build release + ước tính dung lượng Play
 app/src/main/res/
 ├── drawable/  ảnh & GIF hiệu ứng      raw/  file .wav tiếng hiệu ứng
@@ -298,7 +306,7 @@ khai trực tiếp trong `EffectRepository.kt`) — hiện có **10 hiệu ứng
 |---|---|---|---|
 | `fire_ball` | Cầu lửa | 1 | nắm tay → lửa nhỏ (loop) + tiếng cháy · xòe tay → bùng lửa to (burst 1 lần rồi chuyển sang loop to) + tiếng bùng |
 | `magic_shield` | Vòng khiên năng lượng | 1 | xòe tay → khiên hiện (loop) · nắm tay → khiên thu nhỏ dần rồi biến mất (dựng bằng code, dùng chung asset lúc hiện), kèm **nhạc nền** |
-| `lightning` | Tia sét | 1 | ≥ 1 ngón (trừ ngón cái) đang duỗi → tia sét ở đầu mỗi ngón đang duỗi, xoay theo hướng ngón + tiếng xẹt điện lặp |
+| `lightning` | Tia sét | 1–2 (`requiredNumHands = 2`) | ≥ 1 ngón đang duỗi (**cả 5 ngón, cả 2 tay**; ngón cái xét bằng `isThumbExtendedStrict` để khỏi đẻ tia thừa) → tia sét ở đầu mỗi ngón đang duỗi, xoay theo hướng ngón + tiếng xẹt điện lặp |
 | `dragon_ball` | Chưởng năng lượng Dragon Ball | 1–2 (`requiredNumHands = 2`) | 1 tay xòe → quả cầu năng lượng (loop) + tiếng tụ khí · 2 cổ tay chụm + cả 2 tay xòe → kamehameha to hơn, xoáy nhanh hơn (không tiếng riêng, phải khai **trước** state 1 tay trong `states`) |
 | `gojo` | Gojo | 1–2 (`requiredNumHands = 2`) | chỉ ngón trỏ mỗi tay → quả cầu xanh/đỏ ở đầu ngón trỏ (tay trái xanh, tay phải đỏ) · chạm 2 đầu ngón trỏ → phát animation hòa nhập rồi hiện quả cầu tím, kèm **nhạc nền** |
 | `monster` | Quái vật | 1 | xòe tay → quái vật hiện (ảnh tĩnh) trên **nền riêng** · nắm tay → quái vật biến mất + sóng âm lan toả (1 lần), kèm **nhạc nền** |
@@ -339,7 +347,8 @@ Số liệu đo trên máy test (09/2026, máy nguội, clip 60–90s, 720×1560
 
 - **Nguyên nhân duy nhất khiến FPS tụt xuống 17–21 là throttling nhiệt**, không phải lỗi code. Muốn so sánh hiệu năng thì phải để máy nguội giữa các lần đo.
 - `Avg FPS` trong `VideoStatsLogger` là **trung bình cộng dồn** — clip càng dài con số càng thấp, đừng đọc nó như tốc độ tức thời.
-- Công cụ đo: `utils/RecordingPerfLogger.kt` → `adb logcat -s RecPerf:I` (in 5s/dòng), và `utils/VideoStatsLogger.kt` (chỉ chạy bản Debug).
+- **Delegate mặc định là GPU** (đo 29/09/2026, cùng máy test): fps xử lý MediaPipe ~30 so với ~22 của CPU, latency thấp hơn ~40%, rớt frame ~0–4% so với ~25%. Hiệu ứng **2 tay** luôn chậm hơn 1 tay ~1,8–2,1 lần trên cả CPU lẫn GPU (chi phí vốn có của MediaPipe). Khi đang quay video, detect tay tụt còn ~14–15 fps do tranh CPU/GPU với luồng encode — số khung video vẫn đều nhưng hiệu ứng có thể "đứng" vài khung khi tay di chuyển nhanh. Chi tiết: `docs/Perf_Notes.md` mục 9.
+- Công cụ đo (đều nằm trong `utils/`, **đã gỡ hết chỗ gọi trong `CameraRecordFragment` ngày 29/09/2026 nhưng cố ý giữ file lại** để đo lại khi cần — cách gắn xem `docs/Perf_Notes.md` mục 9): `DelegatePerfLogger.kt` (latency/fps MediaPipe, tag `DelegatePerf`, in mỗi 3s), `RecordingPerfLogger.kt` → `adb logcat -s RecPerf:I` (in 5s/dòng), `VideoStatsLogger.kt` (chỉ chạy bản Debug).
 - Đòn bẩy tối ưu **còn chưa dùng** (xem `docs/Perf_Notes.md` mục 5–6): video đang được phóng 2.44× từ nguồn analyzer 480×640; hạ `targetShortSide` 720 → 480, bật `setOutputImageRotationEnabled(true)`, tăng `KEY_I_FRAME_INTERVAL` 1 → 3.
 
 ## Dung lượng & tuân thủ 16 KB page size
@@ -373,7 +382,7 @@ App được kiểm thử chủ yếu bằng **checklist thủ công** — `docs
 | A | Quyền & khởi động (chỉ hỏi quyền Camera, không hỏi mic) |
 | B | Live preview: hiệu ứng đúng vị trí, đúng tiếng, co giãn theo khoảng cách |
 | C | Ghi hình luồng cơ bản |
-| D | **Chống regression** cho 6 bug đã fix (mất trigger, UI đơ khi Stop, frame đầu đơ, tiếng chèn đôi, GIF chồng GIF, mất mirror) |
+| D | **Chống regression**: D1–D6 cho 6 bug quay video đã fix (mất trigger, UI đơ khi Stop, frame đầu đơ, tiếng chèn đôi, GIF chồng GIF, mất mirror); D7–D10 cho ANR / race khi mở camera, loading overlay và fallback GPU→CPU |
 | E | Số liệu & hiệu năng qua `VideoStatsLogger` |
 | F | Edge case & độ bền |
 | G | Điều hướng giữa các màn (kể cả 3 trạng thái của quyền camera) |
@@ -397,6 +406,12 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 | `Asset_Format_Guidelines.md` | Quy chuẩn ảnh tĩnh / ảnh động (`.webp`) / sprite sheet / WAV, mỗi quy tắc gắn với dòng code sinh ra nó |
 | `Perf_Notes.md` | Kết quả điều tra hiệu năng, quy trình đo chuẩn, thí nghiệm GIF vs sprite sheet |
 | `App_Size_Optimization_16KB_Compliance.md` | Hành trình 90 MB → 33.8 MB và cách xử lý cảnh báo 16 KB |
+| `App_Size_Optimization_Plan.md` | Giai đoạn 2 giảm dung lượng: mốc đo bằng bản release, keep rule R8, CI + `bundletool`, danh sách việc đã cố ý loại bỏ |
+| `CameraLoading_Fallback_Plan.md` | Loading overlay khi mở camera + cơ chế fallback GPU→CPU (`createWithFallback`): lý do từng ngưỡng, phương án đã cân nhắc và bỏ |
+| `DelegatePerf_Plan.md` | Kế hoạch và cách gắn `DelegatePerfLogger` để đo lại CPU vs GPU (kết quả đo nằm ở `Perf_Notes.md` mục 9) |
+| `Camera_X_Face_Landmarker.md` | Tài liệu lý thuyết cho Face Landmarker — **chưa có code Face nào trong app**, chỉ đọc khi định làm Face AR |
+| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**chưa bước nào được làm**, chưa có `ViewModel` trong repo) |
+| `AGENTS.md` | Ngữ cảnh nhanh cho AI agent (~2 phút đọc): stack, kiến trúc cốt lõi, bẫy đã biết, bản đồ docs |
 | `Test_Checklist.md` | Kịch bản test thủ công A–M |
 | `Code_Walkthrough.md` | Giải thích code chi tiết từng file/hàm + sơ đồ quan hệ giữa các file trong package `effect/`, `recording/`, `ui/camera/` — đọc khi cần hiểu đoạn code cụ thể làm gì thay vì chỉ biết kiến trúc tổng quát |
 
@@ -408,4 +423,4 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 - **Nav graph quyết định vòng đời**, không phải bản thân code Fragment — xem `popUpTo` trước khi suy luận.
 - **Đặt tên trong nav graph**: destination camelCase khớp tên class; action `action_<từ>_to_<đến>`; id View snake_case; `app:argType` **luôn viết thường** (`string`, không phải `String`).
 - **Khi refactor: đừng đọc, hãy diff.** Ba bug ở Phase B đều build xanh và chạy được, chỉ lộ ra khi so từng dòng với bản gốc.
-- `RecordingPerfLogger` và các đoạn đánh dấu `// TẠM` trong `CameraRecordFragment` là công cụ tạm — gỡ khi dự án dừng phát triển.
+- 3 file đo hiệu năng trong `utils/` (`DelegatePerfLogger`, `RecordingPerfLogger`, `VideoStatsLogger`) hiện **không còn được gọi ở đâu** — cố ý giữ file để đo lại, đừng xoá. Khi gắn lại thì đánh dấu `// TẠM` và gỡ chỗ gọi ngay sau khi đo xong; ghi chú `TẠM` ở đầu `HandLandmarkerProvider.kt` chỉ nhắc gỡ *ghi chú* khi cơ chế fallback đã ổn định, không phải gỡ code.

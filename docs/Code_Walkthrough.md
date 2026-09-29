@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `8f810f4`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `abfb32a`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -89,13 +89,13 @@ ui/player/VideoPlayerFragment.kt   (mở từ videoList khi chọn 1 video; menu
 
 ui/camera/CameraRecordFragment.kt   ★ file trung tâm, "nhạc trưởng" của 1 phiên quay
     → effect/EffectRepository.kt          (tra EffectDefinition theo args.effectId)
-    → effect/HandLandmarkerProvider.kt    (bật MediaPipe, lắng nghe kết quả qua SharedFlow)
+    → effect/HandLandmarkerProvider.kt    (tạo MediaPipe — GPU trước, tự fallback CPU, xem mục 6.2 — và lắng nghe kết quả qua SharedFlow)
     → OverlayView.kt                      (đẩy kết quả tay vào, gọi vẽ khi ghi hình)
     → recording/VideoRecorder.kt          (điều khiển ghi MP4)
     → audio/SoundEffectPlayer.kt          (phát tiếng hiệu ứng ra loa khi KHÔNG ghi)
     → audio/BgmPlayer.kt                  (phát nhạc nền ra loa)
     → utils/AudioUtils.kt (loadWavPcm)    (đọc file .wav → PCM để feed vào AudioMixer)
-    → utils/RecordingPerfLogger.kt, utils/VideoStatsLogger.kt (đo đạc, KHÔNG phải logic chính)
+    → utils/DelegatePerfLogger.kt, RecordingPerfLogger.kt, VideoStatsLogger.kt (công cụ đo, hiện KHÔNG còn chỗ nào gọi tới — xem mục 10)
     → ui/widget/PermissionDeniedDialog.kt + utils/PermissionUtils.kt (quyền camera bị từ chối vĩnh viễn, mục 6.2)
 
 OverlayView.kt                      ★ file trung tâm thứ hai, "bộ não vẽ"
@@ -262,6 +262,12 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
   `distance(đầu ngón cái[4], gốc ngón út[17])` với `distance(gốc ngón cái[2], gốc ngón út[17])`.
   Comment trong code tự nhận: **công thức này chưa chặt với mọi kiểu bàn tay**, cần cẩn thận nếu
   thấy gesture liên quan ngón cái (thumbs up, rock on, ILY, OK) nhận sai.
+- `isThumbCurled`: đo độ cong ngón cái bằng đúng `fingerCurlRatio` như 4 ngón kia, chỉ khác bộ khớp
+  CMC(1)-MCP(2)-IP(3)-TIP(4), ngưỡng `< 0.88`.
+- `isThumbExtendedStrict` = `isThumbExtended` **và** `!isThumbCurled`: bản chặt hơn, chỉ dùng khi nhận nhầm ngón cái sẽ
+  đẻ ra hiệu ứng thừa (`anyFingerExtended` của Tia sét, `LightningVisual`). Cố ý KHÔNG siết thẳng
+  `isThumbExtended` vì `isPalmOpen`/`isFist` và các cử chỉ đếm ngón đang dùng nó và đã test thật
+  (`Test_Checklist.md` mục I.8) — siết ở đó sẽ làm xòe tay khó nhận hơn.
 - `thumbIndexPinchRatio`: tỉ lệ `distance(ngón cái, ngón trỏ) / palmLength` — dùng cho gesture 👌
   (`singleHandOkSign`, ngưỡng `< 0.35`).
 - `fingerCurlRatio(mcp, pip, dip, tip)`: tỉ lệ đường thẳng đầu-cuối / tổng 3 đốt xương — ngón càng
@@ -730,11 +736,14 @@ nếu chỉ `popBackStack()` thì user không hiểu vì sao app không mở cam
 val appContext = requireContext()
 val numHands = currentEffect?.requiredNumHands ?: 1
 
+showLoadingOverlay()   // hiện overlay ngay, disable nút Effect/Record/Action — xem "Loading overlay" bên dưới
+
 viewLifecycleOwner.lifecycleScope.launch {
     val landmarker = withContext(backgroundExecutor.asCoroutineDispatcher()) {
         HandLandmarkerProvider.getOrCreate(appContext, numHands)
     }
     handLandmarker = landmarker
+    hideLoadingOverlayAfterMinDuration()   // suspend: đợi đủ 500ms kể từ lúc hiện, rồi ẩn overlay + bật lại nút
 
     HandLandmarkerProvider.results.collect { (result, inputImage) ->
         latestHandResult = result
@@ -763,6 +772,34 @@ Phần `results.collect` chạy trên **main thread** (mặc định `Dispatcher
 khi `withContext` đã quay lại main sau đoạn tạo model ở trên), nhận kết quả qua `SharedFlow` mà
 `HandLandmarkerProvider` phát ra từ callback `setResultListener` của MediaPipe (chạy trên thread nội bộ
 của MediaPipe, `tryEmit` an toàn cross-thread nhờ `MutableSharedFlow`).
+
+**`HandLandmarkerProvider.getOrCreate()` → `createWithFallback()`** (`effect/HandLandmarkerProvider.kt`, 29/09/2026):
+singleton cache 1 `HandLandmarker` theo `numHands`; đổi `numHands` thì `close()` rồi tạo lại. Việc tạo model đi qua 3 lớp
+bảo vệ để không bắt người dùng chờ vô thời hạn:
+1. `forcedCpuForSession` (`@Volatile`) đã bật → build thẳng `Delegate.CPU`.
+2. Máy RAM thấp (`ActivityManager.isLowRamDevice()` hoặc `MemoryInfo.totalMem < 3GB`) → bật `forcedCpuForSession`, build CPU,
+   không thử GPU.
+3. Còn lại: build `Delegate.GPU` trên 1 `Executors.newSingleThreadExecutor()` riêng, `future.get(5, SECONDS)`. `TimeoutException`
+   hoặc bất kỳ `Exception` nào → `Log.w` kèm lý do, bật `forcedCpuForSession`, build CPU. `finally` gọi `shutdownNow()`
+   (best-effort).
+
+`createFromOptions()` là lệnh native đồng bộ **không có API huỷ**, nên khi timeout luồng GPU bị bỏ rơi, chạy nốt ở nền rồi vứt
+kết quả — đánh đổi có chủ đích. Cờ `forcedCpuForSession` sống suốt vòng đời process (không reset khi đổi effect). Hàm `build()`
+chung cho cả 2 delegate; `setResultListener` đẩy kết quả vào `_results` (`tryEmit`). Toàn bộ chạy trong `withContext(backgroundExecutor)`
+như đoạn ANR ở trên, nên các lệnh chờ ≤ 5s không đụng main thread. Chi tiết quyết định: `CameraLoading_Fallback_Plan.md`,
+`Camera_X_Hand_Landmarker.md` mục 14.
+
+**Loading overlay** (`showLoadingOverlay()` / `hideLoadingOverlayAfterMinDuration()` / `setCameraControlsEnabled()`,
+layout `layout_camera_loading` cuối `fragment_camera_record.xml`):
+- XML để `visibility="visible"` mặc định (không `gone`) để có mặt từ khung hình đầu tiên; là con **cuối cùng** của root nên vẽ
+  đè cả top bar lẫn bottom bar. `clickable`/`focusable` = true để nuốt chạm.
+- `showLoadingOverlay()`: ghi `loadingShownAtMs`, hiện overlay, ẩn dòng phụ `tv_camera_loading_hint`, disable `btnEffect`/
+  `btnToggleRecord`/`btnAction`, rồi hẹn `loadingHintJob` (`delay(LOADING_OVERLAY_HINT_DELAY_MS = 3500)`) để hiện dòng phụ nếu
+  vẫn đang chờ.
+- `hideLoadingOverlayAfterMinDuration()`: `delay` phần còn thiếu để đủ `LOADING_OVERLAY_MIN_VISIBLE_MS = 500` (tránh nhấp nháy khi
+  setup xong gần như tức thì), huỷ `loadingHintJob`, ẩn overlay, bật lại 3 nút. Cả hai hàm đều chốt `_binding ?: return`.
+- Back **hệ thống** không bị overlay chặn (xử lý ở `OnBackPressedCallback`); nút Back trên top bar bị che nên không bấm được
+  trong lúc loading. Test: `Test_Checklist.md` D9/D10.
 
 `startCamera()`: dựng `ImageAnalysis` chạy trên `backgroundExecutor` (thread riêng, KHÔNG phải main
 thread) — đây là "thread camera" nhắc tới trong README/`Camera_X_Hand_Landmarker.md`. Mỗi frame:
@@ -1060,6 +1097,9 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 | Sửa logic chọn visual hiển thị | `OverlayView.kt` (`resolveMatchedIndex`, `drawFrame`) |
 | ⚠️ Sửa bất kỳ gì trong pipeline ghi hình (PTS, mixer, encoder) | Đọc `HandAr_Refactor_Plan.md` trước — xem `docs/AGENTS.md` mục 5 |
 | Đổi độ phân giải/bitrate/fps ghi hình | `ui/camera/CameraRecordFragment.kt` (`computeRecordingSize`, tham số `VideoRecorder(...)`) + `recording/VideoEncoderWrapper.kt` (`computeBitrate`) |
+| Đổi ngưỡng/chính sách chọn delegate GPU↔CPU của MediaPipe | `effect/HandLandmarkerProvider.kt` (`createWithFallback`, `GPU_INIT_TIMEOUT_SEC`, `LOW_RAM_THRESHOLD_BYTES`) — đọc `CameraLoading_Fallback_Plan.md` + `Perf_Notes.md` mục 9 trước, đo bằng `DelegatePerfLogger` chứ đừng đoán |
+| Đổi giao diện/thời gian loading khi mở camera | `ui/camera/CameraRecordFragment.kt` (`showLoadingOverlay`, hằng `LOADING_OVERLAY_*`) + `res/layout/fragment_camera_record.xml` (`layout_camera_loading`) |
+| Chỉnh to/nhỏ hiệu ứng theo từng state | `sizeScale` trong `effect/catalog/*.kt` (mục 1.2) — không sửa visual chung |
 | Thêm màn hình mới vào flow khởi động | `res/navigation/nav_graph.xml` + Fragment mới trong `ui/` theo mẫu `ui/onboarding/` |
 | Đổi ngôn ngữ / thêm bản dịch | `ui/language/LanguageFragment.kt` (mở từ `ui/settings/SettingsFragment.kt`, KHÔNG còn trong luồng mở app lần đầu) + `res/values-xx/strings.xml` |
 | Thêm/sửa mục trong màn Cài đặt | `ui/settings/SettingsFragment.kt` + `item_settings_option.xml`, mở từ `btn_open_settings` ở `view_top_bar.xml` |

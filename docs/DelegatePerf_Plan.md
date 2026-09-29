@@ -1,5 +1,7 @@
 # Kế hoạch: Đo hiệu năng Delegate.CPU vs Delegate.GPU (real-time)
 
+> ⚠️ **Đã lỗi thời một phần (29/09/2026, commit `ff9d279`):** `HandLandmarkerProvider` **không còn hard-code `Delegate.CPU`** nữa — delegate do `createWithFallback()` quyết định (GPU trước, tự rơi về CPU). Cách "sửa tay `.setDelegate(...)`" ghi ở Mục 0/Bước 3 dưới đây là mô tả **lúc viết kế hoạch** và không dùng được nữa — xem hướng dẫn mới ở "Cách ép delegate khi đo lại" cuối file. Các đoạn còn lại (thiết kế `DelegatePerfLogger`, vị trí gắn) vẫn đúng.
+
 > Mục tiêu: có công cụ log + toast tại chỗ trong lúc quay/xem live, để so sánh độ mượt khi `HandLandmarkerProvider` dùng `Delegate.CPU` so với `Delegate.GPU`. Khác với `VideoStatsLogger.kt` (đo file video *sau khi* quay xong: size, resolution, avgFps dồn), công cụ này đo **latency suy luận** (thời gian MediaPipe xử lý 1 frame) và **FPS kết quả thực tế** trong lúc chạy — chỉ số phản ánh đúng cảm giác "mượt hay giật" mà CPU/GPU delegate gây ra.
 
 ## 0. Bối cảnh kỹ thuật (đã xác nhận trong code)
@@ -54,3 +56,11 @@ Thiết kế (dạng hàm mở rộng/tiện ích, theo đúng phong cách file 
 > `Delegate.GPU` làm mặc định. Toàn bộ chỗ gọi `DelegatePerfLogger` trong `CameraRecordFragment` đã
 > được gỡ (cùng `RecordingPerfLogger`, `logRecordingStats`) — file `utils/DelegatePerfLogger.kt` vẫn
 > giữ nguyên để đo lại sau này nếu cần, xem `AGENTS.md` mục 5.
+
+## 4. Cách ép delegate khi đo lại (thay cho "sửa tay `.setDelegate(...)`" ở Bước 3)
+
+Từ `ff9d279`, `.setDelegate(...)` nằm trong `build(context, numHands, delegate)` và giá trị do `createWithFallback()` truyền vào, nên sửa dòng đó không còn có tác dụng ép delegate. Muốn đo CPU vs GPU công bằng, sửa **tạm** trong `effect/HandLandmarkerProvider.kt` (nhớ hoàn lại, đánh dấu `// TẠM`):
+
+- **Ép CPU:** đổi giá trị khởi tạo `forcedCpuForSession = false` thành `true` — nhánh đầu của `createWithFallback()` sẽ build thẳng `Delegate.CPU`, không kiểm tra RAM, không thử GPU.
+- **Ép GPU, không fallback** (để thấy đúng hiệu năng/lỗi của GPU, kể cả trên máy RAM thấp): tạm thay toàn bộ thân `createWithFallback()` bằng `return build(context.applicationContext, numHands, Delegate.GPU)`.
+- **Đổi `label` truyền vào `DelegatePerfLogger` bằng tay cho khớp** (`DELEGATE_PERF_LABEL` là hằng cố định, **không tự đổi theo delegate thực tế**). Nếu chạy chế độ mặc định (không ép) thì đọc log tag `HandLandmarkerProvider` để biết lần đó có fallback CPU hay không — nhãn của `DelegatePerfLogger` có thể nói sai.

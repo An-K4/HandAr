@@ -21,9 +21,9 @@
 
 ### Bước 2 — Loading overlay trong `CameraRecordFragment`
 
-- Thêm 1 lớp phủ nhẹ (`ProgressBar` + chữ ngắn "Đang chuẩn bị hiệu ứng…") lên đúng phần khung preview/hiệu ứng trong `fragment_camera_record.xml`, không che top bar (vẫn bấm Back được).
-- Hiện ngay khi mở camera, trễ ~150-200ms trước khi thực sự hiện (tránh nhấp nháy nếu model đã có sẵn từ cache), tự ẩn ngay khi `handLandmarker` gán xong.
-- Cân nhắc đổi text nếu chờ quá 3-4s (dòng phụ "máy đang xử lý hơi lâu…") để không giống app treo.
+- Thêm 1 lớp phủ nhẹ (`ProgressBar` + chữ ngắn "Đang chuẩn bị hiệu ứng…") lên đúng phần khung preview/hiệu ứng trong `fragment_camera_record.xml`, không che top bar (vẫn bấm Back được). *(Thực tế khác kế hoạch: overlay nền đen che kín cả top bar + bottom bar, nên nút Back trên top bar không bấm được; chỉ Back hệ thống còn hoạt động.)*
+- Hiện ngay khi mở camera, trễ ~150-200ms trước khi thực sự hiện (tránh nhấp nháy nếu model đã có sẵn từ cache), tự ẩn ngay khi `handLandmarker` gán xong. *(Thực tế: hiện NGAY, không trễ — XML để `visible` mặc định để có mặt từ khung hình đầu; chống nhấp nháy bằng cách giữ tối thiểu 500ms thay vì trễ khi hiện.)*
+- Cân nhắc đổi text nếu chờ quá 3-4s (dòng phụ "máy đang xử lý hơi lâu…") để không giống app treo. *(Đã làm: ngưỡng 3,5s; chuỗi thật trong `strings.xml` là "Sắp xong…" / "Almost done…", không phải câu này — xem `Camera_X_Hand_Landmarker.md` mục 14.3.)*
 
 ### Bước 3 — Test lại + cập nhật checklist
 

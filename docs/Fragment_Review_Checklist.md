@@ -75,12 +75,18 @@ Với mỗi hàm / lambda / callback, hỏi đúng 3 câu:
 | Thread nền (recording loop, `setAnalyzer`) | **Không được** chạm `binding`. Capture view ra biến local **trước** khi tạo thread |
 | Callback đến muộn (`future.addListener`, `stop {}`, coroutine, network) | Chốt cửa ngay dòng đầu: `val b = _binding ?: return@...`, `val ctx = context ?: return@...` |
 | Chạy trước `onCreateView` (`onCreate`, property initializer) | **Không được** chạm `binding`, `viewLifecycleOwner`; không gọi `requireContext()` ở property initializer |
-| Main thread, trong khoảng `onViewCreated` → `onDestroyView` | Dùng `binding` / `requireContext()` thoải mái |
+| Main thread, trong khoảng `onViewCreated` → `onDestroyView` | Dùng `binding` / `requireContext()` thoải mái — **nhưng KHÔNG gọi hàm tạo model/decoder/tài nguyên native nặng ở đây** (xem "Bài học ANR" ngay dưới bảng) |
 
 **Lỗi thật đã gặp ở Phase B:**
 - `checkAndRequestPermission()` đặt trong `onCreate`: khi quyền đã cấp thì chạy thẳng `startCamera()` → `binding` còn null → NPE. Lần chạy **đầu tiên** không lộ (vì phải chờ dialog), chỉ crash từ lần thứ hai.
 - `cameraProviderFuture.addListener { binding.preview... }` → back nhanh trong lúc chờ future → NPE.
 - Thread ghi hình gọi `binding.overlay.drawHandEffects(...)` → back giữa lúc đang quay → NPE.
+
+**Bài học ANR (29/09/2026): gọi hàm tạo model nặng trên main thread.** `setupMediaPipe()` từng gọi `HandLandmarkerProvider.getOrCreate()` đồng bộ ngay trên main thread; bên trong là `HandLandmarker.createFromOptions()` (lệnh native đồng bộ, với `Delegate.GPU` mất vài trăm ms tới vài giây vì build EGL context + compile shader, nặng nhất khi `numHands` đổi nên phải `close()` rồi tạo lại) → treo UI thread → **ANR thật** ngay khi bấm vào effect. Nhìn qua thấy "chạy nhanh" là cái bẫy — hàm tạo model không có dấu hiệu nào cho thấy nó nặng.
+- **Quy tắc:** mọi hàm tạo/đóng model, decoder, encoder, player nặng (MediaPipe, `MediaCodec`, ...) phải chạy ngoài main thread. Cách đã dùng: `viewLifecycleOwner.lifecycleScope.launch { val x = withContext(backgroundExecutor.asCoroutineDispatcher()) { ...tạo... } ...gán + dùng x trên main... }`.
+- **Sau `withContext` phải chốt cửa lại** (`_binding ?: return@launch` nếu chạm View) — trong lúc chờ, người dùng có thể đã back và view đã chết. (`lifecycleScope` của `viewLifecycleOwner` tự hủy coroutine khi view chết, nhưng lệnh native đang chạy dở thì không dừng được.)
+- **Phải có UI nói cho người dùng biết đang chờ** khi chuyển việc nặng sang nền (ví dụ `layout_camera_loading` ở `CameraRecordFragment`) — nếu không, màn hiện ra mà tính năng chưa sẵn sàng, trông như lỗi.
+- **Đừng tin công cụ đo**: `DelegatePerfLogger` chỉ đo latency suy luận mỗi frame *sau khi* model đã tạo, không đo chi phí *tạo* model — nên không bắt được ANR này. Xem `Camera_X_Hand_Landmarker.md` mục 14.1, `Code_Walkthrough.md` mục 6.2.
 
 ---
 
@@ -178,6 +184,7 @@ Và: **commit ở mỗi mốc chạy được**, để luôn có bản gốc s�
 [ ] Mọi field trỏ View đều được null hoá ở onDestroyView (đếm cho khớp)
 [ ] Tài nguyên: nơi tạo và nơi huỷ đối xứng
 [ ] Không có binding nào bị chạm từ thread nền
+[ ] Không gọi hàm tạo model/decoder/encoder nặng (MediaPipe, MediaCodec...) trên main thread; sau khi chuyển sang nền đã chốt cửa lại + có UI báo đang chờ
 [ ] Mọi callback bất đồng bộ đều chốt cửa: _binding ?: return / context ?: return
 [ ] Dùng viewLifecycleOwner, không dùng this / lifecycleScope
 [ ] Mọi lateinit đều chỉ ra được dòng gán

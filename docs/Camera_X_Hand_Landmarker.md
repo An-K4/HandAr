@@ -418,8 +418,8 @@ Android gom tất cả các lệnh gọi `invalidate()` trong khoảng thời gi
 | **1** | **BẮT BUỘC gọi `imageProxy.close()`** | `imageAnalyzer.setAnalyzer { ... imageProxy.close() }` | **TREO CỨNG CAMERA:** Bộ đệm khung hình (Buffer queue) của CameraX bị đầy sau 3-4 frame đầu tiên. Camera sẽ vĩnh viễn không gửi thêm frame mới. |
 | **2** | **Chạy AI ở luồng phụ (Background Thread)** | `imageAnalyzer.setAnalyzer(backgroundExecutor)` | **ỨNG DỤNG BỊ TREO (ANR):** Model AI tính toán mất 15–30ms. Nếu chạy trên Main Thread, giao diện sẽ tụt về 10–15 FPS hoặc văng app (Application Not Responding). |
 | **3** | **Cập nhật tọa độ sang View trên Main Thread** | `runOnUiThread { overlayView.setResults(result) }` | **VĂNG APP NGAY LẬP TỨC:** Android cấm tuyệt đối việc gọi `invalidate()` hoặc sửa đổi View từ một Thread không phải Main Thread (`CalledFromWrongThreadException`). |
-| **4** | **Đo đạc trước khi chọn Delegate GPU/CPU** | `baseOptions.setDelegate(Delegate.CPU / GPU)` | **CHỌN SAI ĐÁNH ĐỔI:** Ép dùng GPU trên thiết bị/model không hưởng lợi có thể khiến thời gian khởi tạo chậm hẳn (tới hàng chục giây) mà FPS runtime không cải thiện rõ rệt so với CPU. Nếu máy yếu và không dùng delegate nào tăng tốc, CPU vẫn phải gánh cả phân tích hình ảnh lẫn logic toán, có thể tụt FPS — nhưng hướng khắc phục là đo đạc thực tế trên thiết bị mục tiêu, không phải mặc định bật GPU. |
-| **5** | **Khởi tạo và gọi GPU trên cùng một luồng** | `setupHandLandmarker()` | **VĂNG APP ĐỒ HỌA:** OpenGL context gắn liền với thread tạo ra nó. Khởi tạo GPU delegate ở thread này nhưng gọi ở thread khác sẽ gây lỗi crash driver đồ họa (`EGL_BAD_ACCESS`). |
+| **4** | **Đo đạc trước khi chọn Delegate GPU/CPU — và không ép GPU trần trụi, luôn kèm fallback** | `baseOptions.setDelegate(Delegate.CPU / GPU)` trong `HandLandmarkerProvider.build()`, chọn bởi `createWithFallback()` | **CHỌN SAI ĐÁNH ĐỔI:** Ép dùng GPU trên thiết bị/model không hưởng lợi có thể khiến thời gian khởi tạo chậm hẳn (tới hàng chục giây) hoặc lỗi hẳn, mà FPS runtime không cải thiện rõ rệt so với CPU. **Hiện trạng (29/09/2026):** app đã đo thật (`Perf_Notes.md` mục 9) và **mặc định GPU** (nhanh hơn ~35-40% trên máy test), nhưng **không bao giờ gọi `Delegate.GPU` trực tiếp mà không có lưới an toàn** — `createWithFallback()` dùng thẳng CPU khi RAM < 3GB, và rơi về CPU khi GPU init quá 5s hoặc ném lỗi (mục 14.2). Muốn đổi mặc định thì phải đo lại trên máy target (đặc biệt máy yếu) bằng `DelegatePerfLogger`, đừng đoán. |
+| **5** | **Khởi tạo và gọi GPU trên cùng một luồng** | `HandLandmarkerProvider.createWithFallback()` / `CameraRecordFragment` (analyzer `detectAsync`) | **VĂNG APP ĐỒ HỌA:** OpenGL context gắn liền với thread tạo ra nó. Khởi tạo GPU delegate ở thread này nhưng gọi ở thread khác sẽ gây lỗi crash driver đồ họa (`EGL_BAD_ACCESS`). ⚠️ **Code hiện tại KHÔNG tuân thủ nghiêm quy tắc này:** GPU được build trên 1 thread tạm (`Executors.newSingleThreadExecutor()` để giới hạn 5s, mục 14.2) trong khi `detectAsync()` chạy trên `backgroundExecutor` — khác thread. Chưa thấy lỗi EGL khi test trên máy thật (MediaPipe Tasks tự quản lý thread/GL context nội bộ cho `LIVE_STREAM`, nên có thể ràng buộc này không áp trực tiếp lên phía Java như tài liệu gốc mô tả), nhưng **đây là điểm nghi ngờ đầu tiên** nếu gặp crash driver đồ họa / `EGL_BAD_ACCESS` / GPU lỗi lạ trên máy khác — lúc đó thử build GPU trên chính thread sẽ gọi `detectAsync` (đánh đổi: mất cơ chế timeout 5s bằng `Future.get`). |
 | **6** | **Dùng `STRATEGY_KEEP_ONLY_LATEST`** | `setBackpressureStrategy(...)` | **HIỆU ỨNG BỊ TRỄ (AR LAG):** Các frame bị xếp hàng đợi (Queue). Khi bạn vẫy tay sang trái, 1 giây sau khiên ma thuật mới bay sang trái. |
 | **7** | **Đồng bộ Timestamp đơn điệu tăng** | `handLandmarker.detectAsync(mpImage, frameTime)` | **AI TỪ CHỐI TÍNH TOÁN:** Chế độ `LIVE_STREAM` yêu cầu `frameTime` phải luôn lớn hơn `frameTime` của frame trước. Nếu dùng sai hàm lấy giờ khiến timestamp bị lùi, MediaPipe sẽ ném ngoại lệ và dừng tracking. |
 | **8** | **Cân bằng Z-Index của Layout** | `activity_main.xml` | **HIỆU ỨNG BỊ CHE KHUẤT:** Nếu đặt View Camera hoặc Menu đè lên trên `OverlayView`, toàn bộ khiên phép và khung xương AR sẽ bị vẽ chìm bên dưới nền và biến mất khỏi mắt người dùng. |
@@ -1556,7 +1556,8 @@ trước rủi ro máy yếu/ít RAM khởi tạo GPU cực chậm hoặc lỗi 
    `ActivityManager.MemoryInfo().totalMem < 3GB`.
 2. **Giới hạn GPU init = 5 giây**: build GPU trên 1 `Executors.newSingleThreadExecutor()` riêng,
    `future.get(5, TimeUnit.SECONDS)` — hết giờ thì ngừng chờ (không giết được luồng build native, nó có
-   thể chạy nốt ở nền rồi bị bỏ kết quả) và chuyển sang build CPU ngay.
+   thể chạy nốt ở nền rồi bị bỏ kết quả) và chuyển sang build CPU ngay. (Vì GPU được build trên thread tạm này chứ không phải `backgroundExecutor` nơi
+   gọi `detectAsync()`, xem ⚠️ ở Bảng quy tắc mục 6 rule 5 về ràng buộc EGL cùng thread.)
 3. **Bắt mọi `Exception` khi tạo GPU** (ví dụ `RuntimeException` "model không hỗ trợ GPU", đúng tình
    huống Google cũng phải bắt trong code mẫu của họ) → fallback CPU ngay, không crash.
 4. **Nhớ trạng thái cho cả phiên app** (`@Volatile forcedCpuForSession`): fallback 1 lần (RAM thấp hoặc
@@ -1591,8 +1592,10 @@ chưa sẵn sàng, im lặng, dễ gây hiểu lầm app bị lỗi. Cơ chế (
   disable trong lúc loading nên không nên hiện trước mắt người dùng. Người dùng không đợi được thì dùng
   Back **hệ thống** (nút/gesture) — xử lý ở `OnBackPressedCallback` tại tầng Activity/Fragment, hoàn toàn
   độc lập với thứ tự vẽ view nên vẫn hoạt động bình thường dù bị overlay che khuất phía trên.
-- Nếu chờ quá 3.5s (`LOADING_OVERLAY_HINT_DELAY_MS`) hiện thêm dòng chữ phụ ("máy đang xử lý hơi lâu…")
-  để không giống app bị treo — case có thật kể từ khi có fallback GPU→CPU timeout 5s.
+- Nếu chờ quá 3.5s (`LOADING_OVERLAY_HINT_DELAY_MS`) hiện thêm dòng chữ phụ ("Sắp xong…")
+  để không giống app bị treo — case có thật kể từ khi có fallback GPU→CPU timeout 5s. Chuỗi thật trong
+  `strings.xml`: `camera_loading_hint` = "Sắp xong…" (vi) / "Almost done…" (en); dòng chính
+  `camera_loading_effect` = "Đang chuẩn bị hiệu ứng…" / "Preparing effect…".
 
 Xem `CameraLoading_Fallback_Plan.md` cho lịch sử quyết định đầy đủ (đã cân nhắc và **bỏ** phương án
 "preload" HandLandmarker từ màn xem trước effect — có edge case khiến tổng thời gian chờ còn tệ hơn không

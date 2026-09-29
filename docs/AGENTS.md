@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `8f810f4`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `abfb32a`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -23,7 +23,7 @@ Tên hiển thị của app là **Magic Hand** (`app_name` trong `strings.xml`, 
 Kotlin · View/XML + ViewBinding (không Compose) · Fragments + Navigation Component + Safe Args ·
 CameraX 1.4.2 · MediaPipe Tasks Vision 0.10.26 (`hand_landmarker.task`) · Canvas 2D (`OverlayView`) ·
 `MediaCodec` + `MediaMuxer` (ghi hình) · Media3/ExoPlayer 1.8.0 (phát lại) · AGP 9.3.2, Gradle 9.5.0 ·
-minSdk 28, target/compileSdk 37, Java 11.
+minSdk 28, target/compileSdk 37, Java 17 (`compileOptions` trong `app/build.gradle.kts`; CI cũng dùng JDK 17).
 
 Lệnh hay dùng:
 ```bash
@@ -147,7 +147,8 @@ app/src/main/java/com/example/handar/
 │   ├── EffectRepository.kt      danh sách phẳng List<EffectDefinition>, lắp hoàn toàn từ catalog/ (10 effect);
 │   │                            có findByName(query) lọc theo tên (contains, ignoreCase) cho search real-time;
 │   │                            findById (crash nếu sai id) và findByIdOrNull (dùng cho camera không effect)
-│   ├── HandLandmarkerProvider.kt  singleton cache HandLandmarker theo numHands, phát SharedFlow
+│   ├── HandLandmarkerProvider.kt  singleton cache HandLandmarker theo numHands, phát SharedFlow; tạo model bằng
+│   │                            `createWithFallback()` — thử GPU trước, tự rơi về CPU (RAM thấp / init > 5s / lỗi), xem mục 5
 │   ├── model/                   EffectDefinition/EffectState/EffectAsset/EffectBackground/EffectBgm/
 │   │                            AnchorSource/SizeSource/StateMode — kiểu dữ liệu thuần, không logic vẽ
 │   ├── gesture/                 Gesture.kt (object Gestures), GestureRecognizer, GestureUtils (công thức hình học)
@@ -191,7 +192,8 @@ app/src/main/java/com/example/handar/
 │   │                     player/: VideoPlayerFragment, menu ⋮ ở top bar: Đổi tên (RenameDialog),
 │   │                     Xoá (ConfirmDialog), Chia sẻ (mở shareFragment, fromRecordedPreview=false))
 │   ├── camera/          CameraRecordFragment + GestureGuideDialog/GestureAdapter (dialog hướng dẫn cử
-│   │                    chỉ mở từ btn_action, xem mục 3)
+│   │                    chỉ mở từ btn_action, xem mục 3; CameraRecordFragment còn có loading overlay
+│   │                    `layout_camera_loading` che khoảng chờ tạo HandLandmarker, xem mục 5)
 │   ├── effectpicker/    màn chọn effect mở từ nút Effect của camera (EffectPickerFragment + EffectPickerAdapter)
 │   └── widget/          view/decoration dùng chung: GridSpacingItemDecoration, CurvedNavBackgroundView, RoundedOutline,
 │                        ConfirmDialog (dialog xác nhận dùng chung, xem `dialog_confirm.xml`),
@@ -344,7 +346,7 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   callback `stop()` của `VideoRecorder`) và nhớ tắt Toast trong `DelegatePerfLogger`/`VideoStatsLogger`
   trước khi đo diện rộng (chỉ giữ Log, tránh làm phiền UI lúc test) rồi gắn nhãn `// TẠM` khi gắn lại,
   gỡ ngay sau khi đo xong.
-- **`HandLandmarkerProvider` dùng `Delegate.GPU`** (đổi từ `Delegate.CPU` ngày 29/09/2026, dựa trên số liệu
+- **`HandLandmarkerProvider` ưu tiên `Delegate.GPU`, có fallback CPU tự động (bullet ngay dưới)** (đổi từ `Delegate.CPU` ngày 29/09/2026, dựa trên số liệu
   đo thật bằng `DelegatePerfLogger` — xem `Perf_Notes.md` mục 9): GPU nhanh hơn ~35-40% (fps ~30 vs ~22),
   latency thấp hơn ~40%, rớt frame ~0-4% so với CPU rớt tới ~25%, trên máy test. GPU cần ~6-10 giây
   khởi động (build shader/EGL context) trước khi đạt tốc độ ổn định — đừng hoảng nếu vài giây đầu sau khi
@@ -364,6 +366,25 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   Bất kỳ chỗ nào gọi hàm tạo model/decoder nặng (MediaPipe, MediaCodec, ...) đồng bộ trên main thread —
   kể cả nhìn qua thấy "chạy nhanh" — đều nên nghi ngờ và kiểm tra lại tương tự. Xem `Code_Walkthrough.md`
   mục 6.2, `Test_Checklist.md` D7/D8.
+- **`HandLandmarkerProvider.createWithFallback()` — GPU mặc định, tự rơi về CPU** (29/09/2026, kế hoạch + lịch sử
+  quyết định ở `CameraLoading_Fallback_Plan.md`, giải thích đầy đủ ở `Camera_X_Hand_Landmarker.md` mục 14): dùng thẳng
+  CPU (không thử GPU) khi `ActivityManager.isLowRamDevice()` hoặc tổng RAM < 3GB; còn lại build GPU trên 1 thread
+  phụ, chờ tối đa **5 giây** (`Future.get(timeout)`), quá hạn hoặc GPU ném lỗi thì build CPU. Một khi đã fallback,
+  cờ `@Volatile forcedCpuForSession` giữ CPU cho **cả phiên app** (đổi effect khác không thử lại GPU, không bắt
+  người dùng chờ lại 5s). `HandLandmarker.createFromOptions()` là lệnh native đồng bộ, **không có API huỷ** — nên
+  khi timeout thì luồng build GPU bị bỏ rơi chạy nốt ở nền rồi vứt kết quả; đây là đánh đổi có chủ đích, đừng cố
+  "sửa" bằng cách chờ thêm hay đoán cách huỷ. Hai ngưỡng (3GB, 5s) chọn theo cảm tính: nhánh timeout đã bắt được
+  **thật** trên máy test (log `HandLandmarkerProvider W GPU init qua 5s...`), nhánh RAM thấp mới chỉ xác nhận qua
+  đọc code. Nhãn `DELEGATE_PERF_LABEL` của `DelegatePerfLogger` (nếu gắn lại để đo) **không tự đổi theo delegate
+  thực tế** — muốn biết lần đó có fallback không thì đọc log tag `HandLandmarkerProvider`. Ghi chú `TẠM` ở đầu
+  file provider chỉ nhắc gỡ **ghi chú** khi cơ chế đã ổn định qua nhiều đợt release, không phải gỡ code.
+- **Loading overlay ở `CameraRecordFragment`** (`layout_camera_loading` cuối cây view trong
+  `fragment_camera_record.xml`; `showLoadingOverlay()` / `hideLoadingOverlayAfterMinDuration()` /
+  `setCameraControlsEnabled()`): nền đen phủ kín cả top bar + bottom bar, **mặc định `visible`** trong XML (không
+  phải `gone`) để có mặt từ khung hình đầu tiên, giữ tối thiểu 500ms cho khỏi nhấp nháy, hiện dòng phụ sau 3,5s
+  nếu vẫn chờ, disable nút Effect/Record/Action trong lúc đó. Back **hệ thống** vẫn thoát bình thường (xử lý ở
+  `OnBackPressedCallback`, không phụ thuộc thứ tự vẽ view). Thêm view mới vào layout camera thì đừng đặt *sau*
+  `layout_camera_loading` — nó sẽ vẽ đè lên overlay. Test: `Test_Checklist.md` D9/D10.
 
 ## 6. Bản đồ `docs/` — đọc đúng file khi cần đào sâu
 
@@ -375,10 +396,14 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
 | `Design_App_HandAr.md` | Ý tưởng sản phẩm, app tham khảo, hiệu ứng đề xuất; mục 5 là bảng asset cần chuẩn bị cho 10 hiệu ứng |
 | `Fragment_Review_Checklist.md` | Mỗi khi thêm/sửa Fragment |
 | `Asset_Format_Guidelines.md` | Mỗi khi thêm hiệu ứng/asset mới |
-| `Perf_Notes.md` | Trước khi đổi cấu hình liên quan hiệu năng (resolution, bitrate, GIF vs sprite sheet) |
+| `Perf_Notes.md` | Trước khi đổi cấu hình liên quan hiệu năng (resolution, bitrate, GIF vs sprite sheet, delegate CPU vs GPU — mục 9) |
 | `App_Size_Optimization_16KB_Compliance.md` | Trước khi đụng cấu hình build/R8/shrinkResources hoặc bản 16KB page size |
 | `App_Size_Optimization_Plan.md` | Giai đoạn 2 của việc giảm dung lượng: mốc đo bằng bản release, keep rule R8, CI + `bundletool`, và danh sách việc đã cố ý loại bỏ (WAV→OGG, split ABI, PAD…) |
-| `Test_Checklist.md` | Sau mỗi thay đổi — chạy checklist A–H phù hợp (đặc biệt D: chống regression 6 bug đã fix) |
+| `Test_Checklist.md` | Sau mỗi thay đổi — chạy checklist A–H phù hợp, I khi đụng cử chỉ, J–M khi đụng effect procedural/tia sét/Dragon Ball (đặc biệt D: chống regression — 6 bug quay video D1–D6 + ANR/race/loading/fallback khi mở camera D7–D10) |
+| `CameraLoading_Fallback_Plan.md` | Trước khi đụng `HandLandmarkerProvider.createWithFallback()` hoặc loading overlay của camera — lý do từng ngưỡng, phương án đã cân nhắc và bỏ (preload) |
+| `DelegatePerf_Plan.md` | Khi cần đo lại CPU vs GPU bằng `DelegatePerfLogger` — cách gắn và cách đọc số liệu (kết quả đo đã nằm ở `Perf_Notes.md` mục 9) |
+| `Camera_X_Face_Landmarker.md` | Tài liệu lý thuyết cho tính năng nhận diện khuôn mặt (Face Landmarker) — **chưa có code Face nào trong app**, chỉ đọc khi định làm Face AR |
+| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**chưa bước nào được làm**, chưa có `ViewModel` trong repo) — đọc trước khi thêm `ViewModel`/Repository mới cho một Fragment |
 | `Code_Walkthrough.md` | **Đọc trước khi sửa bất kỳ file .kt nào** — giải thích code từng file/từng hàm, sơ đồ quan hệ import giữa các file, và mục 12 liệt kê các liên kết chéo dễ nhầm khi debug (ví dụ 2 bộ nhận diện gesture độc lập nói ở mục 3 trên) |
 
 ## 7. Thêm một hiệu ứng mới (việc thường gặp nhất)
