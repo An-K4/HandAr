@@ -192,3 +192,26 @@ Và: **commit ở mỗi mốc chạy được**, để luôn có bản gốc s�
 [ ] Nếu là refactor: đã diff với bản gốc, không có dòng nào lệch ngoài ý muốn
 [ ] ./gradlew.bat :app:assembleDebug :app:lintDebug xanh
 ```
+
+---
+
+## 9. Riêng cho Fragment có ViewModel
+
+Checklist mục 0-8 vẫn áp dụng nguyên vẹn cho phần View/tài nguyên còn lại trong Fragment
+(ExoPlayer, dialog, binding). Thêm các câu hỏi sau:
+
+- [ ] VM không giữ `Context` của Activity, không giữ View, không giữ `NavController`
+- [ ] Repository VM phụ thuộc là `class` (không `object`) nếu cần thay thế được
+- [ ] `uiState` là `StateFlow`, sự kiện một lần là `Channel` (không dùng `SharedFlow` cho sự
+      kiện một lần — dễ phát lại nhầm khi Fragment tạo lại view)
+- [ ] Fragment thu `uiState`/`events` qua `viewLifecycleOwner.lifecycleScope` +
+      `repeatOnLifecycle(STARTED)`, không thu trực tiếp trong `viewModelScope`
+- [ ] Điều hướng vẫn chốt cửa `currentDestination?.id` **trong Fragment**, sau khi nhận sự kiện
+      từ VM — không chuyển chốt cửa vào VM
+- [ ] Nếu VM cần sống qua process death (không chỉ qua việc view bị huỷ tạo lại trong back
+      stack), dùng `SavedStateHandle`, không phải field thường
+- [ ] Factory dùng `viewModelFactory { initializer { ... } }`, không viết
+      `ViewModelProvider.Factory` thủ công trừ khi có lý do đặc biệt
+
+> Chi tiết quy ước (thư viện, mẫu code, lý do chọn `StateFlow`/`Channel`, không dùng DI):
+> `MVVM_Migration_Plan.md` mục 0.2.
