@@ -60,7 +60,7 @@ Pipeline một khung hình: Camera → CameraX ImageAnalysis → MediaPipe HandL
 
 Mô hình dữ liệu hiệu ứng (nằm trong `effect/model/`): `EffectDefinition` (id, requiredNumHands,
 danh sách `EffectState`, `background?`, `bgm?`, `stateMode`) · `EffectState` (gesture + asset? +
-soundRes? + `background?` riêng + `sizeSource`/`anchorSource`) · `EffectAsset` (sealed:
+soundRes? + `background?` riêng + `sizeSource`/`anchorSource`/`sizeScale`) · `EffectAsset` (sealed:
 StaticImage/AnimatedGif/SpriteSheet/**Procedural**) · `EffectBackground` (Solid/Image/Animated) ·
 `EffectBgm` (resId + gainPercent) · `AnchorSource`/`SizeSource` (quyết định tâm/kích thước vẽ —
 mặc định PalmCenter/PalmRadius, có thêm PinchMidpoint/IndexFingertip/TwoHandMidpoint/TwoWristMidpoint và
@@ -279,6 +279,11 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   `effectListFragment`": nút này KHÔNG popUpTo, nên nếu bấm khi đang ở tab Collection thì back stack sẽ là
   effectList → videoList → camera, và `popUpTo` camera của `action_effectPicker_to_effectPreview` có thể
   không như kỳ vọng — cần kiểm tra khi động vào luồng này.
+- **Cỡ hiệu ứng = `frame.r` × `EffectState.sizeScale`, tính lại MỖI frame** (không phải cỡ ban đầu chỉnh 1 lần).
+  Muốn to/nhỏ hơn cho 1 effect thì chỉnh `sizeScale` trong `effect/catalog/`, đừng sửa visual chung
+  (`AnimatedGifVisual`) hay `SizeSource`. `fire_ball` (small 1.6, burst_to_big 2.5) và `magic_shield` (3.2) đang dùng giá trị chỉnh theo mắt, chưa đo; riêng `magic_shield`:
+  shield_show/shield_hide phải cùng hệ số vì `ShieldHideVisual` thu nhỏ từ `frame.r` đang khớp.
+  Chi tiết: `Code_Walkthrough.md` mục 1.2.
 - **Màn xem trước (`effectPreviewFragment`)** là cửa vào camera duy nhất (từ `effectListFragment` hoặc
   `effectPickerFragment`). `DEMO_PREVIEW_RES` trong `EffectPreviewFragment` là media **TẠM** dùng chung cho mọi effect —
   không phải bug, đừng "dọn dẹp" khi chưa có media thật. `previewDrawable` phải null hoá ở `onDestroyView` (drawable giữ

@@ -7,6 +7,9 @@ import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
 import com.example.handar.effect.visual.canvas.fireball.FireBallBurstVisual
 
+private const val FIRE_BALL_SMALL_SIZE_SCALE = 1.6f
+private const val FIRE_BALL_BIG_SIZE_SCALE = 2.5f
+
 fun fireBallEffect(): EffectDefinition = EffectDefinition(
     id = "fire_ball",
     displayName = "Cầu lửa",
@@ -17,7 +20,8 @@ fun fireBallEffect(): EffectDefinition = EffectDefinition(
             id = "small",
             gesture = Gestures.singleHandFist,
             asset = EffectAsset.AnimatedGif(R.drawable.fire_ball_small),
-            soundRes = R.raw.fire_ball_burn
+            soundRes = R.raw.fire_ball_burn,
+            sizeScale = FIRE_BALL_SMALL_SIZE_SCALE
         ),
         EffectState(
             id = "burst_to_big",
@@ -25,7 +29,8 @@ fun fireBallEffect(): EffectDefinition = EffectDefinition(
             asset = EffectAsset.Procedural("fire_ball_burst_to_big") { ctx, _ ->
                 FireBallBurstVisual(ctx)
             },
-            soundRes = R.raw.fire_ball_burst
+            soundRes = R.raw.fire_ball_burst,
+            sizeScale = FIRE_BALL_BIG_SIZE_SCALE
         )
     )
 )

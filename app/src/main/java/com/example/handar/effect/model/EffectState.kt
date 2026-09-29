@@ -9,9 +9,11 @@ data class EffectState(
     val soundRes: Int?,
     val background: EffectBackground? = null,
     val sizeSource: SizeSource = SizeSource.PalmRadius,
-    val anchorSource: AnchorSource = AnchorSource.PalmCenter
+    val anchorSource: AnchorSource = AnchorSource.PalmCenter,
+    val sizeScale: Float = 1f
 ) {
     init {
+        require(sizeScale > 0f) { "sizeScale phải > 0: $id" }
         require(asset != null || soundRes != null) {
             "EffectState không có cả hình lẫn tiếng — trạng thái này vô nghĩa: $id"
         }

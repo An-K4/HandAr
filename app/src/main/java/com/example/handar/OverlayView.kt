@@ -267,7 +267,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
 
         val sizeSource =
             currentEffect.states.getOrNull(matchedIndex)?.sizeSource ?: SizeSource.PalmRadius
-        frame.r = when (sizeSource) {
+        val baseR = when (sizeSource) {
             SizeSource.PalmRadius -> {
                 var sum = 0.0
                 for (landmark in hands) {
@@ -300,6 +300,9 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
                 } else 0f
             }
         }
+        // hệ số riêng từng state (EffectState.sizeScale), nhân sau khi sizeSource tính xong — mỗi frame
+        val sizeScale = currentEffect.states.getOrNull(matchedIndex)?.sizeScale ?: 1f
+        frame.r = baseR * sizeScale
 
         visuals.getOrNull(matchedIndex)?.draw(canvas, frame)
     }

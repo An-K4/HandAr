@@ -123,7 +123,7 @@ EffectDefinition            1 hiệu ứng người dùng chọn được ở m�
 ├── id / displayName / thumbnailRes
 ├── requiredNumHands        1 hoặc 2 — quyết định cấu hình HandLandmarker
 ├── states: List<EffectState>   KHÔNG giới hạn số trạng thái
-│   └── EffectState = gesture + asset? + soundRes? + background? riêng + sizeSource + anchorSource
+│   └── EffectState = gesture + asset? + soundRes? + background? riêng + sizeSource + anchorSource + sizeScale (hệ số nhân lên cỡ vẽ, mặc định 1)
 ├── background?             nền mặc định (Solid/Image/Animated) khi không state nào có nền riêng
 ├── bgm?                    nhạc nền (resId + gainPercent) được TRỘN VÀO VIDEO khi ghi
 └── stateMode               Momentary (mặc định, mất tay là tắt) | Latched (giữ nguyên state)

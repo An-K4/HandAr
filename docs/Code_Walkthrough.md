@@ -157,7 +157,8 @@ data class EffectState(
     val soundRes: Int?,                 // null nếu state không phát tiếng
     val background: EffectBackground? = null,   // đè nền mặc định của Definition khi state này khớp
     val sizeSource: SizeSource = SizeSource.PalmRadius,     // xem mục 1.2
-    val anchorSource: AnchorSource = AnchorSource.PalmCenter // xem mục 1.2
+    val anchorSource: AnchorSource = AnchorSource.PalmCenter, // xem mục 1.2
+    val sizeScale: Float = 1f       // hệ số nhân lên frame.r sau khi sizeSource tính xong
 )
 ```
 `init { require(asset != null || soundRes != null) }` — state không hình không tiếng thì vô nghĩa,
@@ -195,6 +196,15 @@ hiệu ứng bám lòng bàn tay, còn 4 cặp còn lại phục vụ hiệu ứ
 Cả hai đều đọc trực tiếp từ `EffectState` **đang khớp** (`currentEffect.states.getOrNull(matchedIndex)`),
 nghĩa là **mỗi state trong cùng 1 effect có thể dùng anchor/size khác nhau** — ví dụ thật:
 `dragonBallEffect()` (state kamehameha neo `TwoWristMidpoint`, state charge dùng `PalmCenter` mặc định).
+
+**`EffectState.sizeScale`** (`Float`, mặc định `1f`, phải > 0) là hệ số nhân lên `frame.r` **sau khi** `SizeSource`
+tính xong: `frame.r = baseR * sizeScale` (`OverlayView.drawFrame()`, mục 5.4). Nó được tính lại **mỗi frame** từ landmark
+hiện tại, KHÔNG phải cỡ ban đầu chỉnh 1 lần — sprite vẫn to/nhỏ theo tay liên tục. `AnimatedGifVisual` vẽ cạnh khung 256px
+bằng đúng `frame.r` (nên viền trong suốt của GIF cũng bị tính vào cỡ), mọi visual khác đọc `frame.r` nên đều hưởng hệ số mà
+không phải sửa. Dùng ở `fireBallEffect()` (state `small` 1.6, `burst_to_big` 2.5 — quả bùng cháy phải to hơn quả nhỏ) và
+`magicShieldEffect()` (3.2 cho cả 2 state, khiên phải to hơn bàn tay); tất cả là giá trị chỉnh theo mắt, chưa đo. Lý do giữ nền `PalmRadius` (0→9) thay vì đo thẳng 0→12:
+nắm tay làm 0→12 co lại nhưng 0→9 gần như không đổi, mà nắm tay lại là trigger của `fire_ball.small`/`shield_hide`.
+⚠️ `shield_show` và `shield_hide` phải cùng `sizeScale` (`ShieldHideVisual` thu nhỏ từ `frame.r` của state đang khớp).
 
 ### 1.3 `StateMode` — Momentary vs Latched
 
@@ -567,7 +577,7 @@ Thứ tự trong hàm, theo đúng thứ tự code:
    hiện lên màn hình ở phía tay phải người xem, MediaPipe trả nhãn theo ảnh gốc (chưa lật) nên phải
    tự đảo lại nếu muốn nhãn khớp với cảm giác trực quan của người dùng.
 5. **Tính `frame.cx/cy`** theo `anchorSource` của state đang khớp (5 nhánh `when`, xem mục 1.2).
-6. **Tính `frame.r`** theo `sizeSource` của state đang khớp (3 nhánh `when`, xem mục 1.2).
+6. **Tính `frame.r`** theo `sizeSource` của state đang khớp (3 nhánh `when`, xem mục 1.2), rồi nhân với `sizeScale` của state (`frame.r = baseR * sizeScale`, mặc định 1f, tính lại mỗi frame).
 7. Gọi `visuals.getOrNull(matchedIndex)?.draw(canvas, frame)`.
 
 `mirrorX` luôn được truyền `true` từ cả `onDraw()` (live) lẫn `CameraRecordFragment` (recording,
