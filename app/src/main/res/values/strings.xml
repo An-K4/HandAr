@@ -43,6 +43,8 @@
     <string name="back">Back</string>
     <string name="camera_effect">Effect</string>
     <string name="camera_action">Action</string>
+    <string name="camera_loading_effect">Preparing effect…</string>
+    <string name="camera_loading_hint">Almost done…</string>
     <string name="effect_picker_title">Template</string>
     <string name="create">Create</string>
     <string name="expand_video">Expand video</string>

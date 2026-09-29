@@ -43,6 +43,8 @@
     <string name="back">Quay lại</string>
     <string name="camera_effect">Hiệu ứng</string>
     <string name="camera_action">Hành động</string>
+    <string name="camera_loading_effect">Đang chuẩn bị hiệu ứng…</string>
+    <string name="camera_loading_hint">Sắp xong…</string>
     <string name="effect_picker_title">Mẫu</string>
     <string name="create">Tạo</string>
     <string name="expand_video">Phóng to video</string>

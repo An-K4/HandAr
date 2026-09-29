@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.format.DateUtils
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,29 +26,32 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.example.handar.audio.BgmPlayer
 import com.example.handar.OverlayView
 import com.example.handar.R
+import com.example.handar.audio.BgmPlayer
 import com.example.handar.audio.SoundEffectPlayer
 import com.example.handar.databinding.FragmentCameraRecordBinding
-import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
+import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.StateMode
 import com.example.handar.recording.VideoRecorder
+import com.example.handar.ui.camera.CameraRecordFragment.Companion.LOADING_OVERLAY_HINT_DELAY_MS
+import com.example.handar.ui.camera.CameraRecordFragment.Companion.LOADING_OVERLAY_MIN_VISIBLE_MS
 import com.example.handar.ui.widget.PermissionDeniedDialog
 import com.example.handar.ui.widget.clipRoundedCorners
-import com.example.handar.utils.RecordingPerfLogger
 import com.example.handar.utils.applySystemBarsInsetsMargin
-import com.example.handar.utils.openAppSettings
 import com.example.handar.utils.loadWavPcm
-import com.example.handar.utils.logRecordingStats
+import com.example.handar.utils.openAppSettings
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.max
@@ -58,6 +60,10 @@ class CameraRecordFragment : Fragment() {
     companion object {
         private const val MIN_RECORD_DURATION_MS = 1000L
         private const val DEBOUNCE_MS = 200L
+
+        // Loading overlay khi HandLandmarker đang được tạo nền, xem docs/CameraLoading_Fallback_Plan.md
+        private const val LOADING_OVERLAY_MIN_VISIBLE_MS = 500L
+        private const val LOADING_OVERLAY_HINT_DELAY_MS = 3500L
     }
 
     private val args: CameraRecordFragmentArgs by navArgs()
@@ -81,9 +87,9 @@ class CameraRecordFragment : Fragment() {
     @Volatile
     private var latestCameraBitmap: Bitmap? = null
 
-    // TẠM: đếm frame camera để đo hiệu năng, gỡ cùng RecordingPerfLogger
-    @Volatile
-    private var analyzerFrames = 0
+    // Loading overlay khi HandLandmarker đang được tạo nền, xem docs/CameraLoading_Fallback_Plan.md
+    private var loadingHintJob: Job? = null
+    private var loadingShownAtMs: Long = 0L
 
     private var recordingFrameThread: Thread? = null
     private var lastStateId: String? = null
@@ -347,10 +353,24 @@ class CameraRecordFragment : Fragment() {
     }
 
     private fun setupMediaPipe() {
-        handLandmarker =
-            HandLandmarkerProvider.getOrCreate(requireContext(), currentEffect?.requiredNumHands ?: 1)
+        // FIX ANR: HandLandmarker.createFromOptions() (bên trong getOrCreate) có thể mất từ vài trăm ms
+        // tới vài giây (đặc biệt Delegate.GPU phải build EGL context + compile shader) — trước đây gọi
+        // đồng bộ ngay trên main thread nên treo UI thread, gây ANR khi mở camera / đổi effect.
+        // Chuyển việc tạo model sang backgroundExecutor (đúng thread đang dùng cho detectAsync), chỉ quay
+        // lại main thread để gán field + lắng nghe kết quả. startCamera() không cần đợi vì detectAsync()
+        // đã dùng handLandmarker?.  — preview vẫn hiện ngay, hiệu ứng AR chỉ "vào" chậm 1 nhịp.
+        val appContext = requireContext()
+        val numHands = currentEffect?.requiredNumHands ?: 1
+
+        showLoadingOverlay()
 
         viewLifecycleOwner.lifecycleScope.launch {
+            val landmarker = withContext(backgroundExecutor.asCoroutineDispatcher()) {
+                HandLandmarkerProvider.getOrCreate(appContext, numHands)
+            }
+            handLandmarker = landmarker
+            hideLoadingOverlayAfterMinDuration()
+
             HandLandmarkerProvider.results.collect { (result, inputImage) ->
                 latestHandResult = result
 
@@ -358,6 +378,53 @@ class CameraRecordFragment : Fragment() {
                 handleGesture(result)
             }
         }
+    }
+
+    /**
+     * Hiện lớp phủ loading NGAY LẬP TỨC (không trễ) — vào màn là thấy loading luôn, tránh 1 nhịp
+     * "trống" mà người dùng có thể táy máy bấm nút trong lúc đó. Disable luôn nút effect/record/
+     * action (Back vẫn bấm được). Nếu vẫn đang chờ sau [LOADING_OVERLAY_HINT_DELAY_MS], hiện thêm
+     * dòng chữ phụ để người dùng không tưởng app bị đơ (case có thật từ khi có fallback GPU→CPU
+     * timeout 5s). Xem [hideLoadingOverlayAfterMinDuration] cho phần đảm bảo hiện tối thiểu
+     * [LOADING_OVERLAY_MIN_VISIBLE_MS] để không bị nhấp nháy khi setup xong gần như ngay lập tức.
+     */
+    private fun showLoadingOverlay() {
+        loadingHintJob?.cancel()
+        loadingShownAtMs = SystemClock.uptimeMillis()
+
+        val b = _binding ?: return
+        b.layoutCameraLoading.visibility = View.VISIBLE
+        b.tvCameraLoadingHint.visibility = View.GONE
+        setCameraControlsEnabled(false)
+
+        loadingHintJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(LOADING_OVERLAY_HINT_DELAY_MS)
+            _binding?.tvCameraLoadingHint?.visibility = View.VISIBLE
+        }
+    }
+
+    /**
+     * Đợi đủ [LOADING_OVERLAY_MIN_VISIBLE_MS] tính từ lúc [showLoadingOverlay] rồi mới ẩn + bật lại
+     * nút — nếu setup xong ngay lập tức thì vẫn giữ overlay đủ nửa giây thay vì tắt-mở nhấp nháy.
+     * Là suspend fun, gọi trong coroutine của setupMediaPipe() nên delay() ở đây không chặn UI.
+     */
+    private suspend fun hideLoadingOverlayAfterMinDuration() {
+        val elapsedMs = SystemClock.uptimeMillis() - loadingShownAtMs
+        val remainingMs = LOADING_OVERLAY_MIN_VISIBLE_MS - elapsedMs
+        if (remainingMs > 0) delay(remainingMs)
+
+        loadingHintJob?.cancel()
+        loadingHintJob = null
+        val b = _binding ?: return
+        b.layoutCameraLoading.visibility = View.GONE
+        setCameraControlsEnabled(true)
+    }
+
+    private fun setCameraControlsEnabled(enabled: Boolean) {
+        val b = _binding ?: return
+        b.btnEffect.isEnabled = enabled
+        b.btnToggleRecord.isEnabled = enabled
+        b.btnAction.isEnabled = enabled
     }
 
     private fun handleGesture(result: HandLandmarkerResult) {
@@ -442,16 +509,6 @@ class CameraRecordFragment : Fragment() {
 
                         latestCameraBitmap = rotatedBitmap
 
-                        // TẠM: đo hiệu năng
-                        if (analyzerFrames == 0) {
-                            Log.i(
-                                "RecPerf",
-                                "bitmap analyzer = ${rotatedBitmap.width}x${rotatedBitmap.height}, " +
-                                        "${rotatedBitmap.byteCount / 1024} KB/frame"
-                            )
-                        }
-                        analyzerFrames++
-
                         val mpImage: MPImage = BitmapImageBuilder(rotatedBitmap).build()
                         val timestamp = SystemClock.uptimeMillis()
                         handLandmarker?.detectAsync(mpImage, timestamp)
@@ -534,12 +591,7 @@ class CameraRecordFragment : Fragment() {
         val overlay = overlayView ?: return
         val intervalMs = 1000L / fps
 
-        // TẠM: đo hiệu năng ghi hình, gỡ cùng RecordingPerfLogger
-        val perf = RecordingPerfLogger(requireContext().applicationContext, { analyzerFrames })
-        val budgetNs = intervalMs * 1_000_000L
-
         recordingFrameThread = Thread {
-            perf.start()
             while (videoRecorder?.isRecording == true) {
                 val frameStartNs = System.nanoTime()
                 val bitmap = latestCameraBitmap
@@ -574,13 +626,10 @@ class CameraRecordFragment : Fragment() {
                 }
 
                 val workNs = System.nanoTime() - frameStartNs
-                perf.onFrame(workNs, budgetNs)   // TẠM: đo hiệu năng
-
                 val elapsedMs = workNs / 1_000_000
                 val sleepMs = (intervalMs - elapsedMs).coerceAtLeast(0)
                 if (sleepMs > 0) Thread.sleep(sleepMs)
             }
-            perf.finish()   // TẠM: đo hiệu năng
         }.apply { start() }
     }
 
@@ -627,7 +676,6 @@ class CameraRecordFragment : Fragment() {
             }
 
             val path = recorderToStop.outputFile?.absolutePath ?: return@stop
-            context?.let { logRecordingStats(it, File(path)) }
             if (showSavedToast) {
                 Toast.makeText(requireContext(), getString(R.string.recording_saved_on_back), Toast.LENGTH_SHORT).show()
             }

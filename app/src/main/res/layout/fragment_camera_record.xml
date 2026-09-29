@@ -196,4 +196,56 @@
             </FrameLayout>
         </LinearLayout>
     </LinearLayout>
+    <!-- Che toàn bộ camera + top bar + bottom bar lúc HandLandmarker đang được tạo nền
+         (fix ANR + fallback GPU/CPU, xem docs/CameraLoading_Fallback_Plan.md).
+         Đặt SAU CÙNG trong cây view nên vẽ đè lên mọi nút (đằng nào cũng đang bị disable,
+         không nên hiện trước mắt người dùng). Người dùng không đợi được thì bấm nút/vuốt
+         Back HỆ THỐNG để thoát (xử lý ở OnBackPressedCallback, không phụ thuộc thứ tự vẽ view
+         nên vẫn hoạt động dù overlay đang che top bar).
+         Mặc định VISIBLE (không phải GONE) để có mặt ngay từ khung hình đầu tiên, tránh nhấp
+         nháy trên máy render UI chậm (khoảng hở giữa lúc view inflate xong và lúc code Kotlin
+         kịp chạy showLoadingOverlay()). CameraRecordFragment tự hiện/ẩn tiếp bằng code. -->
+    <FrameLayout
+        android:id="@+id/layout_camera_loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/black"
+        android:visibility="visible"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:indeterminateTint="@color/white" />
+
+            <TextView
+                android:id="@+id/tv_camera_loading_effect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/camera_loading_effect"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_camera_loading_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/camera_loading_hint"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:alpha="0.75"
+                android:visibility="gone" />
+        </LinearLayout>
+    </FrameLayout>
+
 </FrameLayout>
