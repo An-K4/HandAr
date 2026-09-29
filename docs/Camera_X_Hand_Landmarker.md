@@ -1,7 +1,7 @@
 # TÀI LIỆU HƯỚNG DẪN MÔ PHỎNG HAND AR
 > **Công nghệ chủ đạo:** CameraX | Google MediaPipe Tasks Vision | Android Canvas 2D | Hình học giải tích ứng dụng.
 
-> **📝 Đã audit & cập nhật:** Bổ sung công thức Offset cho chế độ `CENTER_CROP` (Mục 3, Công thức 1–2), thêm mục về xử lý Rotation & Mirror của CameraX (Mục 3, Công thức 1.5), sửa khuyến nghị Delegate GPU/CPU theo dữ liệu thực tế (Mục 2.4, Mục 6 rule 4), làm rõ claim về `RGBA_8888` (Mục 4.2), thêm **Mục 7 — Vẽ tài nguyên động (GIF/Sprite) đúng vị trí trong OverlayView**, thêm **Mục 8 — Ghi video (MediaRecorder) tích hợp với AR Overlay**, mở rộng **Mục 8.3/8.8** với 2 cạm bẫy mới (race condition trên `GifLayer` dùng chung, mirror lật cả Canvas), thêm **Mục 9 — Kiến trúc Mix Audio/Video thực tế (MediaCodec + MediaMuxer)**, mô tả snapshot tại commit `c62037f`, và mới nhất: **Mục 10 — Refactor hiệu năng & bỏ mic (hậu commit `c62037f`)**, đúc kết từ đợt tối ưu resolution/bitrate/threading theo tiêu chuẩn mentor — bao gồm quyết định bỏ hẳn mic (thay bằng `EffectAudioClock`), 2 bug mới phát sinh ngay khi tách thread theo bài học Grafika (sleep tính sai gây tụt fps thật, thiếu 1 dấu âm gây "GIF chồng GIF" qua cơ chế buffer xoay vòng của `Surface`), race condition `MediaMuxer` cần đủ 2 track mới `start()` khi Record/Stop quá nhanh, và quyết định chặn ở tầng UX (thời lượng ghi tối thiểu) thay vì tiếp tục đuổi theo race condition ở tầng encoder.
+> **📝 Đã audit & cập nhật:** Bổ sung công thức Offset cho chế độ `CENTER_CROP` (Mục 3, Công thức 1–2), thêm mục về xử lý Rotation & Mirror của CameraX (Mục 3, Công thức 1.5), sửa khuyến nghị Delegate GPU/CPU theo dữ liệu thực tế (Mục 2.4, Mục 6 rule 4), làm rõ claim về `RGBA_8888` (Mục 4.2), thêm **Mục 7 — Vẽ tài nguyên động (GIF/Sprite) đúng vị trí trong OverlayView**, thêm **Mục 8 — Ghi video (MediaRecorder) tích hợp với AR Overlay**, mở rộng **Mục 8.3/8.8** với 2 cạm bẫy mới (race condition trên `GifLayer` dùng chung, mirror lật cả Canvas), thêm **Mục 9 — Kiến trúc Mix Audio/Video thực tế (MediaCodec + MediaMuxer)**, mô tả snapshot tại commit `c62037f`, và mới nhất: **Mục 10 — Refactor hiệu năng & bỏ mic (hậu commit `c62037f`)**, đúc kết từ đợt tối ưu resolution/bitrate/threading theo tiêu chuẩn mentor — bao gồm quyết định bỏ hẳn mic (thay bằng `EffectAudioClock`), 2 bug mới phát sinh ngay khi tách thread theo bài học Grafika (sleep tính sai gây tụt fps thật, thiếu 1 dấu âm gây "GIF chồng GIF" qua cơ chế buffer xoay vòng của `Surface`), race condition `MediaMuxer` cần đủ 2 track mới `start()` khi Record/Stop quá nhanh, và quyết định chặn ở tầng UX (thời lượng ghi tối thiểu) thay vì tiếp tục đuổi theo race condition ở tầng encoder; và mới nhất (29/09/2026): **Mục 14 — ANR khi tạo HandLandmarker, Fallback GPU→CPU, và Loading Overlay**, cập nhật luôn Mục 2.4 theo số liệu đo thật (đã đổi mặc định sang `Delegate.GPU`, không còn khuyến nghị CPU).
 
 ---
 
@@ -105,6 +105,10 @@
     - 13.11. Race condition khi gộp `setActive()` vào nhịp MediaPipe — hai loại "kích hoạt" cần chiến lược thread-safety khác nhau
     - 13.12. Cạm bẫy khi tự sửa race condition: dời `setActive()` sai chỗ làm hỏng bài toán khác
     - 13.13. Quy trình chẩn đoán mở rộng (Debug Checklist)
+14. [ANR khi tạo HandLandmarker, Fallback GPU→CPU, và Loading Overlay (29/09/2026)](#14-anr-khi-tạo-handlandmarker-fallback-gpucpu-và-loading-overlay-29092026)
+    - 14.1. ANR gốc và cách fix
+    - 14.2. Fallback GPU→CPU tự động (`HandLandmarkerProvider.createWithFallback`)
+    - 14.3. Loading overlay che khoảng chờ tạo model (`CameraRecordFragment`)
 
 ---
 
@@ -188,29 +192,39 @@ Là danh sách 2 chiều:
 * **Tầng trong (`List<NormalizedLandmark>`)**: Luôn có kích thước cố định là **đúng 21 phần tử** tương ứng từ index `0` đến `20`.
 
 ### 2.4. Cấu hình thực thi tối ưu
+
+> **Cập nhật 29/09/2026 — đã đo thật và đổi sang GPU, xem mục 14.** Phần dưới đây (mô tả ban đầu khi
+> chưa đo) vẫn giữ lại để hiểu lý do tồn tại cơ chế fallback ở mục 14 — nhưng **quyết định hiện tại
+> KHÔNG còn là "coi CPU là mặc định an toàn"** nữa.
+
 ```kotlin
 val baseOptions = BaseOptions.builder()
     .setModelAssetPath("hand_landmarker.task")
-    .setDelegate(Delegate.CPU) // Mặc định & ổn định nhất trên đa số thiết bị (xem lưu ý bên dưới)
+    .setDelegate(delegate) // xem HandLandmarkerProvider.createWithFallback() — GPU trước, fallback CPU khi cần (mục 14)
     .build()
 
 val options = HandLandmarker.HandLandmarkerOptions.builder()
     .setBaseOptions(baseOptions)
     .setRunningMode(RunningMode.LIVE_STREAM) // Bắt buộc cho Camera thời gian thực
-    .setNumHands(1) // Giảm tải xử lý nếu chỉ làm phép 1 tay
-    .setMinHandDetectionConfidence(0.5f)
-    .setMinTrackingConfidence(0.5f)
-    .setResultListener { result, inputImage -> /* Nhận kết quả bất đồng bộ */ }
+    .setNumHands(numHands) // 1 hoặc 2 tuỳ effect, xem EffectDefinition.requiredNumHands
+    .setResultListener { result, inputImage -> /* Nhận kết quả bất đồng bộ, đẩy qua SharedFlow */ }
     .build()
 ```
 
-> **Về lựa chọn CPU vs GPU delegate:** Khác với hiểu lầm phổ biến rằng "GPU luôn nhanh hơn và bắt buộc phải dùng", trên thực tế:
+> **Về lựa chọn CPU vs GPU delegate (mô tả gốc, trước khi đo — vẫn đúng về mặt lý thuyết):** Khác với
+> hiểu lầm phổ biến rằng "GPU luôn nhanh hơn và bắt buộc phải dùng", trên thực tế:
 > - Nếu không chỉ định delegate, MediaPipe mặc định dùng **CPU**.
 > - GPU delegate có thể khiến thời gian **khởi tạo model chậm hơn đáng kể** (có báo cáo lên tới ~30 giây so với vài giây của CPU), do phải build shader/GL context.
 > - Ở một số phiên bản MediaPipe gần đây, chênh lệch tốc độ xử lý thực tế giữa CPU và GPU đã **không còn đáng kể** như trước.
 > - GPU delegate bắt buộc phải được **khởi tạo và gọi trên cùng một thread** (ràng buộc `EGL context`), phức tạp hơn CPU delegate (CPU có thể khởi tạo ở main thread rồi gọi ở background thread bình thường — xem Bảng quy tắc, mục 5).
 >
-> → Nên coi `Delegate.CPU` là lựa chọn mặc định an toàn; chỉ cân nhắc `Delegate.GPU` khi đã đo đạc thực tế trên thiết bị mục tiêu và xác nhận có lợi ích rõ ràng, đồng thời sẵn sàng xử lý đúng ràng buộc về thread.
+> **Kết quả đo thật trên máy test (`Perf_Notes.md` mục 9) lật lại phần lớn nghi ngờ trên:** GPU nhanh
+> hơn CPU rõ rệt (~35-40%), latency thấp hơn (~40%), rớt frame gần như bằng 0 so với CPU rớt tới 1/4 —
+> và thời gian khởi tạo thực đo được chỉ ~6-10 giây (không tới ~30 giây như cảnh báo cũ, dù cảnh báo đó
+> dựa trên máy khác nên không loại trừ hẳn). Vì rủi ro "GPU init chậm/không ổn định trên máy khác" vẫn
+> có thật (và đã đo là loại rủi ro tồn tại — mục 14 dưới đây kể lại 1 lần fallback xảy ra thật trên
+> chính máy test), giải pháp chọn là **GPU mặc định + fallback CPU tự động** (mục 14) thay vì né hẳn
+> GPU như khuyến nghị gốc.
 
 ---
 
@@ -1507,3 +1521,79 @@ Bổ sung nối tiếp Debug Checklist ở Mục 10.12:
 5. **Màu/hướng gắn với tay trái-phải bị đảo khi bắt chéo tay** → kiểm tra `handedness` có được đảo lại đúng theo `mirrorX` trước khi dùng, không dùng thẳng giá trị thô từ `handednesses()` (Mục 13.10).
 6. **Video ghi ra hiện lại nội dung tưởng đã xóa/thay đổi trước khi bấm Record** → kiểm tra state one-shot kiểu `ClearOnActivate` có được kích hoạt đúng nhịp MediaPipe (`setResult()`), không bị vô tình gắn vào nhịp `drawFrame(forRecording=true)` vốn chỉ chạy khi đang quay (Mục 13.12).
 7. **Video (không phải live) bị giật/đứng hình ở đúng lúc đổi cử chỉ, riêng với hiệu ứng GIF** → nghi ngờ `setActive()` đang đụng trực tiếp vào `Drawable`/tài nguyên không thread-safe từ thread khác thread gọi `draw()` — chuyển sang mô hình cờ `@Volatile` áp trong chính `draw()` (Mục 13.11), không dời chỗ gọi `setActive()`.
+---
+
+## 14. ANR KHI TẠO HANDLANDMARKER, FALLBACK GPU→CPU, VÀ LOADING OVERLAY (29/09/2026)
+
+### 14.1. ANR gốc và cách fix
+
+`HandLandmarkerProvider.getOrCreate()` gọi `HandLandmarker.createFromOptions()` — lệnh native đồng bộ,
+với `Delegate.GPU` có thể mất từ vài trăm ms tới vài giây (build EGL context + compile shader), nặng
+nhất khi `numHands` đổi khác cache (phải `close()` model cũ rồi tạo lại từ đầu — tức mỗi lần đổi qua lại
+effect 1 tay/2 tay). Trước đây hàm này được gọi thẳng trên dòng đầu `setupMediaPipe()` (main thread) →
+treo UI thread đúng bằng thời gian tạo model → **ANR thật** ngay khi user vừa bấm vào effect.
+
+Fix: chạy `getOrCreate(...)` trên `backgroundExecutor` (đúng thread `detectAsync()` đang dùng) qua
+`withContext(backgroundExecutor.asCoroutineDispatcher())`, chỉ quay lại main thread (mặc định của
+`lifecycleScope.launch`) để gán `handLandmarker` + bắt đầu `collect` kết quả. `startCamera()` không cần
+đợi vì nó dùng `handLandmarker?.` (an toàn null) nên preview vẫn hiện ngay lập tức. Đối chiếu với code
+mẫu chính thức của Google (`mediapipe-samples/.../HandLandmarkerHelper.kt` + `CameraFragment.kt`) xác
+nhận đây đúng là pattern chuẩn — họ cũng luôn tạo/đổi `HandLandmarker` qua `backgroundExecutor.execute`,
+không có API huỷ giữa chừng, không có 2 model dựng sẵn song song, và chấp nhận AR "biến mất rồi hiện lại"
+im lặng một nhịp.
+
+**Bài học:** đo hiệu năng (`DelegatePerfLogger`) chỉ đo latency suy luận **mỗi frame sau khi model đã
+tạo xong**, hoàn toàn không đo chi phí tạo model — 1 công cụ đo tốt vẫn có thể bỏ sót nguyên nhân gốc
+của 1 vấn đề khác nếu không đọc lại toàn bộ luồng code gọi tới hàm bị nghi ngờ. Xem `Code_Walkthrough.md`
+mục 6.2, `Test_Checklist.md` D7/D8.
+
+### 14.2. Fallback GPU→CPU tự động (`HandLandmarkerProvider.createWithFallback`)
+
+Vì đã chốt `Delegate.GPU` làm mặc định (mục 2.4, dựa trên đo thật ở `Perf_Notes.md` mục 9), cần chặn
+trước rủi ro máy yếu/ít RAM khởi tạo GPU cực chậm hoặc lỗi hẳn — không để người dùng chờ vô thời hạn:
+
+1. **RAM thấp → dùng thẳng CPU, không thử GPU**: `ActivityManager.isLowRamDevice()` hoặc
+   `ActivityManager.MemoryInfo().totalMem < 3GB`.
+2. **Giới hạn GPU init = 5 giây**: build GPU trên 1 `Executors.newSingleThreadExecutor()` riêng,
+   `future.get(5, TimeUnit.SECONDS)` — hết giờ thì ngừng chờ (không giết được luồng build native, nó có
+   thể chạy nốt ở nền rồi bị bỏ kết quả) và chuyển sang build CPU ngay.
+3. **Bắt mọi `Exception` khi tạo GPU** (ví dụ `RuntimeException` "model không hỗ trợ GPU", đúng tình
+   huống Google cũng phải bắt trong code mẫu của họ) → fallback CPU ngay, không crash.
+4. **Nhớ trạng thái cho cả phiên app** (`@Volatile forcedCpuForSession`): fallback 1 lần (RAM thấp hoặc
+   timeout/lỗi) → mọi lần tạo `HandLandmarker` sau đó trong cùng phiên (đổi effect khác) dùng thẳng CPU,
+   không thử lại GPU mỗi lần.
+
+**Đã xác nhận nhánh timeout hoạt động đúng trên máy thật** (không phải giả lập): log
+`HandLandmarkerProvider W GPU init qua 5s, chuyen ve CPU cho phan con lai cua phien` xuất hiện tự nhiên
+trong 1 lần test (29/09/2026) — xem `Perf_Notes.md` mục 9 phần "Ngưỡng fallback". Nhánh RAM thấp mới chỉ
+xác nhận qua đọc code, chưa có máy thật để trigger (`Test_Checklist.md` D10 ghi rõ giới hạn này).
+
+**Lưu ý khi debug:** nếu gắn lại `DelegatePerfLogger` để đo (mục 5 `AGENTS.md`), nhãn hiển thị
+(`DELEGATE_PERF_LABEL`) là hằng số cố định set tay lúc gọi `setupMediaPipe()` — **không tự đổi theo
+delegate thực tế đã fallback**, vì quyết định fallback nằm hoàn toàn bên trong
+`HandLandmarkerProvider.createWithFallback()`, không lộ ra ngoài qua giá trị trả về. Đọc log tag
+`HandLandmarkerProvider` (không phải log/toast của `DelegatePerfLogger`) mới biết chính xác lần đó có
+fallback hay không.
+
+### 14.3. Loading overlay che khoảng chờ tạo model (`CameraRecordFragment`)
+
+Sau fix ANR, `HandLandmarker` tạo nền nên không treo UI nữa — nhưng camera hiện ra trong khi hiệu ứng AR
+chưa sẵn sàng, im lặng, dễ gây hiểu lầm app bị lỗi. Cơ chế (`showLoadingOverlay()` /
+`hideLoadingOverlayAfterMinDuration()` / `setCameraControlsEnabled()`):
+
+- **Hiện ngay lập tức, không trễ** — XML `layout_camera_loading` mặc định `android:visibility="visible"`
+  (không phải `"gone"`) để có mặt ngay từ khung hình đầu tiên, tránh khoảng hở giữa lúc view inflate xong
+  và lúc code Kotlin kịp chạy trên máy render UI chậm.
+- **Giữ tối thiểu 500ms** dù setup xong gần như tức thời — tránh nhấp nháy tắt-mở liên tục và tránh user
+  táy máy bấm nút ngay khi vừa vào màn.
+- **Nền đen hoàn toàn, đặt là con CUỐI CÙNG trong cây view** (sau cả top bar lẫn bottom bar) — che kín
+  luôn các nút Effect/Record/Action/Back (in-app), vì đằng nào chúng cũng đã bị `setCameraControlsEnabled(false)`
+  disable trong lúc loading nên không nên hiện trước mắt người dùng. Người dùng không đợi được thì dùng
+  Back **hệ thống** (nút/gesture) — xử lý ở `OnBackPressedCallback` tại tầng Activity/Fragment, hoàn toàn
+  độc lập với thứ tự vẽ view nên vẫn hoạt động bình thường dù bị overlay che khuất phía trên.
+- Nếu chờ quá 3.5s (`LOADING_OVERLAY_HINT_DELAY_MS`) hiện thêm dòng chữ phụ ("máy đang xử lý hơi lâu…")
+  để không giống app bị treo — case có thật kể từ khi có fallback GPU→CPU timeout 5s.
+
+Xem `CameraLoading_Fallback_Plan.md` cho lịch sử quyết định đầy đủ (đã cân nhắc và **bỏ** phương án
+"preload" HandLandmarker từ màn xem trước effect — có edge case khiến tổng thời gian chờ còn tệ hơn không
+preload, vì `createFromOptions()` không có API huỷ giữa chừng).

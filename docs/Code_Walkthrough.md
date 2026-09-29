@@ -727,8 +727,15 @@ nếu chỉ `popBackStack()` thì user không hiểu vì sao app không mở cam
 
 `setupMediaPipe()`:
 ```kotlin
-handLandmarker = HandLandmarkerProvider.getOrCreate(requireContext(), currentEffect.requiredNumHands)
+val appContext = requireContext()
+val numHands = currentEffect?.requiredNumHands ?: 1
+
 viewLifecycleOwner.lifecycleScope.launch {
+    val landmarker = withContext(backgroundExecutor.asCoroutineDispatcher()) {
+        HandLandmarkerProvider.getOrCreate(appContext, numHands)
+    }
+    handLandmarker = landmarker
+
     HandLandmarkerProvider.results.collect { (result, inputImage) ->
         latestHandResult = result
         overlayView?.setResult(result, inputImage.width, inputImage.height)  // → OverlayView mục 5.2
@@ -736,10 +743,26 @@ viewLifecycleOwner.lifecycleScope.launch {
     }
 }
 ```
-Coroutine này chạy trên **main thread** (không chỉ định `Dispatchers` khác, `lifecycleScope` mặc
-định `Dispatchers.Main`), nhận kết quả qua `SharedFlow` mà `HandLandmarkerProvider` phát ra từ
-callback `setResultListener` của MediaPipe (chạy trên thread nội bộ của MediaPipe, `tryEmit` an
-toàn cross-thread nhờ `MutableSharedFlow`).
+> **Từng là nguồn ANR (fix 29/09/2026):** trước đây `HandLandmarkerProvider.getOrCreate(...)` được gọi
+> đồng bộ, ngay trên dòng đầu hàm (main thread) — bên trong nó gọi `HandLandmarker.createFromOptions()`,
+> việc này với `Delegate.GPU` có thể mất từ vài trăm ms tới vài giây (build EGL context + compile shader,
+> nặng nhất khi `numHands` đổi khác cache nên phải `close()` model cũ rồi tạo lại từ đầu — tức là mỗi lần
+> đổi qua lại giữa effect 1 tay/2 tay). Main thread bị treo đúng bằng thời gian đó → ANR ngay khi user
+> vừa bấm vào effect. Số liệu đo bằng `DelegatePerfLogger` (`docs/DelegatePerf_Plan.md`) chỉ đo latency
+> *sau khi* model đã tạo xong nên không hề lộ ra chi phí tạo model này — phải đọc lại luồng code mới
+> phát hiện được. Fix: đưa `getOrCreate(...)` chạy trên `backgroundExecutor` (đúng thread đang dùng cho
+> `detectAsync` ở `startCamera()`) qua `withContext`, chỉ quay lại main thread (mặc định của
+> `lifecycleScope.launch`) để gán `handLandmarker` + bắt đầu collect kết quả. `startCamera()` gọi ngay
+> sau `setupMediaPipe()` mà **không cần đợi** vì mọi chỗ dùng đều qua `handLandmarker?.` — preview hiện
+> ngay lập tức, hiệu ứng AR chỉ "vào" chậm hơn đúng 1 nhịp bằng thời gian build model, không giật UI.
+> Coroutine nằm trong `viewLifecycleOwner.lifecycleScope` nên nếu user thoát màn ngay trong lúc model
+> đang được tạo nền, coroutine tự huỷ khi view destroy — không gán `handLandmarker` vào Fragment đã chết.
+> Xem `Test_Checklist.md` D7/D8, kinh nghiệm ghi ở `AGENTS.md`.
+
+Phần `results.collect` chạy trên **main thread** (mặc định `Dispatchers.Main` của `lifecycleScope`, sau
+khi `withContext` đã quay lại main sau đoạn tạo model ở trên), nhận kết quả qua `SharedFlow` mà
+`HandLandmarkerProvider` phát ra từ callback `setResultListener` của MediaPipe (chạy trên thread nội bộ
+của MediaPipe, `tryEmit` an toàn cross-thread nhờ `MutableSharedFlow`).
 
 `startCamera()`: dựng `ImageAnalysis` chạy trên `backgroundExecutor` (thread riêng, KHÔNG phải main
 thread) — đây là "thread camera" nhắc tới trong README/`Camera_X_Hand_Landmarker.md`. Mỗi frame:
@@ -1016,8 +1039,9 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 |---|---|
 | `FormatUtils.kt` | `formatDuration`/`formatDate` — chỉ hiển thị, không có logic phức tạp |
 | `ViewInsetsUtils.kt` | `applySystemBarsInsetsPadding`/`applySystemBarsInsetsMargin`/`matchSystemBarsBottomInsetHeight` — 3 extension function xử lý edge-to-edge (status bar/nav bar che nội dung); hàm thứ 3 dùng để co 1 View (scrim) đúng bằng inset đáy thanh hệ thống — xem `bottom_system_bar_scrim` trong `activity_main.xml`. Đọc kỹ docstring trong file để biết khi nào dùng padding vs margin vs match-height. **Không** dùng cho root của `CameraRecordFragment` (đọc comment trong file, trỏ tới `HandAr_Plan.md` Phase F) |
-| `RecordingPerfLogger.kt` | TẠM — công cụ đo fps/GC/nhiệt độ khi ghi hình, log qua `adb logcat -s RecPerf:I`. Gắn với 3 lời gọi trong `CameraRecordFragment` (đánh dấu `// TẠM`) — README nói rõ sẽ gỡ khi dự án dừng phát triển, đừng "dọn dẹp" nó giữa chừng |
-| `VideoStatsLogger.kt` | `logRecordingStats()` — chỉ chạy khi `BuildConfig.DEBUG`, in + Toast thống kê file MP4 vừa ghi (size, fps trung bình...). Gọi 1 lần duy nhất trong `stopRecordingAndGoToPreview()` |
+| `DelegatePerfLogger.kt` | Đo latency suy luận MediaPipe + fps kết quả thực nhận (`docs/DelegatePerf_Plan.md`). **Không còn chỗ nào gọi tới** (đã gỡ khỏi `CameraRecordFragment` 29/09/2026 sau khi đo xong CPU vs GPU, xem `Perf_Notes.md` mục 9) — giữ file để đo lại sau này, xem `AGENTS.md` mục 5 |
+| `RecordingPerfLogger.kt` | Đo fps/GC/nhiệt độ khi ghi hình, log qua `adb logcat -s RecPerf:I`. **Không còn chỗ nào gọi tới** (đã gỡ khỏi `CameraRecordFragment` 29/09/2026 cùng đợt trên) — giữ file để đo lại sau này |
+| `VideoStatsLogger.kt` | `logRecordingStats()` — chỉ chạy khi `BuildConfig.DEBUG`, in Log (đã tắt Toast) thống kê file MP4 vừa ghi (size, fps trung bình...). **Không còn chỗ nào gọi tới** (trước đó gọi 1 lần trong `stopRecordingAndGoToPreview()`, đã gỡ cùng đợt trên) |
 
 ---
 

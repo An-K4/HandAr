@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import com.example.handar.BuildConfig
-import android.widget.Toast
 import java.io.File
 
 fun logRecordingStats(context: Context, file: File) {
@@ -43,7 +42,7 @@ fun logRecordingStats(context: Context, file: File) {
         }
 
         Log.i("VideoStats", report)
-        Toast.makeText(context, report, Toast.LENGTH_LONG).show()
+        // TẠM: tắt toast khi đo tổng thể, chỉ giữ Log
     } catch (e: Exception) {
         Log.e("VideoStats", "Lỗi đọc metadata: ${e.message}")
     } finally {

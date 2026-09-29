@@ -204,7 +204,8 @@ app/src/main/java/com/example/handar/
 ├── OverlayView.kt         canvas vẽ hiệu ứng, dùng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                 AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge),
                            PermissionUtils (Context.openAppSettings() — mở màn App info của chính app),
-                           RecordingPerfLogger (TẠM), VideoStatsLogger
+                           DelegatePerfLogger/RecordingPerfLogger/VideoStatsLogger (3 công cụ đo hiệu năng,
+                           hiện không có chỗ nào gọi tới — xem mục 5)
 .github/workflows/release.yml   CI: push main → bundleRelease + ước tính dung lượng Play → APK release lên GitHub Release tag `latest`
 app/src/main/res/drawable/  ảnh UI, thumbnail, và các ảnh hiệu ứng cũ (.webp) | drawable-nodpi/  ảnh + nền của các hiệu ứng
                              đã chuẩn bị lại (Trái Đất, Hố đen, Quái vật, Dịch chuyển phòng) | raw/  .wav tiếng hiệu ứng + nhạc nền
@@ -335,8 +336,34 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   hết, nên mọi WAV tiếng hiệu ứng phải là file lặp mượt (đầu nối đuôi). Không có "tiếng phát 1 lần" — muốn có phải sửa
   `AudioMixer` trong `recording/` (cần yêu cầu rõ). Hiệu ứng có `background` riêng thì camera bị ẩn cả lúc xem lẫn trong video.
 - `local.properties` là file máy cá nhân, không commit (đã trong `.gitignore`).
-- `RecordingPerfLogger` và các đoạn đánh dấu `// TẠM` trong `CameraRecordFragment` là công cụ
-  tạm thời — không phải bug, đừng "dọn dẹp" trừ khi được yêu cầu.
+- **3 công cụ log hiệu năng (`DelegatePerfLogger`, `RecordingPerfLogger`, `VideoStatsLogger`/`logRecordingStats`
+  trong `utils/`) vẫn còn trong repo nhưng đã GỠ HẾT chỗ gọi trong `CameraRecordFragment` (29/09/2026),
+  sau khi dùng xong cho đợt đo CPU/GPU + fps ghi hình — không phải bug, cố ý giữ file lại để dùng lại
+  sau này, đừng xoá file. Muốn đo lại: xem `Perf_Notes.md` mục 9/9.1/9.2 để biết gắn ở đâu
+  (`setupMediaPipe()`, analyzer `detectAsync`, `onDestroyView`, `startRecordingFrameLoop`,
+  callback `stop()` của `VideoRecorder`) và nhớ tắt Toast trong `DelegatePerfLogger`/`VideoStatsLogger`
+  trước khi đo diện rộng (chỉ giữ Log, tránh làm phiền UI lúc test) rồi gắn nhãn `// TẠM` khi gắn lại,
+  gỡ ngay sau khi đo xong.
+- **`HandLandmarkerProvider` dùng `Delegate.GPU`** (đổi từ `Delegate.CPU` ngày 29/09/2026, dựa trên số liệu
+  đo thật bằng `DelegatePerfLogger` — xem `Perf_Notes.md` mục 9): GPU nhanh hơn ~35-40% (fps ~30 vs ~22),
+  latency thấp hơn ~40%, rớt frame ~0-4% so với CPU rớt tới ~25%, trên máy test. GPU cần ~6-10 giây
+  khởi động (build shader/EGL context) trước khi đạt tốc độ ổn định — đừng hoảng nếu vài giây đầu sau khi
+  mở camera thấy giật/chậm hơn CPU, đó là bình thường. **Chưa đo trên nhiều máy khác nhau** — nếu sau này
+  gặp máy nào GPU khởi tạo cực chậm hoặc không ổn định, coi lại quyết định này bằng cách gắn lại
+  `DelegatePerfLogger` (`utils/DelegatePerfLogger.kt`, hiện không còn gắn sẵn trong code, xem cách gắn
+  ở `Perf_Notes.md` mục 9) trước khi đổi tay, đừng đoán.
+- **`HandLandmarkerProvider.getOrCreate()` từng gây ANR** (fix 29/09/2026): bên trong nó gọi
+  `HandLandmarker.createFromOptions()`, việc này với `Delegate.GPU` có thể mất vài trăm ms tới vài giây
+  (build EGL context + compile shader) — nặng nhất khi `numHands` đổi khác cache (đổi qua lại effect 1
+  tay/2 tay) vì phải `close()` rồi tạo lại từ đầu. Trước đây gọi đồng bộ trên main thread ngay trong
+  `setupMediaPipe()` → treo UI thread → ANR ngay khi bấm vào effect. **Bài học: đo hiệu năng (`DelegatePerfLogger`)
+  chỉ đo latency suy luận mỗi frame, KHÔNG đo chi phí tạo model — một công cụ đo tốt vẫn có thể bỏ sót nguyên
+  nhân gốc nếu không đọc lại toàn bộ luồng code gọi tới nó.** Fix: chạy `getOrCreate(...)` trên
+  `backgroundExecutor` (đúng thread `detectAsync` đang dùng) qua `withContext`, chỉ về main thread để gán
+  `handLandmarker` + collect kết quả — `startCamera()` không cần đợi vì đã dùng `handLandmarker?.` sẵn.
+  Bất kỳ chỗ nào gọi hàm tạo model/decoder nặng (MediaPipe, MediaCodec, ...) đồng bộ trên main thread —
+  kể cả nhìn qua thấy "chạy nhanh" — đều nên nghi ngờ và kiểm tra lại tương tự. Xem `Code_Walkthrough.md`
+  mục 6.2, `Test_Checklist.md` D7/D8.
 
 ## 6. Bản đồ `docs/` — đọc đúng file khi cần đào sâu
 
