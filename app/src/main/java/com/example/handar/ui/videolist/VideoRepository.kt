@@ -17,11 +17,11 @@ data class VideoItem(
     val thumbnail: Bitmap?
 )
 
-object VideoRepository {
-    private const val THUMB_SIZE = 256
+class VideoRepository(context: Context) {
+    private val appContext = context.applicationContext
 
-    suspend fun loadAll(context: Context): List<VideoItem> = withContext(Dispatchers.IO) {
-        val dir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+    suspend fun loadAll(): List<VideoItem> = withContext(Dispatchers.IO) {
+        val dir = appContext.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
         val files = dir?.listFiles { f ->
             f.isFile && f.extension.equals("mp4", ignoreCase = true) && f.length() > 0
         } ?: return@withContext emptyList()
@@ -51,5 +51,9 @@ object VideoRepository {
         } finally {
             retriever.release()
         }
+    }
+
+    private companion object {
+        const val THUMB_SIZE = 256
     }
 }

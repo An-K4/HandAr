@@ -43,7 +43,7 @@ class VideoListFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             binding.progress.isVisible = true
-            val items = VideoRepository.loadAll(requireContext())
+            val items = VideoRepository(requireContext()).loadAll()
             binding.progress.isVisible = false
             binding.textEmpty.isVisible = items.isEmpty()
             adapter.submit(items)
