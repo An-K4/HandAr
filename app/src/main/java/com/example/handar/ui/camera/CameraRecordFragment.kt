@@ -548,22 +548,6 @@ class CameraRecordFragment : Fragment() {
         _binding?.tvRecordingTimer?.visibility = View.GONE
     }
 
-    private fun computeRecordingSize(
-        viewWidth: Int,
-        viewHeight: Int,
-        targetShortSide: Int = 720
-    ): Pair<Int, Int> {
-        if (viewWidth <= 0 || viewHeight <= 0) return viewWidth to viewHeight
-        val shortSide = minOf(viewWidth, viewHeight)
-        if (shortSide <= targetShortSide) return viewWidth to viewHeight
-
-        val scale = targetShortSide.toFloat() / shortSide
-        val newWidth = (viewWidth * scale).toInt().let { it - it % 2 }
-        val newHeight = (viewHeight * scale).toInt().let { it - it % 2 }
-
-        return newWidth to newHeight
-    }
-
     private fun startRecordingFrameLoop(fps: Int) {
         val overlay = overlayView ?: return
         val intervalMs = 1000L / fps
