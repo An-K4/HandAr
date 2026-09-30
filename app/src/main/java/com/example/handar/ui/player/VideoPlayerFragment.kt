@@ -11,6 +11,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -26,32 +30,29 @@ import com.example.handar.ui.widget.ConfirmDialog
 import com.example.handar.ui.widget.RenameDialog
 import com.example.handar.ui.widget.VideoSeekBarController
 import com.example.handar.utils.applySystemBarsInsetsMargin
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(UnstableApi::class)
 class VideoPlayerFragment : Fragment() {
-    companion object {
-        private const val KEY_PLAYBACK_POSITION = "playback_position"
-    }
-
     private var _binding: FragmentVideoPlayerBinding? = null
     private val binding get() = _binding!!
 
     private var player: ExoPlayer? = null
     private var seekController: VideoSeekBarController? = null
     private var confirmDeleteDialog: ConfirmDialog? = null
-    private var playbackPosition = 0L
+
+    // Xoá file giờ chạy bất đồng bộ trong VM, nên dialog dismiss XONG TRƯỚC khi Fragment nhận
+    // Event.Deleted và popBackStack. Không có cờ này thì setOnDismissListener gọi player.play() và
+    // video (đã bị xoá) phát tiếp một nhịp trước khi thoát màn. Cùng dạng với cờ `discarding` ở
+    // RecordedPreviewFragment.
+    private var deleting = false
+
     private val args: VideoPlayerFragmentArgs by navArgs()
     private val videoPath: String get() = args.videoPath
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        playbackPosition = savedInstanceState?.getLong(KEY_PLAYBACK_POSITION) ?: 0L
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putLong(KEY_PLAYBACK_POSITION, player?.currentPosition ?: playbackPosition)
+    private val viewModel: VideoPlayerViewModel by viewModels {
+        VideoPlayerViewModel.factory(videoPath)
     }
 
     override fun onCreateView(
@@ -100,7 +101,7 @@ class VideoPlayerFragment : Fragment() {
 
         binding.itemRename.setOnClickListener {
             closeMenu()
-            RenameDialog(requireContext(), file.nameWithoutExtension) { newName -> renameVideo(newName) }.show()
+            RenameDialog(requireContext(), file.nameWithoutExtension) { newName -> viewModel.rename(newName) }.show()
         }
 
         requireActivity().onBackPressedDispatcher.addCallback(
@@ -111,6 +112,37 @@ class VideoPlayerFragment : Fragment() {
                 }
             }
         )
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event -> handleEvent(event) }
+            }
+        }
+    }
+
+    // Toast và chốt cửa currentDestination ở lại Fragment — VM không cầm Context lẫn NavController.
+    private fun handleEvent(event: VideoPlayerViewModel.Event) {
+        when (event) {
+            VideoPlayerViewModel.Event.Deleted -> exitAfterFileChanged()
+
+            VideoPlayerViewModel.Event.Renamed -> {
+                Toast.makeText(requireContext(), getString(R.string.rename_successfully), Toast.LENGTH_SHORT).show()
+                exitAfterFileChanged()
+            }
+
+            VideoPlayerViewModel.Event.RenameNameExists ->
+                Toast.makeText(requireContext(), getString(R.string.video_name_already_exists), Toast.LENGTH_SHORT).show()
+
+            VideoPlayerViewModel.Event.RenameFailed ->
+                Toast.makeText(requireContext(), getString(R.string.can_not_rename_video), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun exitAfterFileChanged() {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.videoPlayerFragment) return
+        markVideoListStale(nav)
+        nav.popBackStack()
     }
 
     private fun setupPlayer(file: File) {
@@ -142,7 +174,7 @@ class VideoPlayerFragment : Fragment() {
             }
         }
         p.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
-        p.seekTo(playbackPosition)
+        p.seekTo(viewModel.playbackPosition)
         p.prepare()
         p.playWhenReady = true
 
@@ -169,42 +201,17 @@ class VideoPlayerFragment : Fragment() {
             onNegative = { },
             onPositive = { deleteVideoAndExit() }
         ).apply {
-            setOnDismissListener { player?.play() }
+            setOnDismissListener { if (!deleting) player?.play() }
             show()
         }
     }
 
     private fun deleteVideoAndExit() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.videoPlayerFragment) return
+        if (findNavController().currentDestination?.id != R.id.videoPlayerFragment) return
         player?.pause()
-        File(videoPath).delete()
-        markVideoListStale(nav)
-        nav.popBackStack()
-    }
-
-    private fun renameVideo(newName: String) {
-        val trimmed = newName.trim()
-        if (trimmed.isEmpty()) return
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.videoPlayerFragment) return
-        val oldFile = File(videoPath)
-        val newFile = File(oldFile.parentFile, "$trimmed.${oldFile.extension}")
-
-        if (newFile == oldFile) return
-
-        if (newFile.exists()) {
-            Toast.makeText(requireContext(), getString(R.string.video_name_already_exists), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (oldFile.renameTo(newFile)) {
-            Toast.makeText(requireContext(), getString(R.string.rename_successfully), Toast.LENGTH_SHORT).show()
-            markVideoListStale(nav)
-            nav.popBackStack()
-        } else {
-            Toast.makeText(requireContext(), getString(R.string.can_not_rename_video), Toast.LENGTH_SHORT).show()
-        }
+        deleting = true
+        // Xoá file chạy trên Dispatchers.IO trong VM, thoát màn khi nhận Event.Deleted.
+        viewModel.delete()
     }
 
     /**
@@ -230,11 +237,16 @@ class VideoPlayerFragment : Fragment() {
     override fun onStop() {
         super.onStop()
         player?.pause()
+        // Thay cho onSaveInstanceState cũ: onStop luôn chạy trước khi hệ thống lưu state, nên đây là
+        // chỗ chắc chắn nhất để đẩy vị trí hiện tại vào SavedStateHandle.
+        player?.let { viewModel.playbackPosition = it.currentPosition }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        playbackPosition = player?.currentPosition ?: 0L
+        // Không dùng `?: 0L` như bản gốc: onStop đã ghi vị trí vào VM rồi, player null ở đây thì
+        // giữ nguyên giá trị cũ chứ không xoá về 0.
+        player?.let { viewModel.playbackPosition = it.currentPosition }
         seekController?.release()
         seekController = null
         confirmDeleteDialog?.setOnDismissListener(null)

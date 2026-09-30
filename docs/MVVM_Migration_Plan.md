@@ -558,6 +558,31 @@ công (không ở lại màn này), nên không phát sinh vấn đề "player �
 nguyên hành vi đó: `Event.Renamed` → Fragment `popBackStack()`, không cố gắng "load lại player
 với path mới" — đổi hành vi này không nằm trong phạm vi Bước 3.
 
+**Đã làm (2026-09-30), khác snippet trên ở 4 chỗ:**
+
+- **KHÔNG làm `checkFileExists()` / `Event.FileMissing`.** Chốt `!file.exists()` ở đầu
+  `onViewCreated` **giữ nguyên đồng bộ trong Fragment**. Lý do: nó là cửa chặn `setupPlayer(file)`
+  ngay dòng dưới. Chuyển sang bất đồng bộ thì `setupPlayer` chạy trước trên file không tồn tại,
+  ExoPlayer báo lỗi → `onPlayerError` Toast `can_not_play_video`, rồi `Event.FileMissing` Toast
+  **lần hai** + pop. Một `File.exists()` một lần lúc vào màn không đáng đổi lấy cái đó.
+  Hệ quả: `VideoFileRepository.exists()` thêm ở mốc 3.1 hiện **chưa dùng ở đâu** — Bước 7 rà lại,
+  còn không dùng thì xoá.
+- **`Event.Renamed` không mang `newPath`.** Bản gốc `popBackStack()` ngay sau rename thành công nên
+  Fragment không cần path mới để làm gì; mang theo một giá trị không ai đọc chỉ gây tưởng là có
+  reload player.
+- **Hai nhánh `EmptyName` và `Unchanged` không phát sự kiện nào** — đúng bản gốc: `return` im lặng,
+  không Toast, không thoát màn. Kế hoạch gộp `EmptyName` vào `RenameFailed` là sai hành vi (sẽ Toast
+  `can_not_rename_video` khi người dùng bỏ trống tên).
+- **`onSaveInstanceState` thay bằng ghi vào VM ở `onStop`.** Bỏ hẳn `onCreate`/`onSaveInstanceState`
+  và hằng `KEY_PLAYBACK_POSITION` ở Fragment. `onStop` luôn chạy trước khi hệ thống lưu state, nên
+  `player?.let { viewModel.playbackPosition = it.currentPosition }` ở đó là chỗ chắc chắn nhất.
+  `onDestroyView` cũng ghi, nhưng bỏ `?: 0L` của bản gốc: `onStop` đã ghi rồi, `player` null ở
+  `onDestroyView` thì giữ giá trị cũ chứ không xoá về 0.
+
+⚠️ **Cùng regression như mốc 3.2, đã xử lý trong cùng commit:** `confirmDeleteDialog` cũng có
+`setOnDismissListener { player?.play() }`, nên cần cờ `deleting` y như cờ `discarding` ở
+`RecordedPreviewFragment`. Đúng như bài học ghi ở 3.2 — lần này đã soát trước chứ không để sập.
+
 Bug thật tìm thấy lúc đọc code (đã ghi ở lượt thảo luận trước), sửa ở **commit riêng sau khi
 việc di chuyển xong**, không trộn vào 3.3: `requestCameraPermission`/`requestNotificationPermission`
 là của `PermissionFragment` — bug tương tự ở đây là hai callback kết quả nếu đến muộn khi view
