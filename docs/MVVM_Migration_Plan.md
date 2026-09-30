@@ -208,9 +208,10 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 - [x] **Bước 2** — `VideoListFragment` (màn mẫu) (commit `3a34c66`, `79c12c3`)
 - [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
 - [x] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager` (commit `5449139`, `8fec4ed`, `2a8590e` fix `onDestroyView`, `02e681a`, `d8cebab`)
-- [ ] **Bước 5** — Tách `GestureStateMachine`, `RecordingSession` khỏi `CameraRecordFragment`
+- [ ] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`
+- [ ] **Bước 5.4** — `CameraRecordViewModel` phạm vi hẹp (quyết định bổ sung 2026-09-30, xem mục 7.4)
 - [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
-- [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`
+- [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mục 9.6 — bổ sung ca thiếu, rồi test toàn bộ)
 
 ---
 
@@ -1006,6 +1007,18 @@ Hàm thuần, không trạng thái, tách thẳng ra `object` hoặc top-level `
 (`ui/camera/RecordingSizeCalculator.kt` hoặc tương tự), giữ nguyên 100% logic đang có — chỉ
 di chuyển vị trí, không đổi hành vi.
 
+**Đã làm (2026-09-30).** Chọn **top-level `fun`** (không `object`) trong `ui/camera/RecordingSizeCalculator.kt`:
+hàm không state thì `object` chỉ thêm một tầng tên gọi vô ích. Cùng package nên **call site ở dòng
+`computeRecordingSize(binding.overlay.width, binding.overlay.height)` không đổi một ký tự**, cũng không
+cần thêm import — diff sạch đúng một khối bị cắt và một file mới.
+
+Thân hàm copy nguyên xi, chỉ đổi default `720` thành hằng có tên `DEFAULT_TARGET_SHORT_SIDE` (private,
+cùng file). KDoc ghi lại hai điều bản gốc không nói mà đọc code mới thấy: `it - it % 2` là vì encoder
+H.264 cần chiều chia hết cho 2, và hai nhánh trả về sớm (`<= 0`, cạnh ngắn đã nhỏ hơn mục tiêu) trả
+nguyên xi **không** làm chẵn — giữ đúng bản gốc, không "sửa cho nhất quán".
+
+`CameraRecordFragment`: 27.742 byte (trước Bước 5) → 27.347 (sau 5.1) → 26.749 (sau 5.2).
+
 ### 5.3 — `RecordingTimer` (tuỳ chọn)
 
 Bọc `timerHandler`/`timerRunnable`/`recordStartUiTimeMs` thành 1 class nhỏ nhận callback
@@ -1017,6 +1030,154 @@ thời gian/muốn làm cho đủ**, có thể bỏ qua mà không ảnh hưởn
 `handleGesture()` là nơi state machine mới thay thế hoàn toàn logic cũ. So diff từng nhánh với
 bản gốc cẩn thận như đã ghi ở 5.1 trước khi commit.
 
+### 5.3 — bỏ qua (quyết định 2026-09-30)
+
+Không làm. Hai lý do cụ thể tìm được khi đọc code, ghi lại để sau này ai muốn làm thì biết trước sẽ
+vướng gì:
+
+1. **`timerHandler` đang làm hai việc.** Ngoài chạy tick (dòng ~543, ~547) nó còn là đường post về
+   main thread từ thread ghi hình: `timerHandler.post { onLowStorageDuringRecording() }`. Tách
+   `RecordingTimer` ra thì dòng này phải tạo `Handler` riêng hoặc đi qua timer — việc báo hết dung
+   lượng chẳng liên quan gì timer.
+2. **`recordStartUiTimeMs` có hai người dùng.** Ngoài hiện đồng hồ, nó còn dùng ở chốt thời lượng tối
+   thiểu (`elapsed = elapsedRealtime - recordStartUiTimeMs` so với `MIN_RECORD_DURATION_MS`). Đưa vào
+   `RecordingTimer` thì logic "có cho dừng ghi hay không" phải đi hỏi timer — thêm phụ thuộc mới vào
+   đúng chỗ nhạy cảm, không tương xứng lợi ích.
+
+📌 **Phát hiện riêng, chưa xử lý:** `recordStartUiTimeMs` bị **gán hai lần** — dòng ~512 (ngay trước
+khi `VideoRecorder` start) và dòng ~541 trong `startRecordingTimerUI()` (callback `onFirstFrame`). Nên
+chốt thời lượng tối thiểu dùng giá trị nào tuỳ `onFirstFrame` có kịp chạy chưa. Nhìn thì có vẻ cố ý
+(dòng 512 là giá trị dự phòng nếu khung hình đầu không bao giờ tới) nhưng **chưa được xác nhận** —
+đưa vào danh sách rà ở Bước 7.
+
+---
+
+## 7.4. Bước 5.4 — `CameraRecordViewModel` (phạm vi hẹp)
+
+> **Quyết định bổ sung 2026-09-30, đảo ngược một phần mục 7.** Mục 7 chốt "không thêm ViewModel cho
+> `CameraRecordFragment`". Quyết định mới: **có thêm, nhưng chỉ giữ phần thuần dữ liệu.** Lý do người
+> dùng nêu và tôi xác nhận bằng code:
+>
+> 1. **Tính nhất quán.** Sau Bước 6 sẽ có 5/18 Fragment không có VM, thuộc **hai loại**:
+>    *(a)* `WelcomeFragment`, `Onboarding1/2/3Fragment` — không có state gì, VM rỗng là boilerplate,
+>    có quy tắc giải thích (mốc 6.6); *(b)* `CameraRecordFragment` — **có state nhiều nhất toàn app
+>    mà vẫn không có VM**. Loại (b) là chỗ lệch thật, không quy tắc nào che được, người đọc code sau
+>    này sẽ phải hỏi "sao màn này khác".
+> 2. **Lợi ích đo được, không phải chỉ cho đẹp kiến trúc.** `statePcmMap` và `bgmPcm` đang được
+>    **decode lại toàn bộ file WAV trên main thread mỗi lần view được tạo lại** (trong
+>    `onViewCreated`). Vào màn chọn effect rồi Back là decode lại từ đầu, dù `currentEffect` không
+>    đổi. Đưa chúng vào VM là hết hẳn việc này. **Lưu ý: lợi ích này chỉ đúng với `statePcmMap` và
+>    `bgmPcm`** — `currentEffect` và `gestureStateMachine` đã không bị tạo lại theo view, việc gom
+>    chúng vào VM là để nhất quán chỗ đặt state, không phải sửa lãng phí.
+
+### Phạm vi — chỉ 4 thứ, đều thuần dữ liệu
+
+| Chuyển vào VM | Kiểu | Vì sao được |
+|---|---|---|
+| `currentEffect` | `EffectDefinition?` | Chỉ là kết quả `EffectRepository.findByIdOrNull(args.effectId)`, gán **đúng một lần** ở `onCreate` và không bao giờ gán lại (grep xác nhận: 1 chỗ gán, 16 chỗ đọc) → thành `val` trong VM |
+| `statePcmMap` | `Map<String, ShortArray>` | PCM đã decode, không giữ View/Context |
+| `bgmPcm` | `ShortArray?` | như trên |
+| `gestureStateMachine` | `GestureStateMachine` | Đã tách ở 5.1, thuần Kotlin. **Không** phải để sửa một lãng phí: nó là property thân class (`private val gestureStateMachine = GestureStateMachine()`) nên đã chỉ tạo một lần theo **Fragment instance**, không theo view — khác `statePcmMap`/`bgmPcm` vốn nằm trong `onViewCreated` nên thật sự bị decode lại. Đưa vào VM chỉ để gom chỗ đặt state cho nhất quán |
+
+### KHÔNG chuyển — ở lại Fragment y nguyên
+
+`VideoRecorder`, `BgmPlayer`, `SoundEffectPlayer`, `HandLandmarker`, `backgroundExecutor`,
+`recordingFrameThread`, `OverlayView`, `binding`, `latestCameraBitmap`, `latestHandResult`,
+`timerHandler`/`timerRunnable`/`recordStartUiTimeMs`, `permissionDeniedDialog`, toàn bộ loading overlay.
+
+Lý do giữ nguyên là **bất biến đã ghi ở `AGENTS.md` mục 5**: "camera nằm lại back stack = instance
+sống, view chết". Đưa tài nguyên gắn View vào VM sẽ phá bất biến đó và chỉ chuyển chỗ phức tạp.
+
+### Repository mới
+
+`loadWavPcm` cần `Context` (`utils/AudioUtils.kt`), nên theo quy ước 0.2 phải bọc thành Repository là
+`class` nhận `Context`:
+
+```kotlin
+// ui/camera/EffectAudioRepository.kt
+class EffectAudioRepository(context: Context) {
+    private val appContext = context.applicationContext
+
+    fun loadStatePcm(effect: EffectDefinition?): Map<String, ShortArray> =
+        effect?.states.orEmpty().mapNotNull { state ->
+            state.soundRes?.let { state.id to loadWavPcm(appContext, it) }
+        }.toMap()
+
+    fun loadBgmPcm(effect: EffectDefinition?): ShortArray? =
+        effect?.bgm?.let { loadWavPcm(appContext, it.resId) }
+}
+```
+
+### ⚠️ Điểm quyết định: KHÔNG đổi threading ở mốc này
+
+Hiện `statePcmMap`/`bgmPcm` decode **đồng bộ trên main thread** trong `onViewCreated`, nên chúng
+**luôn sẵn sàng** trước khi người dùng có thể bấm Record. Nếu mốc này đẩy luôn sang
+`viewModelScope + Dispatchers.IO`, sẽ sinh ra cửa sổ thời gian mà `statePcmMap` còn rỗng — bấm Record
+hoặc giơ cử chỉ trong lúc đó là **mất tiếng hiệu ứng**, đúng loại bug D1 trong `Test_Checklist.md`.
+
+Vì vậy mốc 5.4 **giữ nguyên decode đồng bộ**, chỉ làm trong `init` của VM (tức chạy một lần theo vòng
+đời VM thay vì mỗi vòng đời view). Việc chuyển sang `Dispatchers.IO` + state `isAudioReady` để chặn
+nút Record là **mốc 5.5 riêng**, chỉ làm nếu muốn, và phải nối vào loading overlay đã có
+(`CameraLoading_Fallback_Plan.md`) thay vì tự dựng cơ chế chờ thứ hai.
+
+### Danh sách commit
+
+| # | Nội dung |
+|---|---|
+| 5.4a | `feat: add EffectAudioRepository (wav pcm decoding)` — chỉ thêm file, chưa nối |
+| 5.4b | `refactor: add CameraRecordViewModel (effect + pcm + gesture state), wire CameraRecordFragment` |
+
+### Khung VM
+
+```kotlin
+class CameraRecordViewModel(
+    audioRepository: EffectAudioRepository,
+    effectId: String
+) : ViewModel() {
+    val currentEffect: EffectDefinition? = effectId.takeIf { it.isNotEmpty() }
+        ?.let { EffectRepository.findByIdOrNull(it) }
+
+    // Decode đồng bộ, một lần theo vòng đời VM — xem ghi chú threading ở trên.
+    val statePcmMap: Map<String, ShortArray> = audioRepository.loadStatePcm(currentEffect)
+    val bgmPcm: ShortArray? = audioRepository.loadBgmPcm(currentEffect)
+
+    val gestureStateMachine = GestureStateMachine()
+
+    companion object {
+        fun factory(context: Context, effectId: String): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                CameraRecordViewModel(EffectAudioRepository(context.applicationContext), effectId)
+            }
+        }
+    }
+}
+```
+
+**Không** có `uiState`/`events` ở mốc này: mọi state hiển thị của màn camera (ẩn/hiện top bar khi ghi,
+đồng hồ, loading overlay, enable nút) đều gắn trực tiếp View và đã được xử lý đúng ở Fragment. Thêm
+`StateFlow` cho chúng là mốc khác, và phải soát lại vấn đề "render không idempotent" đã ghi ở 3.4.
+
+### Việc cụ thể ở Fragment
+
+- Bỏ `onCreate` (chỉ còn việc gán `currentEffect`, giờ VM làm).
+- Bỏ 4 field: `currentEffect`, `statePcmMap` (`lateinit`), `bgmPcm`, `gestureStateMachine`.
+- 16 chỗ đọc `currentEffect` → `viewModel.currentEffect`. Cân nhắc một `private val currentEffect get() = viewModel.currentEffect`
+  để diff nhỏ lại và không phải sửa 16 chỗ — **quyết định lúc code**, nhưng nếu làm thì phải ghi comment
+  rõ đây là alias đọc, không phải field.
+- `soundEffectPlayer` vẫn khởi tạo ở `onViewCreated` nhưng đọc `viewModel.currentEffect`.
+- `bgmPlayer` vẫn khởi tạo ở `onViewCreated` (gắn Context), chỉ `bgmPcm` lấy từ VM.
+- `resetGestureState()` → `viewModel.gestureStateMachine.reset()`, gọi đúng chỗ cũ.
+
+### Rủi ro và cách soát
+
+| Rủi ro | Cách soát |
+|---|---|
+| `statePcmMap` không còn decode lại → nếu effect đổi mà VM không đổi thì sai PCM | Không xảy ra: mọi lối vào camera với effect khác đều `popUpToInclusive` chính `cameraRecordFragment` (`nav_graph.xml` dòng ~162) → Fragment mới → VM mới. **Phải đọc lại `nav_graph.xml` xác nhận lúc code**, không tin dòng này |
+| `gestureStateMachine` đổi vòng đời | Trước: theo Fragment instance (đã sống qua view recreation rồi). Sau: theo VM — **chỉ khác đúng một ca**, khi Activity bị tạo lại (ví dụ đổi font scale) thì Fragment instance mới nhưng VM cũ, nên state machine sống sót thay vì được tạo mới. Vô hại vì `resetGestureState()` vẫn được gọi ở `onViewCreated` trong mọi trường hợp — test H14, H15 của `Test_Checklist.md` bắt đúng ca này |
+| `ShortArray` lớn sống lâu hơn trước (theo VM chứ không theo view) | Đó là mục đích. Nhưng phải xác nhận heap không tăng tích luỹ: test H7/H16 với Profiler |
+| VM giữ `EffectAudioRepository` → giữ `applicationContext` | Đúng quy ước 0.2, không leak Activity |
+
+---
 ---
 
 ## 8. Bước 6 — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
@@ -1306,6 +1467,91 @@ thành (giữ nguyên phần lịch sử, thêm cập nhật):
 
 Nếu README có mục mô tả kiến trúc/stack, thêm 1 dòng nhắc tới ViewModel — chỉ cập nhật nếu
 README hiện có mục đó, không thêm mục mới nếu README đang cố tình gọn.
+
+### 9.6 — `Test_Checklist.md` (thêm mới 2026-09-30)
+
+Đã rà toàn bộ `Test_Checklist.md` (395 dòng, mục A–I). **Checklist phủ rất kỹ camera, ghi hình, cử chỉ
+và điều hướng, nhưng gần như KHÔNG phủ các màn mà kế hoạch này vừa chuyển MVVM.** Kiểm chứng bằng grep,
+không suy diễn:
+
+| Từ khoá | Số lần xuất hiện |
+|---|---|
+| `rename` / "đổi tên" | 0 / 1 (chỉ nhắc thoáng) |
+| "xoá video" | 0 |
+| "danh sách video" / `videoList` | 0 / 0 |
+| `fullscreen` | 0 |
+| "chia sẻ" | 0 |
+| "yêu thích" / `favourite` | 0 / 0 |
+| "tìm kiếm" / `search` | 0 / 0 |
+| "ngôn ngữ" / `Language` | 0 / 0 |
+| `Survey` | 0 (chỉ "khảo sát" trong ca A1/G1 như một bước đi qua) |
+| `process death` / "Don't keep activities" | 0 / 0 |
+
+Nghĩa là: 7 màn đã có ViewModel (VideoList, VideoPlayer, RecordedPreview, Share, EffectList,
+EffectPreview, EffectPicker) chỉ được test **gián tiếp** qua các ca điều hướng mục G, còn chức năng
+riêng của chúng thì chưa có ca nào. Bước 7 phải thêm 4 mục mới.
+
+⚠️ **Khi viết thật vào `Test_Checklist.md`, đổi tên mục thành `N`, `O`, `P`, `Q`** (không phải
+J/K/L/M như nháp dưới đây): checklist hiện đã dùng tới mục **I**, nên J–M sẽ trùng nếu sau này có
+người chèn tiếp. Mã ca cũng đổi theo (`J1` → `N1`, `K1` → `O1`, `L1` → `P1`, `M1` → `Q1`). Giữ nguyên
+J/K/L/M trong tài liệu kế hoạch này để không phải sửa hai chỗ, chỉ đổi lúc chép sang checklist.
+
+**Mục J — Danh sách video & trình phát** (chưa có gì trong checklist)
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| J1 | Quay 3 video → vào danh sách | Đủ 3 item, thumbnail đúng, sắp theo mới nhất trước |
+| J2 | Vào danh sách → mở 1 video → Back ra | **Không** quét lại thư mục (lợi ích VM ở Bước 2) — dễ thấy nhất khi có nhiều video: không thấy vòng loading lần 2 |
+| J3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (cờ `KEY_VIDEO_LIST_STALE`) |
+| J4 | Mở video → đổi tên thành công → về danh sách → bấm vào video vừa đổi tên | **Phát được** (đây đúng bug đã sập ở Bước 2, xem mục 4) |
+| J5 | Đổi tên trùng tên file khác | Toast "đã tồn tại", **ở lại màn** player |
+| J6 | Đổi tên để trống | Im lặng, ở lại màn, không Toast |
+| J7 | Đổi tên y như cũ | Im lặng, ở lại màn (ca kế hoạch từng định gộp sai, xem mục 5.1 của Bước 3) |
+| J8 | Phát giữa video → nhấn Home → mở lại app | Seek đúng vị trí cũ (`SavedStateHandle`) |
+| J9 | Danh sách trống (chưa quay video nào) | Hiện đúng empty state, không crash |
+
+**Mục K — Xem lại sau khi quay & chia sẻ** (chưa có gì)
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| K1 | Quay xong → màn xem lại → Back → chọn **Exit** | Video bị xoá, thoát màn; **không** phát thêm một nhịp trước khi thoát (cờ `discarding`, xem 3.2) |
+| K2 | Màn xem lại → Back → chọn **Save** | Sang màn chia sẻ |
+| K3 | Màn xem lại → nút Save trực tiếp | Sang màn chia sẻ |
+| K4 | Màn chia sẻ: expand → collapse → nút back fullscreen | Video dời đúng giữa 2 container, không mất tiếng/không reset vị trí phát |
+| K5 | Màn chia sẻ đang fullscreen → nhấn Home → mở lại app | Vẫn ở fullscreen (VM giữ `isFullscreen`, xem 3.4) |
+| K6 | Back hệ thống ở fullscreen / ở card | Fullscreen → thu nhỏ; card → về danh sách hiệu ứng |
+| K7 | Nút "Try again" (chỉ hiện khi vào từ màn xem lại) | Sang camera đúng effect |
+| K8 | 4 nút mạng xã hội, với app đích **chưa cài** | Không crash, có thông báo hợp lý |
+
+**Mục L — Danh sách hiệu ứng, yêu thích, tìm kiếm** (chưa có gì)
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| L1 | Bấm tim vài effect → kill app → mở lại | Vẫn còn yêu thích (`FavouriteManager` sau khi đổi thành class, `PREFS_NAME` không đổi nên **dữ liệu cũ phải đọc được**) |
+| L2 | Gõ tìm kiếm → vào màn xem trước → Back ra | Ô tìm kiếm **và** danh sách khớp nhau (xem 4.2) |
+| L3 | Bấm tim trong lúc đang lọc tìm kiếm | Icon đổi đúng item, danh sách lọc không bị reset |
+| L4 | Màn chọn effect: chọn qua lại nhiều item | Viền cyan chuyển đúng, **không nháy cả lưới** (`PAYLOAD_SELECTION` giữ được sau 4.4) |
+| L5 | Màn chọn: vào camera chưa có effect → mở picker | Nút tick mờ, bấm không ăn |
+
+**Mục M — Riêng cho MVVM: state sống qua cái gì** (chưa có gì — đây là mục quan trọng nhất sau refactor)
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| M1 | Bật **Developer options → Don't keep activities**, rồi chạy lại toàn bộ mục J, K, L | Không crash, state khôi phục đúng ở những chỗ dùng `SavedStateHandle` (J8) |
+| M2 | Ở màn player đang phát → `adb shell am kill com.example.handar` (mô phỏng process death) → mở lại từ recents | Quay lại đúng màn, `playbackPosition` khôi phục |
+| M3 | Đổi **font scale** hệ thống trong lúc đang ở từng màn có VM | View tạo lại nhưng state giữ nguyên; riêng màn chia sẻ giữ đúng fullscreen (K5) |
+| M4 | Đổi **ngôn ngữ** ở màn Language | Activity tạo lại — đây là ca **VM KHÔNG sống sót**, đã ghi rõ ở mốc 6.3; kỳ vọng là UI đúng sau khi tạo lại, không phải "state giữ nguyên" |
+| M5 | Vào/ra từng màn có VM 5 lần, Profiler → Force GC | Heap về xấp xỉ ban đầu — VM sống lâu hơn view nên nếu có leak thì mục này bắt |
+| M6 | Camera: vào màn chọn effect rồi Back, **lặp 5 lần**, đo thời gian từ lúc Back tới lúc preview lên | Sau Bước 5.4 phải **nhanh hơn rõ rệt** so với trước (không decode lại WAV). Nếu không thấy khác biệt thì 5.4 chưa đạt mục đích |
+
+Ngoài ra bổ sung vào **mục H** (vòng đời) 1 ca cho Bước 5.4:
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| H18 | Camera → Effect → Back, lặp 5 lần, rồi giơ cử chỉ có tiếng và quay 1 clip | Tiếng đúng, video có tiếng đúng thời điểm — xác nhận `statePcmMap` dùng lại từ VM vẫn đúng dữ liệu, không bị rỗng/lệch |
+
+📌 Người dùng đã chốt: **test toàn bộ sau khi refactor xong**, nên các ca trên viết vào checklist ở
+Bước 7 rồi chạy một lượt, không chạy rải rác từng Bước.
 
 ---
 
