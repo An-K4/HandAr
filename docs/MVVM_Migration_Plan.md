@@ -1,6 +1,6 @@
 # Kế hoạch chuyển sang MVVM — HandAr
 
-> **Cập nhật lần cuối tại commit `d8cebab`** (2026-09-30). **Note cho agent:** sau khi hoàn
+> **Cập nhật lần cuối tại commit `23dddb1`** (2026-09-30). **Note cho agent:** sau khi hoàn
 > thành bất kỳ Bước nào dưới đây, tick ô trạng thái ở Mục 2, cập nhật commit hash ở dòng này,
 > và nếu Bước đó đổi cấu trúc thư mục/quy ước, cập nhật `AGENTS.md` mục 4 + `Code_Walkthrough.md`
 > theo đúng Bước 7.
@@ -208,9 +208,9 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 - [x] **Bước 2** — `VideoListFragment` (màn mẫu) (commit `3a34c66`, `79c12c3`)
 - [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
 - [x] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager` (commit `5449139`, `8fec4ed`, `2a8590e` fix `onDestroyView`, `02e681a`, `d8cebab`)
-- [ ] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`, thêm `CameraRecordViewModel` (mốc 5.4, quyết định bổ sung 2026-09-30)
+- [x] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`, thêm `CameraRecordViewModel` (mốc 5.4, quyết định bổ sung 2026-09-30) (commit `1b9723f`, `c114d34`, `3f3a852` docs, `4908ce4`, `23dddb1`)
 - [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
-- [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mục 9.6 — bổ sung ca thiếu, rồi test toàn bộ)
+- [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mốc 7.6 — bổ sung ca thiếu, rồi test toàn bộ)
 
 ---
 
@@ -1261,6 +1261,102 @@ private var loadingBarAnimator: ObjectAnimator? = null
 // onDestroyView(): loadingBarAnimator?.cancel(); loadingBarAnimator = null
 ```
 
+**Đã làm (2026-09-30), 3 điểm khác/thêm so với snippet trên:**
+
+- **`Channel.CONFLATED`** (snippet dùng đúng, ghi lại lý do): sự kiện này chỉ mang nghĩa "đã tới lúc
+  đi", phát hai lần vô nghĩa. `action_splash_to_welcome` có `popUpToInclusive` nên splash bị gỡ khỏi
+  back stack ngay khi điều hướng → VM clear → không có sự kiện cũ nào nằm lại để phát lại.
+- **Chốt cửa đổi từ `isAdded` sang `currentDestination?.id`.** Bản gốc dùng `isAdded`. Chốt mới mạnh
+  hơn (bắt được cả trường hợp đã điều hướng đi mà fragment còn attached) và đồng bộ với 7 màn còn
+  lại. `navigate` lần hai trên action có `popUpToInclusive` sẽ ném `IllegalArgumentException`.
+- **`splashDelayMs` chuyển vào VM thành `SplashViewModel.SPLASH_DELAY_MS`, và `ObjectAnimator` đọc
+  chính hằng đó** cho `duration`. Trước đây thanh loading và thời gian chờ dùng cùng một field nên
+  vô tình khớp; giờ là **cố ý dùng chung một nguồn** nên không thể lệch. TODO "delay giả" cũng dời
+  theo sang VM, có bổ sung: khi thay bằng chờ thật thì thanh loading phải chạy theo tiến độ thật
+  thay vì animate cứng.
+
+Xác nhận `onDestroyView` sau khi sửa: `loadingBarAnimator?.cancel()` + null, `_binding = null`. Hai
+dòng `navigateRunnable`/`removeCallbacks` bỏ hẳn vì không còn Runnable nào gắn View.
+
+⚠️ **Regression do chính mốc 6.1 gây ra, đã xử lý trong cùng commit** (phát hiện khi soạn cách test,
+không phải khi đọc code — ghi lại vì đó là bài học riêng):
+
+Đồng hồ chờ chuyển sang VM nên **đếm tiếp** qua việc view bị tạo lại, nhưng `ObjectAnimator` được tạo
+trong `setupLoadingBar()` nên vẫn **reset**. Hai thứ vì thế lệch nhau — chuyện bản gốc không có vì cả
+hai cùng reset. Cụ thể: view bị tạo lại ở giây thứ 3 → VM còn 2s, animator khởi động lại với
+`duration = 5000` → lúc điều hướng thanh mới ~40% rồi bị cắt ngang.
+
+Sửa: VM phơi `remainingMs`, Fragment dùng nó cho cả điểm bắt đầu và `duration`:
+
+```kotlin
+// SplashViewModel — uptimeMillis, KHÔNG elapsedRealtime: delay trên Main dispatcher chạy qua Handler,
+// cùng gốc đồng hồ với uptimeMillis. Lệch đồng hồ thì remainingMs không khớp lúc ready thật sự phát.
+private val startedAtUptimeMs = SystemClock.uptimeMillis()
+val remainingMs: Long
+    get() = (SPLASH_DELAY_MS - (SystemClock.uptimeMillis() - startedAtUptimeMs)).coerceIn(0L, SPLASH_DELAY_MS)
+
+// SplashFragment.setupLoadingBar()
+val remainingMs = viewModel.remainingMs
+val startProgress = (100 - remainingMs * 100 / SplashViewModel.SPLASH_DELAY_MS).toInt()
+if (remainingMs <= 0L) { binding.progressSplashLoading.progress = 100; return }  // không animate duration 0
+loadingBarAnimator = ObjectAnimator.ofInt(binding.progressSplashLoading, "progress", startProgress, 100)
+    .apply { duration = remainingMs; start() }
+```
+
+**Bài học bổ sung cho các mốc còn lại của Bước 6:** danh sách "thứ đang dựa vào việc thao tác kết thúc
+ngay lập tức" (đã ghi ở 3.2) phải tính cả **những thứ đang MÔ PHỎNG lại một khoảng thời gian** —
+animation, progress bar, countdown text. Chuyển đồng hồ gốc sang VM mà để thứ mô phỏng nó gắn View thì
+hai bên lệch. Mốc 6.3 (`LanguageFragment`) và 6.5 (`PermissionFragment`) cần soát theo góc này.
+
+### Cách test mốc 6.1 (đồng hồ đếm tiếp qua view recreation)
+
+Splash chỉ 5s nên không kịp làm tay. Đổi font scale bằng `adb` để Activity bị tạo lại mà app không
+xuống background (`MainActivity` không khai `android:configChanges` nên config change tạo lại Activity):
+
+```bash
+# tạm nâng SPLASH_DELAY_MS lên 20000L rồi build
+adb shell settings put system font_scale 1.0
+adb shell am start -n com.example.handar/.MainActivity
+# đợi ~5s
+adb shell settings put system font_scale 1.3
+# bấm đồng hồ từ lúc am start tới lúc màn welcome hiện:
+#   ~20s = đếm tiếp (đúng)   |   ~25s = đếm lại (sai)
+adb shell settings put system font_scale 1.0
+```
+
+Sau khi có bản sửa `remainingMs`, kiểm thêm: thanh loading phải **tiếp tục từ chỗ đang dở** (không về
+0) và chạy đầy đúng lúc chuyển màn. Nhớ hạ `SPLASH_DELAY_MS` về `5000L` trước khi commit.
+
+**Kết quả đo thật (2026-09-30, `SPLASH_DELAY_MS = 20000L` tạm):**
+
+```
+onViewCreated: savedInstanceState=false
+VM init: hash=243397238
+setupLoadingBar: vmHash=243397238 remainingMs=19977 startProgress=1
+onViewStateRestored: progress=1 animatorDangChay=true
+                                       ← đổi font scale ở đây
+onViewCreated: savedInstanceState=true
+setupLoadingBar: vmHash=243397238 remainingMs=6841 startProgress=66   ← VM CÙNG hash, đếm tiếp
+onViewStateRestored: progress=72 animatorDangChay=true
+ready phát sau 20024ms kể từ VM init                                  ← đúng 20s, không phải 35s
+VM onCleared, hash=243397238
+```
+
+Đạt yêu cầu: một VM duy nhất sống qua việc Activity bị tạo lại, tổng thời gian đúng.
+
+⚠️ **Nhưng log lộ thêm một lỗi nhỏ: `startProgress=66` mà `onViewStateRestored` thấy `progress=72`.**
+Nguyên nhân: `ObjectAnimator` mặc định dùng `AccelerateDecelerateInterpolator`, còn `startProgress`
+tính **tuyến tính** theo thời gian. Ở mốc 13,1s/20s, thời gian đi được 65,7% nhưng theo đường cong ease
+giá trị đã ở ~72% — nên khi view bị tạo lại, thanh **giật lùi** từ 72 về 66.
+
+Sửa bằng `interpolator = LinearInterpolator()`. Chọn làm thanh tuyến tính thay vì tính `startProgress`
+theo đường cong: đơn giản hơn, và một thanh tiến độ biểu diễn thời gian trôi đều thì vốn nên tuyến
+tính. Đây cũng là lý do đáng ghi lại: **khi tính "đang ở đâu trong một animation" thì phải tính theo
+đúng interpolator của animation đó, không mặc định là tuyến tính.**
+
+Log chẩn đoán (tag `SplashDiag`) đã xoá hết sau khi chốt nguyên nhân; `Log.d("SplashFragment", ...)`
+về locale là log có sẵn, giữ nguyên.
+
 ### 6.2 — `Survey1Fragment` + `Survey2Fragment`
 
 **Điểm cần quyết định trước khi code** (đã nêu ở lượt thảo luận trước, giờ chốt phương án cụ
@@ -1420,10 +1516,16 @@ Chỉ thêm 1 đoạn ngắn vào `AGENTS.md` mục 5 (Quy ước & bẫy đã b
 
 ## 9. Bước 7 — Cập nhật tài liệu
 
+> **Quy ước đánh số trong tài liệu này** (sửa 2026-09-30, lỗi có từ bản gốc): đầu mục `##` đánh theo
+> **số thứ tự mục của tài liệu** (`## 3.` = Bước 1, `## 9.` = Bước 7), còn các **mốc** bên trong đánh
+> theo **số của Bước** (`### 7.1`, `### 7.2`…). Trước đây các mốc của Bước 7 bị đánh `9.1`–`9.6` theo
+> số mục thay vì số Bước, nên đọc liền mạch thì nhảy từ `6.6` sang `9.1`. Đã đổi về `7.1`–`7.6` — khớp
+> với cách mốc 1.2 vốn đã trích dẫn là "Bước 7.3".
+
 Làm sau khi Bước 1-6 đã xong và ổn định (không bắt buộc chờ hết cả 6 bước nếu muốn cập nhật dần
 — nhưng ít nhất phải cập nhật lại lần cuối sau Bước 6 để không có tài liệu nào lỡ dở).
 
-### 9.1 — `AGENTS.md`
+### 7.1 — `AGENTS.md`
 
 - Cập nhật dòng "Cập nhật lần cuối tại commit ...".
 - Mục 2 (Stack): thêm `Lifecycle (ViewModel + runtime-ktx) 2.11.0` vào danh sách thư viện.
@@ -1437,7 +1539,7 @@ Làm sau khi Bước 1-6 đã xong và ổn định (không bắt buộc chờ h
   `AGENTS.md` và `README.md` trong đợt cập nhật docs sau `abfb32a` (lúc ghi dòng này chưa commit): nay ghi Java 17. Không còn việc thừa này trong Bước 7,
   chỉ cần giữ nguyên khi cập nhật mục 2.
 
-### 9.2 — `Code_Walkthrough.md`
+### 7.2 — `Code_Walkthrough.md`
 
 Đọc lại toàn bộ mục nói về từng Fragment đã đổi (mục 1, 3 theo cấu trúc hiện tại — xác nhận số
 mục chính xác lúc làm vì file có thể đã đổi số mục giữa lúc viết kế hoạch này và lúc thực thi),
@@ -1445,7 +1547,7 @@ thêm đoạn giải thích luồng dữ liệu mới (Fragment → ViewModel.ui
 màn đã chuyển. Không xoá mô tả cũ về phần vẫn giữ nguyên trong Fragment (ExoPlayer, dialog, việc
 di chuyển View).
 
-### 9.3 — `Fragment_Review_Checklist.md`
+### 7.3 — `Fragment_Review_Checklist.md`
 
 Thêm mục mới (đã làm sớm ở Bước 1.2, giờ rà lại cho khớp với những gì thực sự đã làm ở Bước
 2-6):
@@ -1470,7 +1572,7 @@ Checklist mục 0-8 vẫn áp dụng nguyên vẹn cho phần View/tài nguyên 
       `ViewModelProvider.Factory` thủ công trừ khi có lý do đặc biệt
 ```
 
-### 9.4 — `HandAr_Plan.md` mục K2
+### 7.4 — `HandAr_Plan.md` mục K2
 
 Sửa dòng:
 
@@ -1490,12 +1592,12 @@ thành (giữ nguyên phần lịch sử, thêm cập nhật):
   `VideoPlayerFragment.playbackPosition`, đã xử lý qua `SavedStateHandle`).
 ```
 
-### 9.5 — `README.md`
+### 7.5 — `README.md`
 
 Nếu README có mục mô tả kiến trúc/stack, thêm 1 dòng nhắc tới ViewModel — chỉ cập nhật nếu
 README hiện có mục đó, không thêm mục mới nếu README đang cố tình gọn.
 
-### 9.6 — `Test_Checklist.md` (thêm mới 2026-09-30)
+### 7.6 — `Test_Checklist.md` (thêm mới 2026-09-30)
 
 Đã rà toàn bộ `Test_Checklist.md` (395 dòng, mục A–I). **Checklist phủ rất kỹ camera, ghi hình, cử chỉ
 và điều hướng, nhưng gần như KHÔNG phủ các màn mà kế hoạch này vừa chuyển MVVM.** Kiểm chứng bằng grep,
@@ -1582,7 +1684,7 @@ Bước 7 rồi chạy một lượt, không chạy rải rác từng Bước.
 
 ---
 
-## 10. Việc cố ý không làm trong kế hoạch này (ghi lại để khỏi bàn lại)
+## 8. Việc cố ý không làm trong kế hoạch này (ghi lại để khỏi bàn lại)
 
 | Việc | Vì sao không làm |
 |---|---|
