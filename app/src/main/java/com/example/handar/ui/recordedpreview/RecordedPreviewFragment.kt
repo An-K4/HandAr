@@ -10,6 +10,10 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -22,6 +26,7 @@ import com.example.handar.databinding.FragmentRecordedPreviewBinding
 import com.example.handar.ui.widget.ConfirmDialog
 import com.example.handar.ui.widget.VideoSeekBarController
 import com.example.handar.utils.applySystemBarsInsetsMargin
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(UnstableApi::class)
@@ -33,9 +38,19 @@ class RecordedPreviewFragment : Fragment() {
     private var seekController: VideoSeekBarController? = null
     private var confirmDialog: ConfirmDialog? = null
 
+    // Xoá file giờ chạy bất đồng bộ (Dispatchers.IO trong VM), nên dialog dismiss XONG TRƯỚC khi
+    // Fragment nhận Event.Discarded và popBackStack. Không có cờ này thì setOnDismissListener dưới
+    // sẽ gọi player.play() và video (đã bị xoá) phát tiếp một nhịp trước khi thoát màn. Bản gốc
+    // không gặp: nó delete + popBackStack đồng bộ nên onDestroyView đã cắt listener trước khi dismiss.
+    private var discarding = false
+
     private val args: RecordedPreviewFragmentArgs by navArgs()
     private val videoPath: String get() = args.videoPath
     private val effectId: String get() = args.effectId
+
+    private val viewModel: RecordedPreviewViewModel by viewModels {
+        RecordedPreviewViewModel.factory(videoPath)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -64,6 +79,26 @@ class RecordedPreviewFragment : Fragment() {
         setupPlayer()
 
         binding.btnSave.setOnClickListener { save() }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event -> handleEvent(event) }
+            }
+        }
+    }
+
+    // Chốt cửa currentDestination ở lại Fragment, không chuyển vào VM (VM không cầm NavController).
+    private fun handleEvent(event: RecordedPreviewViewModel.Event) {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
+        when (event) {
+            RecordedPreviewViewModel.Event.Discarded -> nav.popBackStack()
+            RecordedPreviewViewModel.Event.Saved -> nav.navigate(
+                RecordedPreviewFragmentDirections.actionRecordedPreviewToShare(
+                    videoPath, effectId, fromRecordedPreview = true
+                )
+            )
+        }
     }
 
     private fun setupPlayer() {
@@ -112,26 +147,25 @@ class RecordedPreviewFragment : Fragment() {
             onNegative = { discardAndExit() },
             onPositive = { save() }
         ).apply {
-            setOnDismissListener { player?.play() }
+            setOnDismissListener { if (!discarding) player?.play() }
             show()
         }
     }
 
     // nhấn exit/thoát (không phải dấu x) trong dialog: người dùng cố tình bỏ video chưa lưu → xóa file rồi thoát.
     private fun discardAndExit() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
+        if (findNavController().currentDestination?.id != R.id.recordedPreviewFragment) return
         player?.pause()
-        File(videoPath).delete()
-        nav.popBackStack()
+        discarding = true
+        // Xoá file chạy trên Dispatchers.IO trong VM, Fragment thoát màn khi nhận Event.Discarded.
+        viewModel.discardAndExit()
     }
 
     // video đã lưu sẵn từ lúc dừng ghi, save chỉ đóng vai trò điều hướng sang màn share.
     // popUpTo chính màn này tự gỡ recordedPreview khỏi back stack.
     private fun save() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.recordedPreviewFragment) return
-        nav.navigate(RecordedPreviewFragmentDirections.actionRecordedPreviewToShare(videoPath, effectId, fromRecordedPreview = true))
+        if (findNavController().currentDestination?.id != R.id.recordedPreviewFragment) return
+        viewModel.save()
     }
 
     override fun onDestroyView() {

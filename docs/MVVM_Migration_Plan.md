@@ -405,6 +405,19 @@ class VideoFileRepository {
 
 Không cần Context — hoạt động thuần trên đường dẫn tuyệt đối đã có sẵn.
 
+**Đã làm (2026-09-30), khác snippet trên ở 2 chỗ, đều cố ý:**
+
+- Thêm `RenameResult.Unchanged` cho nhánh `newFile == oldFile`. Snippet trên gộp nhánh này vào
+  `Success(path)` — **sai hành vi**: bản gốc `VideoPlayerFragment.renameVideo()` là
+  `if (newFile == oldFile) return`, tức KHÔNG Toast "đổi tên thành công" và KHÔNG `popBackStack()`.
+  Gộp vào `Success` thì người dùng sửa tên rồi đổi lại y như cũ sẽ bị đá ra khỏi màn player kèm
+  Toast sai.
+- Thêm `exists(path)`, vì `VideoPlayerFragment` dòng ~73 có `!file.exists()` cũng đang chạy trên
+  main thread — cùng loại việc, cùng miền dữ liệu.
+
+KDoc của từng nhánh `RenameResult` ghi rõ nó tương ứng hành vi nào của bản gốc (Toast gì, hay im
+lặng) để mốc 3.3 map 1-1 được mà không phải đọc lại bản gốc.
+
 ### 3.2 — `RecordedPreviewFragment`
 
 State cần VM: chỉ có `confirmDialog` đang hiện hay không, và kết quả `save()`/`discardAndExit()`.
@@ -470,6 +483,25 @@ viewLifecycleOwner.lifecycleScope.launch {
 
 Chốt cửa `currentDestination?.id` **giữ nguyên trong Fragment**, không chuyển vào VM (VM không
 có `NavController` — đúng quy ước 0.2).
+
+**Đã làm (2026-09-30), khác snippet trên ở 2 chỗ:**
+
+- `Event.SavedTo(newPath: String? = null)` → đổi thành `Event.Saved` không tham số. `save()` không
+  đổi path (video đã lưu sẵn lúc dừng ghi), nên tham số `newPath` luôn `null` — một tham số chỉ có
+  một giá trị khả dĩ thì thà bỏ đi, thêm lại khi thật sự cần.
+- ⚠️ **Regression do chính mốc này gây ra, đã xử lý trong cùng commit:** xoá file giờ chạy bất đồng
+  bộ trên `Dispatchers.IO`, nên `ConfirmDialog` dismiss **xong trước** khi Fragment nhận
+  `Event.Discarded` và `popBackStack()`. `setOnDismissListener { player?.play() }` vì thế gọi
+  `play()` và video (đã bị xoá) phát tiếp một nhịp trước khi thoát màn. Bản gốc không gặp vì nó
+  `delete()` + `popBackStack()` đồng bộ → `onDestroyView` đã `setOnDismissListener(null)` trước khi
+  dismiss kịp chạy. Sửa bằng cờ `discarding` trong Fragment:
+  `setOnDismissListener { if (!discarding) player?.play() }`.
+
+  **Bài học cho các mốc còn lại của Bước 3 và Bước 6:** mỗi lần chuyển một thao tác từ đồng bộ sang
+  `viewModelScope` + sự kiện, phải soát lại **thứ tự** các callback đang dựa vào việc thao tác đó
+  kết thúc ngay lập tức (dialog dismiss listener, `OnBackPressedCallback`, `onDestroyView`). Đây
+  không phải "đổi hành vi ngoài ý muốn" nên được sửa trong cùng commit di chuyển — khác với bug có
+  sẵn, thứ vẫn phải để commit riêng theo nguyên tắc 0.1.
 
 ### 3.3 — `VideoPlayerFragment`
 
