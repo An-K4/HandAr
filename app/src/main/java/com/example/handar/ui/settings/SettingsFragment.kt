@@ -7,12 +7,17 @@ import android.view.ViewGroup
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.example.handar.R
 import com.example.handar.databinding.FragmentSettingsBinding
 import com.example.handar.databinding.ItemSettingsOptionBinding
 import com.example.handar.utils.applySystemBarsInsetsMargin
 import com.example.handar.utils.applySystemBarsInsetsPadding
+import kotlinx.coroutines.launch
 
 /**
  * màn hiện tại chỉ item language có logic điều hướng (sang language fragment);
@@ -22,6 +27,8 @@ class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+
+    private val viewModel: SettingsViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,9 +60,35 @@ class SettingsFragment : Fragment() {
         bindRow(binding.itemPrivacyPolicy, R.drawable.ic_privacy_policy, R.string.settings_item_privacy_policy)
 
         binding.btnSettingsBack.setOnClickListener { findNavController().navigateUp() }
-        // item duy nhất có logic nav lúc này — các item khác chưa cần (xem docstring class).
+        // Ngôn ngữ là điều hướng nội bộ app nên gọi thẳng, không qua VM (quy ước 0.2) — giữ y bản gốc.
         binding.itemLanguage.root.setOnClickListener {
             findNavController().navigate(R.id.action_settings_to_language)
+        }
+
+        binding.itemRateUs.root.setOnClickListener { viewModel.onRateUsClicked() }
+        binding.itemShareApp.root.setOnClickListener { viewModel.onShareAppClicked() }
+        binding.itemFeedback.root.setOnClickListener { viewModel.onFeedbackClicked() }
+        binding.itemAboutApp.root.setOnClickListener { viewModel.onAboutAppClicked() }
+        binding.itemPrivacyPolicy.root.setOnClickListener { viewModel.onPrivacyPolicyClicked() }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event -> handleEvent(event) }
+            }
+        }
+    }
+
+    /**
+     * 5 nhánh dưới đây **cố ý còn trống**: mốc 6.4 chỉ chuyển MVVM, chưa nối logic thật. Khi nối, viết
+     * intent vào đúng nhánh tương ứng — listener và đường sự kiện đã có sẵn, không phải sửa gì thêm.
+     */
+    private fun handleEvent(event: SettingsEvent) {
+        when (event) {
+            SettingsEvent.OpenPlayStore -> Unit       // TODO: mở trang app trên Play Store
+            SettingsEvent.ShareApp -> Unit            // TODO: share sheet với link app
+            SettingsEvent.SendFeedback -> Unit        // TODO: mailto tới hòm thư góp ý
+            SettingsEvent.OpenAboutApp -> Unit        // TODO: màn/dialog Về ứng dụng
+            SettingsEvent.OpenPrivacyPolicy -> Unit   // TODO: mở URL chính sách bảo mật
         }
     }
 
