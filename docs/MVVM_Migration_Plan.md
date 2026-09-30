@@ -334,6 +334,29 @@ lần theo đúng vòng đời VM (tuy nhiên: nếu muốn "refresh khi quay l�
 khi làm, ghi chú lại trong code vì đây là hành vi có thể gây nhầm "tưởng cache mà không thấy
 video mới").
 
+**Đã quyết định lúc code (2026-09-30): làm mới có điều kiện, không refresh mù ở `onResume`.**
+
+`VideoPlayerFragment` đặt cờ `VideoListFragment.KEY_VIDEO_LIST_STALE = true` vào
+`nav.previousBackStackEntry?.savedStateHandle` (hàm `markVideoListStale`) ngay trước `popBackStack()`,
+ở **cả hai** đường: `deleteVideoAndExit()` và nhánh `renameTo` thành công.
+`VideoListFragment.onResume()` đọc cờ, `remove` nó rồi gọi `viewModel.load()`. Cách này vừa không giữ
+dữ liệu cũ, vừa giữ được lợi ích "vào xem rồi back ra thì không quét lại thư mục" — khác hẳn việc gọi
+`load()` vô điều kiện ở `onResume` (làm mất sạch lợi ích cache).
+
+⚠️ **Bẫy đã sập một lần, ghi lại để không sập lại:** ban đầu tôi kết luận "rename không cần làm mới
+vì item chỉ hiện thumbnail, không hiện tên file" — **sai**. `VideoItem` giữ `File`, và
+`VideoListFragment` truyền `videoItem.file.absolutePath` sang player khi bấm vào item. Sau rename,
+path trong cache của VM là path cũ đã không còn tồn tại, nên bấm vào video vừa đổi tên là ăn ngay
+Toast `can_not_play_video` + `popBackStack()`. Bài học tổng quát cho cả kế hoạch này: khi quyết định
+một state cũ "có ảnh hưởng thấy được hay không", phải soát **cả dữ liệu item mang theo và truyền đi
+qua callback**, không chỉ soát những gì `onBindViewHolder` vẽ ra màn hình. Đây là dạng lỗi chỉ xuất
+hiện *sau khi* thêm ViewModel: trước đó list load lại mỗi lần view được tạo nên path luôn tươi.
+
+**Nợ kỹ thuật có chủ đích:** cờ `KEY_VIDEO_LIST_STALE` là giải pháp tạm không cần ViewModel ở phía
+player. Khi làm Bước 3.3 (`VideoPlayerViewModel` phát `Event.Deleted`/`Event.Renamed`), **bỏ cờ này
+đi**, cho `VideoPlayerFragment` phát sự kiện qua VM và `VideoListFragment` nhận qua đó — nhớ nối
+**cả** `Renamed`, không chỉ `Deleted`.
+
 ---
 
 ## 5. Bước 3 — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment`

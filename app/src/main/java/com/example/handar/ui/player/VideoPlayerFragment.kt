@@ -16,10 +16,12 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.navigation.NavController
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.example.handar.R
 import com.example.handar.databinding.FragmentVideoPlayerBinding
+import com.example.handar.ui.videolist.VideoListFragment
 import com.example.handar.ui.widget.ConfirmDialog
 import com.example.handar.ui.widget.RenameDialog
 import com.example.handar.ui.widget.VideoSeekBarController
@@ -177,6 +179,7 @@ class VideoPlayerFragment : Fragment() {
         if (nav.currentDestination?.id != R.id.videoPlayerFragment) return
         player?.pause()
         File(videoPath).delete()
+        markVideoListStale(nav)
         nav.popBackStack()
     }
 
@@ -197,10 +200,21 @@ class VideoPlayerFragment : Fragment() {
 
         if (oldFile.renameTo(newFile)) {
             Toast.makeText(requireContext(), getString(R.string.rename_successfully), Toast.LENGTH_SHORT).show()
+            markVideoListStale(nav)
             nav.popBackStack()
         } else {
             Toast.makeText(requireContext(), getString(R.string.can_not_rename_video), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /**
+     * Báo cho `VideoListFragment` biết danh sách nó đang cache không còn khớp thư mục nữa, phải
+     * load lại. Gọi sau mọi thao tác đổi đường dẫn file: xoá và đổi tên. Không gọi thì `VideoItem`
+     * cũ còn trong `VideoListViewModel`, bấm vào item đó là mở `file.absolutePath` không còn tồn
+     * tại → Toast `can_not_play_video` + `popBackStack()` ngay.
+     */
+    private fun markVideoListStale(nav: NavController) {
+        nav.previousBackStackEntry?.savedStateHandle?.set(VideoListFragment.KEY_VIDEO_LIST_STALE, true)
     }
 
     private fun openMenu() {
