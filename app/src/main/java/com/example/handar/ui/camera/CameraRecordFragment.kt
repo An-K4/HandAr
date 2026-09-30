@@ -59,7 +59,6 @@ import kotlin.math.max
 class CameraRecordFragment : Fragment() {
     companion object {
         private const val MIN_RECORD_DURATION_MS = 1000L
-        private const val DEBOUNCE_MS = 200L
 
         // Loading overlay khi HandLandmarker đang được tạo nền, xem docs/CameraLoading_Fallback_Plan.md
         private const val LOADING_OVERLAY_MIN_VISIBLE_MS = 500L
@@ -92,9 +91,9 @@ class CameraRecordFragment : Fragment() {
     private var loadingShownAtMs: Long = 0L
 
     private var recordingFrameThread: Thread? = null
-    private var lastStateId: String? = null
-    private var pendingState: String? = null
-    private var pendingStateSince = 0L
+
+    // State debounce cử chỉ + activeEffect: xem GestureStateMachine.
+    private val gestureStateMachine = GestureStateMachine()
 
     private var recordStartUiTimeMs = 0L
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -107,10 +106,6 @@ class CameraRecordFragment : Fragment() {
         }
     }
 
-    private data class ActiveEffect(val pcm: ShortArray, val startedAtMs: Long)
-
-    @Volatile
-    private var activeEffect: ActiveEffect? = null
     private lateinit var soundEffectPlayer: SoundEffectPlayer
 
     private var bgmPlayer: BgmPlayer? = null
@@ -286,10 +281,7 @@ class CameraRecordFragment : Fragment() {
      * và activeEffect cũ (loa live đã bị release) sẽ bị cài vào video nếu bấm Record ngay sau đó.
      */
     private fun resetGestureState() {
-        lastStateId = null
-        pendingState = null
-        pendingStateSince = 0
-        activeEffect = null
+        gestureStateMachine.reset()
     }
 
     private fun bindEffectInfo(effect: EffectDefinition?) {
@@ -430,45 +422,30 @@ class CameraRecordFragment : Fragment() {
     private fun handleGesture(result: HandLandmarkerResult) {
         val effect = currentEffect ?: return
         val hands = result.landmarks()
-        if (hands.isEmpty()) {
-            if (effect.stateMode == StateMode.Momentary) clearActiveEffect()
-            return
-        }
+        // firstOrNull trên list rỗng cũng trả null, nên hai nhánh "không có tay" và "không state nào
+        // khớp" của bản gốc gộp được vào một đường matchedState == null.
+        val matchedState = if (hands.isEmpty()) null else effect.states.firstOrNull { it.gesture.recognize(hands) }
 
-        val matchedState = effect.states.firstOrNull { it.gesture.recognize(hands) }
-        if (matchedState == null) {
-            if (effect.stateMode == StateMode.Momentary) clearActiveEffect()
-            return
-        }
-
-        val now = SystemClock.uptimeMillis()
-        if (matchedState.id != pendingState) {
-            pendingState = matchedState.id
-            pendingStateSince = now
-        } else if (lastStateId != matchedState.id && now - pendingStateSince >= DEBOUNCE_MS) {
-            lastStateId = matchedState.id
-
-            val soundRes = matchedState.soundRes
-            if (soundRes == null) {
-                clearActiveEffect(keepPendingState = true)
-                return
+        // Tên khác `result` để không che tham số HandLandmarkerResult của hàm.
+        val gestureResult = gestureStateMachine.onMatchedState(
+            matchedStateId = matchedState?.id,
+            soundRes = matchedState?.soundRes,
+            momentaryClearsOnNull = effect.stateMode == StateMode.Momentary
+        )
+        when (gestureResult) {
+            is GestureStateMachine.Result.Activate -> {
+                val pcm = statePcmMap[gestureResult.stateId] ?: return
+                gestureStateMachine.setActiveEffect(pcm, SystemClock.elapsedRealtime())
+                videoRecorder?.audioMixer?.triggerEffect(pcm)
+                soundEffectPlayer.playForSound(gestureResult.soundRes)
             }
 
-            val pcm = statePcmMap[matchedState.id] ?: return
-            activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())
-            videoRecorder?.audioMixer?.triggerEffect(pcm)
-            soundEffectPlayer.playForSound(soundRes)
-        }
-    }
+            GestureStateMachine.Result.Clear -> {
+                soundEffectPlayer.stopEffect()
+                videoRecorder?.audioMixer?.triggerEffect(null)
+            }
 
-    private fun clearActiveEffect(keepPendingState: Boolean = false) {
-        soundEffectPlayer.stopEffect()
-        videoRecorder?.audioMixer?.triggerEffect(null)
-        activeEffect = null
-        lastStateId = null
-        if (!keepPendingState) {
-            pendingState = null
-            pendingStateSince = 0
+            GestureStateMachine.Result.NoChange -> Unit
         }
     }
 
@@ -548,7 +525,7 @@ class CameraRecordFragment : Fragment() {
                 audioMixer.setBgm(bgmPcm, currentEffect?.bgm?.gainPercent ?: 50)
                 audioMixer.resetBgmPos()
                 start()
-                activeEffect?.let { effect ->
+                gestureStateMachine.activeEffect?.let { effect ->
                     val elapsedMs = SystemClock.elapsedRealtime() - effect.startedAtMs
                     val elapsedSamples = (elapsedMs * 44_100L / 1000L).toInt()
                     audioMixer.triggerEffect(effect.pcm, elapsedSamples)

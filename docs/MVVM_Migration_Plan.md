@@ -1,6 +1,6 @@
 # Kế hoạch chuyển sang MVVM — HandAr
 
-> **Cập nhật lần cuối tại commit `3e2e494`** (2026-09-30). **Note cho agent:** sau khi hoàn
+> **Cập nhật lần cuối tại commit `d8cebab`** (2026-09-30). **Note cho agent:** sau khi hoàn
 > thành bất kỳ Bước nào dưới đây, tick ô trạng thái ở Mục 2, cập nhật commit hash ở dòng này,
 > và nếu Bước đó đổi cấu trúc thư mục/quy ước, cập nhật `AGENTS.md` mục 4 + `Code_Walkthrough.md`
 > theo đúng Bước 7.
@@ -207,7 +207,7 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 - [x] **Bước 1** — Hạ tầng + quy ước (commit `90bb322`, `b5c2d0f`)
 - [x] **Bước 2** — `VideoListFragment` (màn mẫu) (commit `3a34c66`, `79c12c3`)
 - [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
-- [ ] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager`
+- [x] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager` (commit `5449139`, `8fec4ed`, `2a8590e` fix `onDestroyView`, `02e681a`, `d8cebab`)
 - [ ] **Bước 5** — Tách `GestureStateMachine`, `RecordingSession` khỏi `CameraRecordFragment`
 - [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
 - [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`
@@ -963,6 +963,42 @@ diễn).
 
 `resetGestureState()` đổi thành gọi `gestureStateMachine.reset()`, gọi ở đúng chỗ cũ
 (`onViewCreated`) — không đổi vị trí gọi, chỉ đổi thứ được gọi.
+
+### Đã làm 5.1 (2026-09-30) — 3 chỗ snippet kế hoạch SAI hành vi, đã sửa
+
+1. **`Result.Clear` phải trả về ở nhánh `soundRes == null`, không phải `NoChange`.** Snippet kế hoạch
+   viết `if (soundRes == null) { clear(keepPendingState = true); return Result.NoChange }`. Nhưng bản
+   gốc nhánh đó gọi `clearActiveEffect(keepPendingState = true)` — mà `clearActiveEffect` **có** gọi
+   `soundEffectPlayer.stopEffect()` + `videoRecorder?.audioMixer?.triggerEffect(null)`. Trả `NoChange`
+   thì Fragment không gọi hai hàm đó → **tiếng effect đang phát sẽ không tắt** khi chuyển sang một
+   state không có tiếng. Đã trả `Result.Clear`.
+2. **`activeEffect` phải giữ `@Volatile`.** Snippet để `var activeEffect: ActiveEffect? = null` trơn.
+   Bản gốc đánh dấu `@Volatile` vì `onMatchedState` chạy trên thread của HandLandmarker
+   (`backgroundExecutor`) còn `activeEffect` được đọc từ **main thread** trong `toggleRecording()` để
+   nối tiếp effect vào `audioMixer`. Bỏ `@Volatile` là mất bảo đảm nhìn thấy giá trị mới giữa hai
+   thread — lỗi kiểu chỉ xuất hiện thỉnh thoảng, rất khó truy. Các field debounce còn lại **không**
+   `@Volatile`, đúng bản gốc (chỉ dùng trong `onMatchedState`).
+3. **`DEBOUNCE_MS` chuyển vào `GestureStateMachine`** (`DEFAULT_DEBOUNCE_MS = 200L`, tham số
+   constructor có default) và **xoá khỏi companion của Fragment** — snippet không nói xoá, để lại thì
+   thành hằng chết.
+
+Chi tiết nữa: local `val result` của snippet **che tham số** `result: HandLandmarkerResult` của
+`handleGesture` (Kotlin chỉ cảnh báo, vẫn compile) — đổi tên thành `gestureResult`.
+
+### Bảng đối chiếu từng nhánh bản gốc → bản mới (làm trước khi commit, theo mục 7 checklist)
+
+| Bản gốc | Bản mới |
+|---|---|
+| `hands.isEmpty()` + `Momentary` → `clearActiveEffect()` | `matchedStateId = null` + `momentaryClearsOnNull` → `clear()` → `Result.Clear` → Fragment `stopEffect` + `triggerEffect(null)` |
+| `hands.isEmpty()` + không Momentary → chỉ `return` | `Result.NoChange` |
+| `matchedState == null` + `Momentary` → `clearActiveEffect()` | gộp cùng nhánh trên (`firstOrNull` trên list rỗng cũng trả `null`) — **đã tự tay xác nhận hai nhánh gốc có thân hàm giống nhau từng dòng** |
+| `matchedState.id != pendingState` → set `pendingState`/`pendingStateSince`, không làm gì thêm | y nguyên, trả `Result.NoChange` |
+| `lastStateId != id && now - since >= DEBOUNCE_MS` | đảo thành `if (lastStateId == id \|\| now - since < debounceMs) return NoChange` — cùng điều kiện |
+| `lastStateId = id` rồi `soundRes == null` → `clearActiveEffect(keepPendingState = true)` | `lastStateId = matchedStateId` rồi `clear(keepPendingState = true)` → `Result.Clear` (xem điểm 1) |
+| `statePcmMap[id] ?: return` (sau khi đã set `lastStateId`) | Fragment: `statePcmMap[gestureResult.stateId] ?: return` — `lastStateId` cũng đã set trong SM trước đó, nên state sau khi pcm thiếu là giống nhau |
+| `activeEffect = ActiveEffect(pcm, SystemClock.elapsedRealtime())` | `setActiveEffect(pcm, SystemClock.elapsedRealtime())` — **giữ `elapsedRealtime` ở call site**, khác `uptimeMillis` dùng cho debounce, hai đồng hồ khác nhau là cố ý từ bản gốc |
+| `triggerEffect(pcm)` + `playForSound(soundRes)` | y nguyên, trong nhánh `Activate` ở Fragment |
+| `resetGestureState()` (không gọi `stopEffect`/`triggerEffect`) | `gestureStateMachine.reset()` — cũng không gọi, `reset()` khác `clear()` đúng ở điểm này |
 
 ### 5.2 — `computeRecordingSize`
 
