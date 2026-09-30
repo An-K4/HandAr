@@ -810,6 +810,29 @@ class EffectPickerViewModel(currentEffectId: String) : ViewModel() {
 }
 ```
 
+**Đã làm (2026-09-30), 3 điểm:**
+
+- **Thêm `Event.Close`/`Event.OpenPreview(effectId)` + `onBackClicked()`/`onConfirmClicked()`.** Quyết
+  định "xác nhận thì đi đâu" (`id == currentEffectId` → chỉ đóng màn, khác → sang preview) chuyển vào
+  VM vì nó thuần so sánh dữ liệu; vì thế VM cần giữ `currentEffectId`. `Close` dùng chung cho cả nút
+  back và xác nhận-không-đổi, hai đường đó cùng `popBackStack()`.
+- **`EffectPickerAdapter` đổi API: bỏ tham số `selectedId`, thêm `setSelectedId(newId)`.** Trước đây
+  Adapter **tự giữ** lựa chọn (`private fun select()` đổi `selectedId` rồi mới gọi `onSelected`), giờ
+  cú bấm chỉ báo lên VM, VM đổi state, collector gọi `setSelectedId` xuống. `selectedId` còn lại
+  trong Adapter chỉ là bản ghi "viền đang vẽ ở item nào" để tính vị trí cần notify — **giữ nguyên
+  việc cập nhật từng item bằng `PAYLOAD_SELECTION`**, không hạ xuống `notifyDataSetChanged` cả lưới.
+  Đây cùng một khuôn với cờ `renderedFullscreen` ở mốc 3.4: render không idempotent thì Fragment/Adapter
+  phải biết mình đang vẽ gì.
+  - Thêm chốt `if (newPosition >= 0)` trước khi notify: bản gốc không cần vì `select()` chỉ được gọi
+    từ cú bấm vào item có thật, còn `setSelectedId` có thể nhận `null`.
+- **`renderConfirmEnabled()` nhận tham số** thay vì đọc field, vì nguồn sự thật giờ là state trong
+  collector chứ không phải field Fragment.
+
+📌 **Ghi cho Bước 7:** `EffectPickerFragment.onDestroyView` chỉ null `_binding`, **không** cắt
+`recyclerEffectPicker.adapter` — cùng loại thiếu sót với `EffectListFragment`. Tôi **không** sửa trong
+commit 4.4 (nguyên tắc 0.1: bug có sẵn đi riêng) và cũng không làm commit lẻ cho một dòng — gộp vào
+đợt rà 18 Fragment ở Bước 7.
+
 ---
 
 ## 7. Bước 5 — Tách phần thuần Kotlin khỏi `CameraRecordFragment`
