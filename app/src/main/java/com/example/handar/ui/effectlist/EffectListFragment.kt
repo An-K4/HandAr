@@ -75,4 +75,10 @@ class EffectListFragment : Fragment() {
             }
         }
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding.recyclerEffect.adapter = null
+        _binding = null
+    }
 }

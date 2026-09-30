@@ -746,6 +746,14 @@ override fun onDestroyView() {
 
 (`EffectPreviewFragment`/`EffectPickerFragment` cũng soát lại cùng lúc khi làm 4.3/4.4.)
 
+**Đã sửa (2026-09-30)** ở commit riêng ngay sau 4.2, đúng nội dung trên. Không gộp vào 4.2 để diff
+của 4.2 chỉ còn việc chuyển MVVM.
+
+📌 **Ghi cho Bước 7:** `EffectListFragment` thiếu `onDestroyView` mà vẫn build xanh, chạy được, không
+ai phát hiện cho tới khi đọc kỹ để refactor — đúng loại lỗi `Fragment_Review_Checklist.md` được viết
+ra để bắt, nhưng checklist chỉ có tác dụng nếu thật sự chạy qua nó. Bước 7 rà **cả 18 Fragment** theo
+mục 1 + mục 8 của checklist, không chỉ những màn kế hoạch này chạm tới.
+
 ### 4.3 — `EffectPreviewFragment`
 
 State thật ở đây rất mỏng: `effect` đọc từ `args.effectId` qua `EffectRepository.findById`, và
