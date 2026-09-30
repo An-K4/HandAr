@@ -608,13 +608,35 @@ class ShareViewModel(val videoPath: String, val effectId: String, val fromRecord
 }
 ```
 
-Cân nhắc thật khi làm: `isFullscreen` chỉ dùng để đổi `visibility` 2 nhóm View và di chuyển
-`binding.playerView` giữa 2 container — **việc di chuyển View vẫn phải ở Fragment** (VM không
-cầm View). VM ở đây chỉ giữ cờ, Fragment đọc cờ để quyết định gọi `showFullscreen()`/`showCard()`
-thật (hàm build UI) — nghĩa là có 2 tầng "showFullscreen": 1 ở VM (đổi state), 1 ở Fragment (thi
-hành UI theo state). Nếu thấy tầng VM ở đây quá mỏng để đáng làm, **được phép bỏ qua `ShareFragment`
-ở Bước 3** và ghi lại lý do trong Bước 7 (mục "cố ý không thêm VM") — quyết định cuối cùng để lúc
-code thật, đây không phải màn có giá trị cao như 3.2/3.3.
+**Đã quyết định (2026-09-30): VẪN LÀM**, không bỏ qua. Lý do người dùng chốt: sau này thêm tính
+năng mới ở màn Share thì đã có sẵn chỗ, không phải refactor rời rạc đúng một màn giữa các màn đã
+chuyển. Ghi lại vì đây là lựa chọn ngược với "giá trị thấp" mà kế hoạch cảnh báo — chấp nhận có hai
+tầng `showFullscreen` (VM đổi state, Fragment thi hành UI) để đổi lấy tính nhất quán.
+
+**Đã làm, khác snippet trên ở 3 chỗ:**
+
+- **VM không giữ `videoPath`/`effectId`/`fromRecordedPreview`.** `navArgs` đã là nguồn duy nhất và
+  Fragment vẫn cần chúng trực tiếp (intent share, `setupPlayer`, `binding.btnTryAgain.isVisible`).
+  Copy sang VM chỉ tạo bản thứ hai không ai đọc. Vì thế VM **không có tham số constructor** → dùng
+  `by viewModels()` trần, **không cần factory**.
+- **Thêm `Event.GoHome`/`Event.TryAgain` và `onBackPressed()`.** Snippet chỉ có `isFullscreen`; nhưng
+  đã làm VM thì để `goHome`/`tryAgain` gọi thẳng `findNavController()` từ listener là nửa vời. Quyết
+  định back hệ thống (`đang fullscreen thì thu nhỏ, không thì về home`) chuyển vào VM vì nó chỉ đọc
+  state; việc điều hướng và chốt cửa `currentDestination` vẫn ở Fragment.
+- ⚠️ **Cần cờ `renderedFullscreen` ở Fragment — đây là cái giá thật của tầng VM ở màn này.**
+  `applyFullscreen`/`applyCard` **dời hẳn** `playerView` giữa hai container (`removeView` +
+  `addView`), không phải chỉ đổi visibility. Render thẳng từ `StateFlow` thì lần collect đầu tiên
+  (state mặc định `isFullscreen = false`) sẽ chạy `applyCard()` trên một `playerView` vốn đã nằm
+  đúng trong `cardVideoContainer` → re-parent vô ích. Nên Fragment giữ riêng "cây View hiện đang ở
+  trạng thái nào", chỉ thi hành khi state khác nó. Gán lại `false` ở `onViewCreated` (view mới
+  inflate luôn ở dạng card), nhờ đó quay lại từ back stack với VM đang giữ `isFullscreen = true` thì
+  lần collect đầu tự dựng lại fullscreen — điều bản gốc **không** làm được vì cờ `isFullscreen` cũ
+  là field Fragment, không phản ánh cây View mới.
+
+  **Bài học chung:** khi render từ `StateFlow` mà hành động render **không idempotent** (dời view,
+  thêm/bớt view, phát animation, mở dialog), phải so state mới với state đã render, không được thi
+  hành mỗi lần collect. Guard `if (isFullscreen) return` của bản gốc chính là thứ đang làm việc này
+  — chuyển sang VM thì nó phải được dựng lại ở tầng Fragment chứ không mất đi.
 
 ---
 

@@ -9,6 +9,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -22,6 +26,7 @@ import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.SocialTarget
 import com.example.handar.utils.applySystemBarsInsetsMargin
 import com.example.handar.utils.shareVideoToSocialApp
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(UnstableApi::class)
@@ -31,11 +36,19 @@ class ShareFragment : Fragment() {
 
     private var player: ExoPlayer? = null
     private var seekController: VideoSeekBarController? = null
-    private var isFullscreen = false
+
+    // Trạng thái fullscreen mà cây View HIỆN ĐANG ở, khác với state trong VM. Cần cả hai vì
+    // showFullscreen/showCard dời hẳn playerView giữa hai container — chạy lại khi đã đúng chỗ là
+    // removeView + addView vô ích. View mới inflate luôn ở dạng card, nên gán lại false ở
+    // onViewCreated; nếu VM đang giữ isFullscreen = true (quay lại từ back stack) thì lần collect đầu
+    // sẽ tự dựng lại fullscreen.
+    private var renderedFullscreen = false
 
     private val args: ShareFragmentArgs by navArgs()
     private val videoPath: String get() = args.videoPath
     private val effectId: String get() = args.effectId
+
+    private val viewModel: ShareViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,11 +73,11 @@ class ShareFragment : Fragment() {
 
         binding.btnTryAgain.isVisible = args.fromRecordedPreview
 
-        binding.btnHome.setOnClickListener { goHome() }
-        binding.btnExpand.setOnClickListener { showFullscreen() }
-        binding.btnCollapse.setOnClickListener { showCard() }
-        binding.btnBackFullscreen.setOnClickListener { showCard() }
-        binding.btnTryAgain.setOnClickListener { tryAgain() }
+        binding.btnHome.setOnClickListener { viewModel.goHome() }
+        binding.btnExpand.setOnClickListener { viewModel.showFullscreen() }
+        binding.btnCollapse.setOnClickListener { viewModel.showCard() }
+        binding.btnBackFullscreen.setOnClickListener { viewModel.showCard() }
+        binding.btnTryAgain.setOnClickListener { viewModel.tryAgain() }
 
         val caption = getString(R.string.share_caption_template)
         binding.btnFacebook.setOnClickListener {
@@ -85,11 +98,37 @@ class ShareFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (isFullscreen) showCard() else goHome()
-                }
+                override fun handleOnBackPressed() = viewModel.onBackPressed()
             }
         )
+
+        renderedFullscreen = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.uiState.collect { state -> render(state) } }
+                launch { viewModel.events.collect { event -> handleEvent(event) } }
+            }
+        }
+    }
+
+    private fun render(state: ShareUiState) {
+        if (state.isFullscreen == renderedFullscreen) return
+        renderedFullscreen = state.isFullscreen
+        if (state.isFullscreen) applyFullscreen() else applyCard()
+    }
+
+    // Chốt cửa currentDestination ở lại Fragment, không chuyển vào VM (VM không cầm NavController).
+    private fun handleEvent(event: ShareViewModel.Event) {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.shareFragment) return
+        when (event) {
+            ShareViewModel.Event.GoHome -> nav.popBackStack(R.id.effectListFragment, false)
+            // shareFragment bị popUpTo gỡ khỏi back stack (khai trong nav_graph) để giữ đúng bất biến
+            // "camera luôn nằm ngay trên effectList trong back stack" — giống mọi lối vào camera khác.
+            ShareViewModel.Event.TryAgain -> nav.navigate(
+                ShareFragmentDirections.actionShareToCameraRecord(effectId)
+            )
+        }
     }
 
     private fun setupPlayer() {
@@ -122,9 +161,7 @@ class ShareFragment : Fragment() {
         ).also { it.start() }
     }
 
-    private fun showFullscreen() {
-        if (isFullscreen) return
-        isFullscreen = true
+    private fun applyFullscreen() {
         (binding.playerView.parent as? ViewGroup)?.removeView(binding.playerView)
         binding.fullscreenVideoContainer.addView(
             binding.playerView,
@@ -134,9 +171,7 @@ class ShareFragment : Fragment() {
         binding.groupFullscreen.visibility = View.VISIBLE
     }
 
-    private fun showCard() {
-        if (!isFullscreen) return
-        isFullscreen = false
+    private fun applyCard() {
         (binding.playerView.parent as? ViewGroup)?.removeView(binding.playerView)
         binding.cardVideoContainer.addView(
             binding.playerView,
@@ -145,20 +180,6 @@ class ShareFragment : Fragment() {
         )
         binding.groupFullscreen.visibility = View.GONE
         binding.groupCard.visibility = View.VISIBLE
-    }
-
-    private fun goHome() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.shareFragment) return
-        nav.popBackStack(R.id.effectListFragment, false)
-    }
-
-    // shareFragment bị popUpTo gỡ khỏi back stack (khai trong nav_graph) để giữ đúng bất biến
-    // "camera luôn nằm ngay trên effectList trong back stack" — giống mọi lối vào camera khác.
-    private fun tryAgain() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.shareFragment) return
-        nav.navigate(ShareFragmentDirections.actionShareToCameraRecord(effectId))
     }
 
     override fun onDestroyView() {
