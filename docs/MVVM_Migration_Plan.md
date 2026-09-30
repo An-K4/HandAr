@@ -208,8 +208,7 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 - [x] **Bước 2** — `VideoListFragment` (màn mẫu) (commit `3a34c66`, `79c12c3`)
 - [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
 - [x] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager` (commit `5449139`, `8fec4ed`, `2a8590e` fix `onDestroyView`, `02e681a`, `d8cebab`)
-- [ ] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`
-- [ ] **Bước 5.4** — `CameraRecordViewModel` phạm vi hẹp (quyết định bổ sung 2026-09-30, xem mục 7.4)
+- [ ] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`, thêm `CameraRecordViewModel` (mốc 5.4, quyết định bổ sung 2026-09-30)
 - [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
 - [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mục 9.6 — bổ sung ca thiếu, rồi test toàn bộ)
 
@@ -836,9 +835,16 @@ commit 4.4 (nguyên tắc 0.1: bug có sẵn đi riêng) và cũng không làm c
 
 ---
 
-## 7. Bước 5 — Tách phần thuần Kotlin khỏi `CameraRecordFragment`
+## 7. Bước 5 — Tách phần thuần Kotlin khỏi `CameraRecordFragment` (+ mốc 5.4: `CameraRecordViewModel`)
 
-**Đây là Bước rủi ro cao nhất trong toàn kế hoạch.** Không thêm `ViewModel` cho
+**Đây là Bước rủi ro cao nhất trong toàn kế hoạch.**
+
+> ⚠️ **Đoạn dưới đây là quyết định BAN ĐẦU, đã được đảo ngược một phần ở mốc 5.4 (2026-09-30).**
+> Phần "không đưa tài nguyên gắn View vào VM" vẫn đúng và vẫn áp dụng. Phần "không thêm ViewModel"
+> thì không còn: mốc 5.4 thêm `CameraRecordViewModel` giữ **chỉ** 4 thứ thuần dữ liệu. Đọc mục 5.4
+> trước khi trích dẫn đoạn này.
+
+Không thêm `ViewModel` cho
 `CameraRecordFragment` ở Bước này — lý do đã thống nhất ở lượt thảo luận trước: phần lớn tài
 nguyên (`VideoRecorder`, `BgmPlayer`, `SoundEffectPlayer`, `HandLandmarker`, thread ghi hình,
 `OverlayView`) gắn chặt với View/Context theo đúng chủ đích thiết kế ("camera nằm lại back stack
@@ -1019,7 +1025,7 @@ nguyên xi **không** làm chẵn — giữ đúng bản gốc, không "sửa ch
 
 `CameraRecordFragment`: 27.742 byte (trước Bước 5) → 27.347 (sau 5.1) → 26.749 (sau 5.2).
 
-### 5.3 — `RecordingTimer` (tuỳ chọn)
+### 5.3 — `RecordingTimer` (tuỳ chọn — ĐÃ QUYẾT ĐỊNH BỎ, xem cuối mục)
 
 Bọc `timerHandler`/`timerRunnable`/`recordStartUiTimeMs` thành 1 class nhỏ nhận callback
 `onTick: (String) -> Unit` (đã format sẵn bằng `DateUtils.formatElapsedTime`). Giá trị thấp hơn
@@ -1030,7 +1036,7 @@ thời gian/muốn làm cho đủ**, có thể bỏ qua mà không ảnh hưởn
 `handleGesture()` là nơi state machine mới thay thế hoàn toàn logic cũ. So diff từng nhánh với
 bản gốc cẩn thận như đã ghi ở 5.1 trước khi commit.
 
-### 5.3 — bỏ qua (quyết định 2026-09-30)
+#### 5.3 — quyết định: bỏ qua (2026-09-30)
 
 Không làm. Hai lý do cụ thể tìm được khi đọc code, ghi lại để sau này ai muốn làm thì biết trước sẽ
 vướng gì:
@@ -1050,9 +1056,7 @@ chốt thời lượng tối thiểu dùng giá trị nào tuỳ `onFirstFrame` 
 (dòng 512 là giá trị dự phòng nếu khung hình đầu không bao giờ tới) nhưng **chưa được xác nhận** —
 đưa vào danh sách rà ở Bước 7.
 
----
-
-## 7.4. Bước 5.4 — `CameraRecordViewModel` (phạm vi hẹp)
+### 5.4 — `CameraRecordViewModel` (phạm vi hẹp)
 
 > **Quyết định bổ sung 2026-09-30, đảo ngược một phần mục 7.** Mục 7 chốt "không thêm ViewModel cho
 > `CameraRecordFragment`". Quyết định mới: **có thêm, nhưng chỉ giữ phần thuần dữ liệu.** Lý do người
@@ -1176,6 +1180,29 @@ class CameraRecordViewModel(
 | `gestureStateMachine` đổi vòng đời | Trước: theo Fragment instance (đã sống qua view recreation rồi). Sau: theo VM — **chỉ khác đúng một ca**, khi Activity bị tạo lại (ví dụ đổi font scale) thì Fragment instance mới nhưng VM cũ, nên state machine sống sót thay vì được tạo mới. Vô hại vì `resetGestureState()` vẫn được gọi ở `onViewCreated` trong mọi trường hợp — test H14, H15 của `Test_Checklist.md` bắt đúng ca này |
 | `ShortArray` lớn sống lâu hơn trước (theo VM chứ không theo view) | Đó là mục đích. Nhưng phải xác nhận heap không tăng tích luỹ: test H7/H16 với Profiler |
 | VM giữ `EffectAudioRepository` → giữ `applicationContext` | Đúng quy ước 0.2, không leak Activity |
+
+### Đã làm 5.4 (2026-09-30)
+
+- **5.4a** `EffectAudioRepository` — chỉ thêm file. KDoc ghi to lý do cố ý đồng bộ (không `suspend`).
+- **5.4b** `CameraRecordViewModel` + nối Fragment.
+
+Điểm thực thi đáng ghi: thay vì sửa 16 chỗ đọc `currentEffect`, Fragment dùng **3 alias chỉ đọc**:
+
+```kotlin
+private val currentEffect: EffectDefinition? get() = viewModel.currentEffect
+private val statePcmMap: Map<String, ShortArray> get() = viewModel.statePcmMap
+private val gestureStateMachine: GestureStateMachine get() = viewModel.gestureStateMachine
+```
+
+Nhờ đó diff của 5.4b chỉ còn đúng phần **đổi nguồn dữ liệu** (bỏ field, bỏ `onCreate`, bỏ decode),
+không lẫn 16 dòng đổi tên biến. Có comment ngay trên khối nói rõ đây là alias đọc, `get()` chứ không
+phải field, không gán được — để không ai tưởng state vẫn ở Fragment.
+
+`bgmPcm` **không** làm alias vì chỉ dùng đúng 1 chỗ (`audioMixer.setBgm`), đọc thẳng
+`viewModel.bgmPcm` rõ hơn.
+
+`BgmPlayer` vẫn khởi tạo ở `onViewCreated` (gắn Context, phải chết cùng view); chỉ PCM lấy từ VM.
+Hai import `EffectRepository` và `loadWavPcm` thành mồ côi ở Fragment, đã xoá.
 
 ---
 ---

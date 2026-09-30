@@ -23,6 +23,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -31,7 +32,6 @@ import com.example.handar.R
 import com.example.handar.audio.BgmPlayer
 import com.example.handar.audio.SoundEffectPlayer
 import com.example.handar.databinding.FragmentCameraRecordBinding
-import com.example.handar.effect.EffectRepository
 import com.example.handar.effect.HandLandmarkerProvider
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.StateMode
@@ -41,7 +41,6 @@ import com.example.handar.ui.camera.CameraRecordFragment.Companion.LOADING_OVERL
 import com.example.handar.ui.widget.PermissionDeniedDialog
 import com.example.handar.ui.widget.clipRoundedCorners
 import com.example.handar.utils.applySystemBarsInsetsMargin
-import com.example.handar.utils.loadWavPcm
 import com.example.handar.utils.openAppSettings
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
@@ -67,6 +66,17 @@ class CameraRecordFragment : Fragment() {
 
     private val args: CameraRecordFragmentArgs by navArgs()
 
+    private val viewModel: CameraRecordViewModel by viewModels {
+        CameraRecordViewModel.factory(requireContext(), args.effectId)
+    }
+
+    // Alias CHỈ ĐỌC cho 3 thứ đã chuyển sang VM — không phải field, không gán được. Dùng alias để
+    // 16 chỗ đọc currentEffect trong file này không phải sửa từng chỗ, diff của mốc 5.4 vì thế chỉ
+    // còn đúng phần đổi nguồn dữ liệu. Xem MVVM_Migration_Plan.md mục 5.4.
+    private val currentEffect: EffectDefinition? get() = viewModel.currentEffect
+    private val statePcmMap: Map<String, ShortArray> get() = viewModel.statePcmMap
+    private val gestureStateMachine: GestureStateMachine get() = viewModel.gestureStateMachine
+
     private var _binding: FragmentCameraRecordBinding? = null
     private val binding get() = _binding!!
 
@@ -80,9 +90,6 @@ class CameraRecordFragment : Fragment() {
     private var videoRecorder: VideoRecorder? = null
     private var latestHandResult: HandLandmarkerResult? = null
 
-    private var currentEffect: EffectDefinition? = null
-    private lateinit var statePcmMap: Map<String, ShortArray>
-
     @Volatile
     private var latestCameraBitmap: Bitmap? = null
 
@@ -91,9 +98,6 @@ class CameraRecordFragment : Fragment() {
     private var loadingShownAtMs: Long = 0L
 
     private var recordingFrameThread: Thread? = null
-
-    // State debounce cử chỉ + activeEffect: xem GestureStateMachine.
-    private val gestureStateMachine = GestureStateMachine()
 
     private var recordStartUiTimeMs = 0L
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -109,7 +113,6 @@ class CameraRecordFragment : Fragment() {
     private lateinit var soundEffectPlayer: SoundEffectPlayer
 
     private var bgmPlayer: BgmPlayer? = null
-    private var bgmPcm: ShortArray? = null
 
     private var permissionDeniedDialog: PermissionDeniedDialog? = null
 
@@ -133,11 +136,6 @@ class CameraRecordFragment : Fragment() {
                 showPermissionDeniedDialog()
             }
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        currentEffect = args.effectId.takeIf { it.isNotEmpty() }?.let { EffectRepository.findByIdOrNull(it) }
     }
 
     override fun onCreateView(
@@ -168,12 +166,9 @@ class CameraRecordFragment : Fragment() {
             requireContext(),
             currentEffect?.states.orEmpty().mapNotNull { it.soundRes }
         )
-        statePcmMap = currentEffect?.states.orEmpty().mapNotNull { state ->
-            state.soundRes?.let { state.id to loadWavPcm(requireContext(), it) }
-        }.toMap()
-
+        // statePcmMap/bgmPcm decode một lần trong CameraRecordViewModel, không decode lại ở đây nữa.
+        // BgmPlayer thì vẫn tạo ở đây: nó gắn Context và phải chết cùng view.
         currentEffect?.bgm?.let { bgm ->
-            bgmPcm = loadWavPcm(requireContext(), bgm.resId)
             bgmPlayer = BgmPlayer(requireContext(), bgm.resId, bgm.gainPercent)
             bgmPlayer?.startFromBeginning()
         }
@@ -522,7 +517,7 @@ class CameraRecordFragment : Fragment() {
                     startRecordingTimerUI()
                     bgmPlayer?.startFromBeginning()
                 }
-                audioMixer.setBgm(bgmPcm, currentEffect?.bgm?.gainPercent ?: 50)
+                audioMixer.setBgm(viewModel.bgmPcm, currentEffect?.bgm?.gainPercent ?: 50)
                 audioMixer.resetBgmPos()
                 start()
                 gestureStateMachine.activeEffect?.let { effect ->
