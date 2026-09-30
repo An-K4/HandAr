@@ -607,10 +607,17 @@ biến mất — đây là hành vi cố ý, không phải bug.
 
 ## 6. `CameraRecordFragment.kt` — đi qua vòng đời
 
-### 6.1 Chuẩn bị (`onCreate`, `onViewCreated`)
+### 6.1 Chuẩn bị (`onViewCreated`)
 
-`onCreate`: `currentEffect = EffectRepository.findById(args.effectId)` — `args` là `navArgs()` sinh
-bởi Safe Args từ `<argument android:name="effectId" app:argType="string"/>` trong `nav_graph.xml`.
+> **Đổi ở mốc 5.4 của `MVVM_Migration_Plan.md` (30/09/2026):** `onCreate` đã bị bỏ. `currentEffect`,
+> `statePcmMap`, `bgmPcm` và `gestureStateMachine` chuyển sang `CameraRecordViewModel`; Fragment đọc
+> qua 3 alias `get()` (`currentEffect`, `statePcmMap`, `gestureStateMachine`) nên phần lớn code dưới
+> đây đọc y như cũ. Quan trọng: **PCM giờ decode một lần theo vòng đời VM**, không decode lại mỗi lần
+> `onViewCreated` như trước — vào màn chọn effect rồi Back không còn phải đọc lại file WAV.
+
+`currentEffect` = `EffectRepository.findByIdOrNull(args.effectId)`, tính trong VM. `args` là
+`navArgs()` sinh bởi Safe Args từ `<argument android:name="effectId" app:argType="string"/>` trong
+`nav_graph.xml`.
 
 **`currentEffect` là nullable (`EffectDefinition?`).** `effectId=""` (default value trong nav_graph,
 dùng bởi nút camera giữa bottom nav ở `MainActivity` — xem mục 0 phần "nut camera giua nav") →
@@ -819,14 +826,27 @@ val matchedState = currentEffect.states.firstOrNull { it.gesture.recognize(hands
 - `CameraRecordFragment.handleGesture()` nhận diện để biết **phát/trộn âm thanh nào**, kèm cơ chế
   **debounce** mà `OverlayView` không có:
 
+> **Đổi ở mốc 5.1 (30/09/2026):** phần debounce đã tách ra `ui/camera/GestureStateMachine.kt` — class
+> thuần Kotlin, không chạm Android ngoài `SystemClock`. `handleGesture()` giờ chỉ: tìm state khớp →
+> gọi `gestureStateMachine.onMatchedState(...)` → thi hành `Result` trả về. Mọi lời gọi Android
+> (`soundEffectPlayer`, `videoRecorder?.audioMixer`) **ở lại Fragment**.
+
+Logic debounce (giờ nằm trong `GestureStateMachine.onMatchedState`, viết theo early-return):
+
 ```kotlin
-if (matchedState.id != pendingState) {
-    pendingState = matchedState.id; pendingStateSince = now       // ghi nhận ứng viên mới
-} else if (lastStateId != matchedState.id && now - pendingStateSince >= DEBOUNCE_MS) {
-    lastStateId = matchedState.id                                  // xác nhận, chỉ kích hoạt 1 LẦN
-    // ... trigger âm thanh
+if (matchedStateId != pendingState) {
+    pendingState = matchedStateId; pendingStateSince = now        // ghi nhận ứng viên mới
+    return Result.NoChange
 }
+if (lastStateId == matchedStateId || now - pendingStateSince < debounceMs) return Result.NoChange
+lastStateId = matchedStateId                                      // xác nhận, chỉ kích hoạt 1 LẦN
+// soundRes == null -> Result.Clear (tắt tiếng đang phát) | ngược lại -> Result.Activate
 ```
+
+3 `Result` và việc Fragment phải làm: `Activate` → đọc PCM, `setActiveEffect`, `triggerEffect(pcm)` +
+`playForSound`; `Clear` → `stopEffect()` + `triggerEffect(null)`; `NoChange` → không làm gì.
+`activeEffect` giữ `@Volatile` trong state machine vì `onMatchedState` chạy trên thread
+HandLandmarker còn `toggleRecording()` đọc nó từ main thread.
 `DEBOUNCE_MS = 200` — cử chỉ phải **giữ ổn định 200ms liên tục** mới coi là "đã chuyển sang state
 mới" và kích âm thanh — tránh vô tình phát tiếng liên tục khi tay đang run rẩy/chuyển động qua lại
 giữa 2 cử chỉ (khác với vẽ visual, vốn nên phản hồi ngay lập tức không cần debounce).
@@ -1025,6 +1045,24 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 ---
 
 ## 9. Danh sách & phát lại video — `ui/videolist/`, `ui/player/`, `ui/recordedpreview/`
+
+> **Luồng dữ liệu sau khi chuyển MVVM (Bước 2–3 của `MVVM_Migration_Plan.md`, 30/09/2026).** Ba màn
+> này đổi nhiều nhất, đọc đoạn này trước khi đọc phần cũ bên dưới:
+>
+> - `VideoListFragment` → `VideoListViewModel.uiState` (`isLoading`/`items`/`isEmpty`) →
+>   `adapter.submit(...)`. Repository `VideoRepository` giờ là `class` nhận `Context`. Danh sách
+>   **không** load lại mỗi lần vào màn; chỉ load lại khi `VideoPlayerFragment` đặt cờ
+>   `VideoListFragment.KEY_VIDEO_LIST_STALE` (sau xoá **hoặc** đổi tên) và `onResume` đọc thấy.
+> - `VideoPlayerFragment` → `VideoPlayerViewModel`: `playbackPosition` qua `SavedStateHandle` (thay
+>   `onSaveInstanceState` thủ công), `delete()`/`rename()` chạy trên `Dispatchers.IO` qua
+>   `VideoFileRepository`, kết quả về bằng 4 sự kiện (`Deleted`/`Renamed`/`RenameNameExists`/
+>   `RenameFailed`). Toast và chốt `currentDestination` ở lại Fragment.
+> - `RecordedPreviewFragment` → `RecordedPreviewViewModel`: 2 sự kiện `Discarded`/`Saved`. ExoPlayer và
+>   `ConfirmDialog` ở lại Fragment.
+> - **Cờ `discarding`/`deleting`**: xoá file giờ bất đồng bộ nên dialog dismiss xong trước khi Fragment
+>   nhận sự kiện và `popBackStack`; không có cờ thì `setOnDismissListener { player?.play() }` sẽ phát
+>   tiếp video vừa bị xoá một nhịp. Đừng gỡ hai cờ này.
+
 
 - **`VideoRepository.loadAll(context)`**: liệt kê file `.mp4` trong `getExternalFilesDir(DIRECTORY_MOVIES)`
   (đúng thư mục `VideoRecorder.start()` ghi vào), lọc `length() > 0` (bỏ file rỗng do ghi lỗi giữa

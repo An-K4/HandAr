@@ -361,6 +361,7 @@ Phase F → Polish, liên kết điều hướng, test toàn diện
 - Mọi callback đến muộn (`stop {}`, `cameraProviderFuture.addListener`) phải chốt cửa bằng `_binding ?: return@...` / `context ?: return@...`.
 - `onDestroyView` theo thứ tự: cắt `videoRecorder` → `join` thread → `stop()` recorder → shutdown executor/release player → null hoá **mọi** tham chiếu View.
 - Không giới thiệu `ViewModel` ở phase này (giữ nguyên khuyến nghị ban đầu — làm đơn giản trước).
+  *(Cập nhật 30/09/2026: đã thêm về sau trong `MVVM_Migration_Plan.md`, xem K2.)*
 
 ### Phase C — Recorded Preview screen
 
@@ -646,6 +647,10 @@ báo gì — clip nằm lại trên đĩa mà người dùng không biết là n
 
 Khoá `portrait` xử lý gọn, và sau khi khoá thì **không còn lý do bắt buộc phải thêm `ViewModel`**
 cho màn camera (xem Phase K).
+
+*(Cập nhật 30/09/2026: kết luận này vẫn đúng ở phạm vi "bắt buộc" — nhưng `CameraRecordViewModel` vẫn
+được thêm về sau vì lý do khác: gom state thuần dữ liệu và bỏ việc decode lại WAV mỗi lần tạo view.
+Xem `MVVM_Migration_Plan.md` mốc 5.4.)*
 
 ### H2 — Back khi đang quay thì lưu, không huỷ
 
@@ -976,7 +981,15 @@ Chỉ gồm những việc có tỉ lệ lợi ích/chi phí cao và không rủ
 
 ### K2 — Hoãn có điều kiện (ghi lại để khỏi quên)
 - **`ViewModel`**: sau khi khoá `portrait` (H1), lý do cấp thiết duy nhất còn lại là process
-  death. Chưa làm.
+  death. **Đã làm** — xem `MVVM_Migration_Plan.md`, hoàn thành Bước 1–6 trong đợt 29-30/09/2026.
+  **Lý do đổi quyết định không phải process death** (process death vẫn hiếm gặp thật với app này:
+  màn duy nhất có state cần khôi phục là `VideoPlayerFragment.playbackPosition`, đã xử lý qua
+  `SavedStateHandle`), mà là dọn đường cho tính năng Bộ sưu tập (dùng chung dữ liệu yêu thích với
+  `EffectListFragment`) và các thao tác video mở rộng. Lợi ích đo được phát sinh thêm trong lúc làm:
+  `VideoListFragment` không quét lại thư mục khi quay lại màn, `CameraRecordFragment` không decode
+  lại toàn bộ file WAV mỗi lần view được tạo lại.
+  13/18 Fragment có ViewModel; 5 màn còn lại cố ý không có (`WelcomeFragment`, `Onboarding1-3Fragment`
+  — màn tĩnh), riêng `CameraRecordFragment` có VM nhưng chỉ giữ phần thuần dữ liệu.
 - **Đòn bẩy hiệu năng `Perf_Notes.md` mục 5–6** (hạ `targetShortSide`, `setOutputImageRotationEnabled`,
   `KEY_I_FRAME_INTERVAL`): chỉ đụng khi có số đo cho thấy cần, không đụng vì "nghe hợp lý".
 - **Gỡ `RecordingPerfLogger` và các đoạn `// TẠM`**: giữ lại xuyên suốt Phase G–K vì Phase I

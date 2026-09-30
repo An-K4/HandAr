@@ -209,8 +209,8 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 - [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
 - [x] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager` (commit `5449139`, `8fec4ed`, `2a8590e` fix `onDestroyView`, `02e681a`, `d8cebab`)
 - [x] **Bước 5** — Tách `GestureStateMachine`, `computeRecordingSize` khỏi `CameraRecordFragment`, thêm `CameraRecordViewModel` (mốc 5.4, quyết định bổ sung 2026-09-30) (commit `1b9723f`, `c114d34`, `3f3a852` docs, `4908ce4`, `23dddb1`)
-- [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
-- [ ] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mốc 7.6 — bổ sung ca thiếu, rồi test toàn bộ)
+- [x] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
+- [x] **Bước 7** — Cập nhật `AGENTS.md`, `Code_Walkthrough.md`, `Fragment_Review_Checklist.md`, `HandAr_Plan.md` (K2), `README.md`, **`Test_Checklist.md`** (mốc 7.6 — bổ sung ca thiếu, rồi test toàn bộ)
 
 ---
 
@@ -1501,6 +1501,82 @@ private val requestCameraPermission = registerForActivityResult(
     if (!granted) handleDenial(Manifest.permission.CAMERA)
 }
 ```
+
+### Đã làm 6.2–6.5 (2026-09-30) — các điểm khác kế hoạch
+
+**6.2 Survey.** `SurveyRepository.save(answer1Index, answer2Index: Int?)` — `answer2Index` **nullable**,
+`null` = bấm Skip ở Survey1 nên chưa từng thấy Survey2. Khi đó Repository **xoá** khoá `answer_2` thay
+vì ghi giá trị mặc định, để dữ liệu phản ánh đúng "đã bỏ qua" chứ không phải "đã chọn đáp án đầu" —
+kế hoạch để ngỏ điểm này ("Repository nhận `Int?` cho answer2 hoặc để giá trị mặc định, quyết định lúc
+code"). `Survey2Fragment.onViewCreated` gọi `viewModel.onSurvey2Shown()` để chuyển `null` → `0`, giữ
+đúng hành vi bản gốc (vào màn là dòng đầu đã được chọn sẵn).
+
+📌 **Import đúng là `androidx.navigation.navGraphViewModels`, KHÔNG phải `androidx.navigation.fragment.navGraphViewModels`.**
+Hàm này từng nằm ở package `androidx.navigation.fragment` ở các bản Navigation cũ; với 2.9.7 mà dự án
+đang dùng thì nó ở `androidx.navigation`. Viết sai thì lỗi là `Unresolved reference 'navGraphViewModels'`
+ngay tại dòng import — nếu gặp, để IDE tự đề xuất import thay vì đoán theo tài liệu cũ.
+
+⚠️ Scope `navGraphViewModels(R.id.nav_graph)` là scope **rộng nhất** (nav graph gốc) nên VM sống tới
+hết phiên `NavController`, không bị clear khi rời cụm Survey. Chấp nhận vì state chỉ là 2 `Int`; nếu
+sau này cụm Survey giữ dữ liệu lớn thì phải tách nested graph riêng.
+
+**6.3 Language.** `LanguageRepository` **không cần Context** (`AppCompatDelegate` tĩnh) — đã ghi rõ
+trong KDoc là cố ý. `bindRow` bỏ tham số `selected` và bỏ luôn chốt `if (!row.root.isSelected)` trong
+click: trạng thái chọn do collector vẽ, việc "đang chọn rồi thì bỏ qua" chuyển vào
+`LanguageViewModel.select`. VM đổi state **trước** khi gọi repository, vì `setApplicationLocales` tạo
+lại Activity ngay.
+
+**6.4 Settings.** Đúng kế hoạch. 5 nhánh `when` để `Unit` kèm comment `// TODO:` cụ thể cho từng mục
+(mở Play Store / share sheet / mailto / màn Về ứng dụng / URL chính sách) — cố ý chưa nối logic thật.
+
+**6.5 Permission.** ⚠️ **Bug mà kế hoạch dự đoán đã KHÔNG còn đúng.** Kế hoạch ghi: sau khi wire VM
+vẫn cần chốt `_binding ?: return` trong callback `registerForActivityResult`. Nhưng sau khi chuyển,
+callback **không còn chạm `binding`** nữa — nó chỉ gọi `viewModel.refresh(...)` (VM sống lâu hơn view,
+an toàn). Bug `binding.switchCamera.isChecked = granted` không chốt cửa vì thế **tự biến mất** như tác
+dụng phụ của việc wire VM.
+
+Rủi ro thật còn lại thì **khác** dự đoán: `handleDenial` gọi
+`shouldShowRequestPermissionRationale(permission)` — hàm này cần Activity, nếu callback hệ thống về sau
+khi Fragment đã detach thì ném `IllegalStateException`. `showPermissionDeniedDialog` đã tự chốt
+`context ?: return`, `handleDenial` thì chưa. Sửa: thêm `if (context == null) return` ở đầu
+`handleDenial`, để **commit riêng** đúng nguyên tắc 0.1.
+
+**Bài học:** dự đoán bug trong kế hoạch phải kiểm lại **sau khi** đã refactor, không áp dụng máy móc —
+refactor có thể xoá bug cũ và tạo ra rủi ro ở chỗ khác.
+
+⚠️ **Regression thứ hai của 6.5, phát hiện khi test thật (30/09/2026): bật switch rồi TỪ CHỐI quyền thì
+switch vẫn nằm ở trạng thái bật.**
+
+Nguyên nhân là đặc tính distinct-until-changed của `StateFlow`, ghép với việc `SwitchMaterial` là
+compound button:
+
+1. Tap vào switch đang tắt → switch **tự** đổi `isChecked = true` **trước** khi listener chạy. View đã
+   lệch khỏi VM (`cameraGranted = false`).
+2. `launcher.launch(...)` → người dùng từ chối.
+3. Callback đẩy `cameraGranted = false` vào VM — **bằng đúng giá trị cũ**.
+4. `MutableStateFlow` bỏ qua giá trị bằng nhau → **không emit** → collector không chạy → switch nằm lại
+   ở bật.
+
+Bản gốc không gặp vì callback gán thẳng `binding.switchCamera.isChecked = granted`, luôn có tác dụng.
+
+**Sửa:** listener trả switch về đúng state trong VM **ngay lập tức**, rồi mới đi xin quyền:
+
+```kotlin
+private fun onSwitchClicked(switch: SwitchMaterial, granted: Boolean, permission: String, launcher: ...) {
+    switch.isChecked = granted          // bắt buộc — xem lý do ở trên
+    if (!granted) launcher.launch(permission)
+}
+```
+
+Gộp luôn cả nhánh "đang bật mà user bấm tắt" của `handleSwitchClicked` cũ: Android không cho app tự thu
+hồi quyền nên trả về `granted = true` là đúng. Callback cũng đổi sang gọi `refreshPermissionState()` để
+đọc lại trạng thái thật từ hệ thống thay vì tự ghép giá trị của quyền còn lại.
+
+**Bài học tổng quát (đã thêm vào `Fragment_Review_Checklist.md` mục 9):** không để View tự đổi state
+của chính nó rồi trông đợi `StateFlow` đẩy về. Áp dụng cho mọi compound button (`Switch`, `CheckBox`,
+`RadioButton`) và `EditText`. Đây là lần thứ ba cùng một họ lỗi trong kế hoạch này — 3.4 (render không
+idempotent), 6.1 (animation mô phỏng thời gian), 6.5 (View tự toggle) — tất cả đều là **View giữ một
+bản state riêng lệch khỏi VM**.
 
 ### 6.6 — Ghi quy tắc vào `AGENTS.md`
 

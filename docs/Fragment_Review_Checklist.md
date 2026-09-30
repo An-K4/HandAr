@@ -213,5 +213,22 @@ Checklist mục 0-8 vẫn áp dụng nguyên vẹn cho phần View/tài nguyên 
 - [ ] Factory dùng `viewModelFactory { initializer { ... } }`, không viết
       `ViewModelProvider.Factory` thủ công trừ khi có lý do đặc biệt
 
+- [ ] Render từ `StateFlow` mà hành động render **không idempotent** (dời view, thêm/bớt view, phát
+      animation, mở dialog) → phải so state mới với state đã render, không thi hành mỗi lần collect
+      (xem `ShareFragment.renderedFullscreen`, `EffectPickerAdapter.setSelectedId`)
+- [ ] Chuyển một thao tác từ đồng bộ sang `viewModelScope` → đã soát lại **thứ tự** những thứ đang
+      dựa vào việc nó kết thúc ngay: dialog `setOnDismissListener`, `OnBackPressedCallback`,
+      `onDestroyView`, và cả những thứ đang **mô phỏng lại một khoảng thời gian** (progress bar,
+      animation, countdown) — xem cờ `discarding`/`deleting` và `SplashViewModel.remainingMs`
+- [ ] Callback hệ thống (`registerForActivityResult`, `ProcessCameraProvider.addListener`) **không**
+      được `repeatOnLifecycle` bảo vệ — vẫn phải tự chốt `_binding ?: return` / `context ?: return`
+- [ ] **View tự đổi state của chính nó** (`Switch`/`CheckBox`/`RadioButton` — compound button tự toggle
+      trước khi listener chạy; `EditText` khi user gõ) → phải **trả View về đúng state trong VM ngay
+      trong listener**, không trông đợi `StateFlow` đẩy về. `StateFlow` chỉ phát khi giá trị **thay
+      đổi**, nên nếu state VM không đổi (ví dụ xin quyền bị từ chối, `granted` vẫn `false`) thì
+      collector KHÔNG chạy và View nằm lại ở trạng thái sai (xem `PermissionFragment.onSwitchClicked`)
+
 > Chi tiết quy ước (thư viện, mẫu code, lý do chọn `StateFlow`/`Channel`, không dùng DI):
-> `MVVM_Migration_Plan.md` mục 0.2.
+> `MVVM_Migration_Plan.md` mục 0.2. Các bẫy cụ thể đã gặp khi chuyển 13 Fragment: mục 4 (dữ liệu item
+> mang theo vs vẽ ra), 3.2/3.3 (đồng bộ → bất đồng bộ), 3.4 (render không idempotent), 6.1 (animation
+> mô phỏng thời gian).

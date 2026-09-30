@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `abfb32a`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `aba1e01`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -22,7 +22,9 @@ Tên hiển thị của app là **Magic Hand** (`app_name` trong `strings.xml`, 
 
 Kotlin · View/XML + ViewBinding (không Compose) · Fragments + Navigation Component + Safe Args ·
 CameraX 1.4.2 · MediaPipe Tasks Vision 0.10.26 (`hand_landmarker.task`) · Canvas 2D (`OverlayView`) ·
-`MediaCodec` + `MediaMuxer` (ghi hình) · Media3/ExoPlayer 1.8.0 (phát lại) · AGP 9.3.2, Gradle 9.5.0 ·
+`MediaCodec` + `MediaMuxer` (ghi hình) · Media3/ExoPlayer 1.8.0 (phát lại) ·
+Lifecycle 2.11.0 (ViewModel + runtime-ktx + viewmodel-savedstate), Fragment 1.9.1 (`by viewModels()`) ·
+AGP 9.3.2, Gradle 9.5.0 ·
 minSdk 28, target/compileSdk 37, Java 17 (`compileOptions` trong `app/build.gradle.kts`; CI cũng dùng JDK 17).
 
 Lệnh hay dùng:
@@ -180,10 +182,12 @@ app/src/main/java/com/example/handar/
 │   │                    (permission/: PermissionFragment, switch xin quyền Camera + Thông báo — card
 │   │                     Thông báo bị ẩn hẳn trên Android < 13 vì không có POST_NOTIFICATIONS để xin;
 │   │                     onboarding1/: có nút Skip nhảy thẳng sang survey)
-│   ├── language/        LanguageFragment — KHÔNG còn trong luồng mở app 1 lần, chỉ mở từ settings/
-│                        (2 dòng chọn cờ vi/en dạng radio, `AppCompatDelegate.setApplicationLocales`)
-│   ├── settings/        SettingsFragment — mở từ icon hamburger ở view_top_bar.xml, mục Ngôn ngữ là
-│                        mục duy nhất có logic (nav sang language/), còn lại mới đổ UI (xem mục 3)
+│   ├── language/        LanguageFragment + LanguageViewModel + LanguageRepository — KHÔNG còn trong
+│                        luồng mở app 1 lần, chỉ mở từ settings/ (2 dòng chọn cờ vi/en dạng radio).
+│                        LanguageRepository bọc `AppCompatDelegate.setApplicationLocales`, KHÔNG cần Context
+│   ├── settings/        SettingsFragment + SettingsViewModel — mở từ icon hamburger ở view_top_bar.xml,
+│                        mục Ngôn ngữ là mục duy nhất có logic (nav sang language/, gọi thẳng không qua
+│                        VM); 5 mục còn lại đã có sự kiện trong VM nhưng nhánh xử lý còn TODO (mục 3)
 │   ├── effectlist|effectpreview|camera|recordedpreview|share|videolist|player/   luồng chính, 1 package / màn hình
 │   │                    (effectpreview/: màn xem trước effect + nút Create, cửa vào camera duy nhất;
 │   │                     share/: ShareFragment, mở từ recordedpreview.save() HOẶC từ menu ⋮ của
@@ -194,7 +198,9 @@ app/src/main/java/com/example/handar/
 │   ├── camera/          CameraRecordFragment + GestureGuideDialog/GestureAdapter (dialog hướng dẫn cử
 │   │                    chỉ mở từ btn_action, xem mục 3; CameraRecordFragment còn có loading overlay
 │   │                    `layout_camera_loading` che khoảng chờ tạo HandLandmarker, xem mục 5)
-│   ├── effectpicker/    màn chọn effect mở từ nút Effect của camera (EffectPickerFragment + EffectPickerAdapter)
+│   ├── effectpicker/    màn chọn effect mở từ nút Effect của camera (EffectPickerFragment +
+│   │                    EffectPickerAdapter + EffectPickerViewModel; Adapter KHÔNG tự giữ lựa chọn,
+│   │                    nhận qua setSelectedId() và vẫn cập nhật từng item bằng PAYLOAD_SELECTION)
 │   └── widget/          view/decoration dùng chung: GridSpacingItemDecoration, CurvedNavBackgroundView, RoundedOutline,
 │                        ConfirmDialog (dialog xác nhận dùng chung, xem `dialog_confirm.xml`),
 │                        VideoSeekBarController (đồng bộ 1 SeekBar + 2 nhãn thời gian với 1 ExoPlayer, tách
@@ -203,6 +209,20 @@ app/src/main/java/com/example/handar/
 │                        video, mở từ menu ⋮ của videoPlayerFragment, xem `dialog_rename.xml`),
                         PermissionDeniedDialog (dialog 2 nút Thoát/Cài đặt khi quyền bị từ chối vĩnh viễn,
                         xem `dialog_permission_denied.xml`)
+│   │
+│   │  ── ViewModel / Repository theo package (thêm ở MVVM_Migration_Plan.md) ─────────────────
+│   │  videolist/     VideoListViewModel, VideoRepository (class, Context), VideoFileRepository (không Context)
+│   │  player/        VideoPlayerViewModel (SavedStateHandle cho playbackPosition)
+│   │  recordedpreview/ RecordedPreviewViewModel        share/  ShareViewModel (chỉ isFullscreen + 2 sự kiện)
+│   │  effectlist/    EffectListViewModel (query + favouriteIds)   effectpreview/ EffectPreviewViewModel
+│   │  effectpicker/  EffectPickerViewModel             splash/ SplashViewModel (timer gắn VM, có remainingMs)
+│   │  survey/        SurveyViewModel + SurveyRepository — VM dùng CHUNG 2 màn qua navGraphViewModels(nav_graph)
+│   │  language/      LanguageViewModel + LanguageRepository       settings/ SettingsViewModel (5 sự kiện, TODO)
+│   │  permission/    PermissionViewModel (mỏng: đọc quyền vẫn ở Fragment mỗi onResume)
+│   │  camera/        CameraRecordViewModel (CHỈ currentEffect/statePcmMap/bgmPcm/gestureStateMachine)
+│   │                 + EffectAudioRepository + GestureStateMachine + computeRecordingSize()
+│   │  welcome/, onboarding/  KHÔNG có VM — màn tĩnh, xem mục 5
+│   │
 ├── OverlayView.kt         canvas vẽ hiệu ứng, dùng cho cả live lẫn frame ghi hình — file trung tâm
 └── utils/                 AudioUtils (đọc PCM từ .wav), FormatUtils, ViewInsetsUtils (edge-to-edge),
                            PermissionUtils (Context.openAppSettings() — mở màn App info của chính app),
@@ -400,6 +420,26 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   tên), `VideoListFragment.onResume()` đọc cờ → `remove` → `viewModel.load()`. Gọi `load()` vô điều
   kiện thì mất sạch lợi ích "vào xem rồi back ra không phải quét lại thư mục" của ViewModel. Thêm
   thao tác sửa file mới ở màn player thì nhớ gọi `markVideoListStale()` trong nhánh thành công.
+
+- **Màn nào cần `ViewModel`, màn nào không.** Có state / timer / dữ liệu / sự kiện một lần → có
+  `ViewModel` (`ui/<màn>/<Man>ViewModel.kt`, factory viết tay, **không** DI — xem
+  `MVVM_Migration_Plan.md` mục 0.2). Màn chỉ hiện nội dung tĩnh rồi bấm sang màn kế
+  (`WelcomeFragment`, `Onboarding1-3Fragment`) → **không** tạo VM rỗng. `CameraRecordFragment` là ca
+  riêng: có VM nhưng VM chỉ giữ phần thuần dữ liệu (`currentEffect`, `statePcmMap`, `bgmPcm`,
+  `gestureStateMachine`), mọi tài nguyên gắn View ở lại Fragment để không phá bất biến "camera nằm lại
+  back stack = instance sống, view chết" (mục 5.4 của kế hoạch).
+- **`navGraphViewModels` import từ `androidx.navigation`**, không phải `androidx.navigation.fragment`
+  (đổi package ở bản Navigation mới; dự án dùng 2.9.7). Dùng cho VM chia sẻ giữa `Survey1Fragment` và
+  `Survey2Fragment`.
+- **Repository là `class` nhận `Context` ở constructor, không phải `object`.** Áp dụng cho
+  `VideoRepository`, `VideoFileRepository`, `FavouriteManager`, `SurveyRepository`,
+  `EffectAudioRepository`. Ngoại lệ có chủ đích: `LanguageRepository` (`AppCompatDelegate` là API
+  tĩnh) và `VideoFileRepository` (chỉ làm việc trên đường dẫn tuyệt đối) **không** cần `Context` —
+  đã ghi rõ trong KDoc từng file để không ai tưởng là quên.
+- **`LanguageFragment` là màn duy nhất mà ViewModel KHÔNG sống sót qua thao tác của chính nó.**
+  `AppCompatDelegate.setApplicationLocales()` tạo lại Activity hoàn toàn → Fragment mới + VM mới. Sau
+  khi tạo lại, `LanguageRepository.currentTag()` đọc lại từ hệ thống nên state khởi tạo vẫn đúng.
+  Đừng "sửa" chỗ này bằng cách cố giữ state — cần UI không giật thì phải xử lý ở `android:configChanges`.
 
 ## 6. Bản đồ `docs/` — đọc đúng file khi cần đào sâu
 

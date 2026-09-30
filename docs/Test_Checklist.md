@@ -196,6 +196,7 @@ git checkout main && git stash pop
 | H15 | Camera: giơ cử chỉ có tiếng → bấm Effect → Back → **hạ tay xuống**, bấm Record ngay, quay ~5s, xem video | Video **không** có tiếng/hiệu ứng của cử chỉ cũ (loa live đã release, không được cài vào video) | Video có tiếng cử chỉ cũ ngay từ đầu = `activeEffect` cũ không được reset |
 | H16 | Camera → Effect, ở lại màn chọn 30s, quan sát chỉ báo camera hệ thống + heap trong Profiler | Chỉ báo camera **tắt**; heap không giữ bitmap full-size của camera | Còn sáng / heap không giảm = `latestCameraBitmap`/`latestHandResult` chưa được null hoá ở `onDestroyView` |
 | H17 | *(màn xem trước)* Danh sách → xem trước → Back, **lặp 10 lần** (bật LeakCanary); rồi vào xem trước, nhấn Home / tắt màn hình | Không có cảnh báo leak `EffectPreviewFragment`/`ImageView`; ảnh động dừng khi màn ẩn và chạy lại khi quay lại | Có leak = `previewDrawable` chưa null hoá ở `onDestroyView` (drawable giữ callback về ImageView) |
+| H18 | *(mốc 5.4)* Camera → Effect → Back, **lặp 5 lần**, rồi giơ cử chỉ có tiếng và quay 1 clip | Tiếng đúng ở live và trong video, đúng thời điểm | `statePcmMap` giờ decode 1 lần theo vòng đời `CameraRecordViewModel` thay vì mỗi `onViewCreated`; sai/rỗng = alias `statePcmMap` hoặc factory VM có vấn đề |
 
 > ⚠️ H11-H12 giả định action `cameraRecord → recordedPreview` khai `popUpTo="@id/cameraRecordFragment"` + `popUpToInclusive="true"` (phương án đã chốt). Nếu về sau đổi cách khai `popUpTo`, `CameraRecordFragment` sẽ nằm lại trong back stack — khi đó phải test thêm: state debounce (`lastStateId`, `pendingState`) có được reset khi quay lại không, và `latestCameraBitmap`/`latestHandResult` có bị giữ lì trong RAM không. **Đã có trường hợp thật:** action `cameraRecord → effectPicker` cố ý không `popUpTo` nên camera nằm lại — xem H13–H16.
 
@@ -388,8 +389,72 @@ git checkout main && git stash pop
 
 ## Cách ghi kết quả
 
+## N. Danh sách video & trình phát (thêm 30/09/2026 — sau khi chuyển MVVM)
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| N1 | Quay 3 video → vào danh sách | Đủ 3 item, thumbnail đúng, sắp theo mới nhất trước |
+| N2 | Vào danh sách → mở 1 video → Back ra | **Không** quét lại thư mục: với nhiều video sẽ thấy rõ là không có vòng loading lần 2 (lợi ích `VideoListViewModel`) |
+| N3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (cờ `KEY_VIDEO_LIST_STALE`) |
+| N4 | Mở video → đổi tên thành công → về danh sách → bấm vào video vừa đổi tên | **Phát được**. Đây là bug đã sập một lần: `VideoItem` giữ `File`, cache cũ mang path cũ (xem `MVVM_Migration_Plan.md` mục 4) |
+| N5 | Đổi tên trùng tên file khác | Toast "đã tồn tại", **ở lại** màn player |
+| N6 | Đổi tên để trống | Im lặng, ở lại màn, **không** Toast |
+| N7 | Đổi tên y như tên cũ | Im lặng, ở lại màn (ca kế hoạch từng định gộp sai thành "thành công") |
+| N8 | Phát giữa video → nhấn Home → mở lại app | Seek đúng vị trí cũ (`SavedStateHandle`) |
+| N9 | Danh sách trống (chưa quay video nào) | Hiện đúng empty state, không crash |
+
+## O. Xem lại sau khi quay & chia sẻ
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| O1 | Quay xong → màn xem lại → Back → chọn **Exit** | Video bị xoá, thoát màn; **không** phát thêm một nhịp trước khi thoát (cờ `discarding`) |
+| O2 | Màn xem lại → Back → chọn **Save** | Sang màn chia sẻ |
+| O3 | Màn xem lại → nút Save trực tiếp | Sang màn chia sẻ |
+| O4 | Màn chia sẻ: expand → collapse → nút back fullscreen | `playerView` dời đúng giữa 2 container, không mất tiếng, không reset vị trí phát |
+| O5 | Màn chia sẻ đang fullscreen → nhấn Home → mở lại app | Vẫn ở fullscreen (`ShareViewModel` giữ `isFullscreen`) |
+| O6 | Back hệ thống ở fullscreen / ở card | Fullscreen → thu nhỏ; card → về danh sách hiệu ứng |
+| O7 | Nút "Thử lại" (chỉ hiện khi vào từ màn xem lại) | Sang camera đúng effect |
+| O8 | 4 nút MXH với app đích **chưa cài** | Không crash, có phản hồi hợp lý |
+
+## P. Danh sách hiệu ứng, yêu thích, tìm kiếm, chọn effect
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| P1 | Bấm tim vài effect → kill app → mở lại | Vẫn còn yêu thích. `FavouriteManager` đổi từ `object` sang `class` nhưng `PREFS_NAME`/`KEY_IDS` không đổi nên **dữ liệu cũ phải đọc được** |
+| P2 | Gõ tìm kiếm → vào màn xem trước → Back ra | Ô tìm kiếm **và** danh sách khớp nhau (không phải danh sách đang lọc mà ô trống) |
+| P3 | Bấm tim trong lúc đang lọc tìm kiếm | Icon đổi đúng item, danh sách lọc không bị reset |
+| P4 | Màn chọn effect: chọn qua lại nhiều item liên tiếp | Viền cyan chuyển đúng, **không nháy cả lưới** (`PAYLOAD_SELECTION` vẫn còn sau khi Adapter đổi API) |
+| P5 | Vào camera **chưa có effect** → mở picker | Nút tick mờ, bấm không ăn |
+| P6 | Màn chọn: chọn lại đúng effect đang dùng → bấm tick | Chỉ đóng màn, **không** sang màn xem trước |
+
+## Q. Riêng cho MVVM — state sống qua cái gì
+
+> Mục quan trọng nhất sau refactor: nó test đúng thứ mà ViewModel hứa, và đúng thứ dễ hỏng âm thầm.
+
+| Ca | Nội dung | Kỳ vọng |
+|---|---|---|
+| Q1 | Bật **Developer options → Don't keep activities**, chạy lại toàn bộ mục N, O, P | Không crash; state khôi phục đúng ở chỗ dùng `SavedStateHandle` (N8) |
+| Q2 | Ở màn player đang phát → `adb shell am kill com.example.handar` → mở lại từ recents | Quay lại đúng màn, `playbackPosition` khôi phục |
+| Q3 | Đổi **font scale** hệ thống trong lúc đang ở từng màn có VM | View tạo lại nhưng state giữ nguyên; màn chia sẻ giữ đúng fullscreen (O5) |
+| Q4 | Đổi **ngôn ngữ** ở màn Language | Activity tạo lại → **VM KHÔNG sống sót, đây là đúng**. Kỳ vọng là UI đúng sau khi tạo lại (dòng ngôn ngữ mới được tick), không phải "state giữ nguyên" |
+| Q5 | Vào/ra từng màn có VM 5 lần → Profiler → Force GC | Heap về xấp xỉ ban đầu. VM sống lâu hơn view nên mục này bắt leak kiểu mới |
+| Q6 | Camera: vào màn chọn effect rồi Back, **lặp 5 lần**, đo thời gian từ lúc Back tới lúc preview lên | Nhanh hơn rõ rệt so với trước mốc 5.4 (không decode lại WAV). Không thấy khác biệt → thử effect có nhiều state có tiếng |
+| Q7 | Splash: `adb shell settings put system font_scale 1.3` giữa lúc splash đang đếm (tạm nâng `SPLASH_DELAY_MS` lên `20000L` để có chỗ thao tác) | Tổng thời gian tới welcome **không cộng thêm** (đếm tiếp, không reset), và thanh loading **tiếp tục từ chỗ đang dở** chứ không về 0 |
+| Q8 | Khảo sát: chọn đáp án ở Survey1 → Next → chọn ở Survey2 → Back về Survey1 | Đáp án Survey1 vẫn được tick đúng (VM dùng chung qua `navGraphViewModels`) |
+| Q9 | Khảo sát: chọn đáp án Survey1 → bấm **Skip** | Vào màn xin quyền. Kiểm `SharedPreferences` `survey_answers`: có `answer_1`, **không có** `answer_2` |
+| Q10 | Khảo sát: đi hết Survey1 → Survey2 → Hoàn tất mà không chạm đáp án nào ở Survey2 | `answer_2` = 0 (dòng đầu, đúng như bản gốc mặc định chọn dòng đầu) |
+| Q11 | Màn xin quyền: bật switch Camera rồi thoát app ngay khi popup còn hiện, rồi cấp quyền và quay lại | Không crash (callback hệ thống về sau khi Fragment detach — đã chốt `context == null` ở `handleDenial`) |
+| Q13 | Màn xin quyền: bật switch Camera rồi **từ chối** popup | Switch **tự trả về tắt**. Đây là regression đã sập một lần: `StateFlow` không emit khi giá trị không đổi nên switch nằm lại ở bật (xem `MVVM_Migration_Plan.md` mốc 6.5) |
+| Q14 | Màn xin quyền: quyền Camera **đã cấp**, bấm switch để tắt | Switch trả về bật (Android không cho app tự thu hồi quyền) |
+| Q12 | Màn cài đặt: bấm lần lượt 5 mục Đánh giá / Chia sẻ / Góp ý / Về ứng dụng / Chính sách | **Không có gì xảy ra và không crash** — 5 nhánh còn TODO là cố ý (mốc 6.4 chỉ chuyển MVVM). Mục Ngôn ngữ vẫn mở màn Language bình thường |
+
 Với mỗi dòng test, đánh dấu: ✅ Pass / ❌ Fail / ⚠️ Pass có lưu ý. Nếu Fail, ghi lại: model máy, số liệu `VideoStatsLogger` (nếu có), và mô tả hiện tượng — quay lại đúng phase liên quan trong `HandAr_Refactor_Plan.md` (Phase 0–5) hoặc `HandAr_Plan.md` (Phase A–N) để xử lý tiếp.
 
 Riêng mục **G-H**, khi Fail hãy đối chiếu với `Fragment_Review_Checklist.md` trước khi sửa — mỗi kiểu hỏng ở hai mục này đều ứng với đúng một mục trong checklist đó.
+
+Riêng mục **N-Q**, khi Fail hãy đối chiếu với `MVVM_Migration_Plan.md` trước khi sửa: mỗi ca ở 4 mục
+này ứng với đúng một quyết định hoặc một bẫy đã ghi lại trong kế hoạch đó (mục 4 cho N4, 3.2/3.3 cho
+O1, 3.4 cho O4/O5, 4.2 cho P2, 4.4 cho P4, 5.4 cho Q6, 6.1 cho Q7, 6.2 cho Q8-Q10, 6.3 cho Q4,
+6.5 cho Q11, 6.4 cho Q12).
 
 Riêng mục **I**, khi Fail hãy đối chiếu với `Camera_X_Hand_Landmarker.md` Mục 11 (nhất là Mục 11.9 — Quy trình chẩn đoán cử chỉ 2 tay) trước khi sửa — phần lớn các lỗi đã gặp khi làm cử chỉ mới đều phù hợp với 1 trong 7 bước chuẩn đoán đã đúc kết ở đó.

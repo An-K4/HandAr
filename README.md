@@ -119,6 +119,25 @@ Hai điểm kiến trúc quan trọng (đã chốt qua nhiều vòng debug, xem 
 1. **Tách thread hiển thị khỏi thread ghi hình** (theo bài học từ `google/grafika`): thread camera chỉ đọc ảnh + chạy AI và ghi vào biến `@Volatile`; thread ghi hình chạy theo nhịp cố định, luôn lấy dữ liệu *mới nhất* và cho phép rớt frame cũ.
 2. **Không ghi mic.** Track audio của video được sinh hoàn toàn từ `EffectAudioClock` + `AudioMixer` (PCM của tiếng hiệu ứng). Nhờ đó: hết bug mic thu lại tiếng loa, không cần quyền `RECORD_AUDIO`, và PTS của audio/video cùng neo vào đúng một mốc (frame đầu tiên thực sự được encode).
 
+### Tầng UI: MVVM (từ 30/09/2026)
+
+Mỗi màn có state thật đều có một `ViewModel` trong package của nó (`ui/<màn>/<Man>ViewModel.kt`),
+`uiState` là `StateFlow`, sự kiện một lần là `Channel` + `receiveAsFlow()`, Fragment thu qua
+`viewLifecycleOwner.lifecycleScope` + `repeatOnLifecycle(STARTED)`. Factory viết tay, **không dùng
+DI framework** (Hilt/Koin) — không cần cho quy mô 18 Fragment và đi ngược nỗ lực tối ưu dung lượng APK.
+
+Ba giới hạn cố ý, ghi ra để khỏi tưởng là thiếu sót:
+
+- **Điều hướng vẫn ở Fragment.** ViewModel không cầm `NavController`; nó phát sự kiện, Fragment nhận
+  rồi tự gọi `findNavController()` và giữ nguyên các chốt `currentDestination?.id` chống bấm đúp.
+- **Tài nguyên gắn View ở lại Fragment.** `ExoPlayer`, dialog, `AnimatedImageDrawable`, và toàn bộ
+  `VideoRecorder`/`BgmPlayer`/`HandLandmarker`/thread ghi hình của màn camera. `CameraRecordViewModel`
+  chỉ giữ dữ liệu thuần (effect đang dùng, PCM đã decode, state máy cử chỉ).
+- **4 màn tĩnh không có ViewModel** (`Welcome`, `Onboarding1-3`): không có state thì VM rỗng chỉ là
+  boilerplate.
+
+Chi tiết từng bước, các quyết định và bẫy đã gặp: `docs/MVVM_Migration_Plan.md`.
+
 ### Mô hình dữ liệu hiệu ứng
 
 ```text
