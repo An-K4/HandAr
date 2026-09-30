@@ -386,6 +386,21 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   `OnBackPressedCallback`, không phụ thuộc thứ tự vẽ view). Thêm view mới vào layout camera thì đừng đặt *sau*
   `layout_camera_loading` — nó sẽ vẽ đè lên overlay. Test: `Test_Checklist.md` D9/D10.
 
+- **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
+  item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache
+  `List<VideoItem>`, `VideoItem` giữ `File`, và `VideoListFragment` truyền `file.absolutePath` sang
+  player khi bấm item. Đổi tên video ở `VideoPlayerFragment` rồi back ra là bấm vào item ăn ngay
+  `can_not_play_video`, **dù** `onBindViewHolder` không hề hiện tên file nên nhìn UI thì tưởng
+  rename vô hại. Trước khi kết luận "state cũ này không ảnh hưởng gì", phải soát cả những gì item
+  truyền đi qua callback/`Directions`, không chỉ những gì nó vẽ. Dạng lỗi này **chỉ xuất hiện sau
+  khi thêm ViewModel** — trước đó list load lại mỗi lần view được tạo nên dữ liệu luôn tươi.
+- **Làm mới danh sách sau khi sửa file: dùng cờ, đừng `load()` vô điều kiện ở `onResume`.**
+  `VideoPlayerFragment.markVideoListStale()` đặt `VideoListFragment.KEY_VIDEO_LIST_STALE` vào
+  `nav.previousBackStackEntry?.savedStateHandle` trước `popBackStack()` (cả đường xoá và đường đổi
+  tên), `VideoListFragment.onResume()` đọc cờ → `remove` → `viewModel.load()`. Gọi `load()` vô điều
+  kiện thì mất sạch lợi ích "vào xem rồi back ra không phải quét lại thư mục" của ViewModel. Thêm
+  thao tác sửa file mới ở màn player thì nhớ gọi `markVideoListStale()` trong nhánh thành công.
+
 ## 6. Bản đồ `docs/` — đọc đúng file khi cần đào sâu
 
 | File | Khi nào đọc |
