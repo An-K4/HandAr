@@ -160,6 +160,10 @@ class PermissionFragment : Fragment() {
      * Từ chối thường thì để nguyên, user bấm switch lần nữa là xin lại được.
      */
     private fun handleDenial(permission: String) {
+        // Chốt cửa: callback của registerForActivityResult là callback hệ thống, nó có thể về sau khi
+        // Fragment đã detach. shouldShowRequestPermissionRationale cần Activity, gọi lúc đó sẽ ném
+        // IllegalStateException. showPermissionDeniedDialog đã tự chốt context, hàm này thì chưa.
+        if (context == null) return
         if (shouldShowRequestPermissionRationale(permission)) return
         showPermissionDeniedDialog(permission)
     }
