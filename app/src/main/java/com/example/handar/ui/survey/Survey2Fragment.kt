@@ -5,11 +5,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.navGraphViewModels
 import com.example.handar.R
 import com.example.handar.databinding.FragmentSurvey2Binding
 import com.example.handar.databinding.ItemSurveyAnswerBinding
 import com.example.handar.utils.applySystemBarsInsetsPadding
+import kotlinx.coroutines.launch
 
 class Survey2Fragment : Fragment() {
 
@@ -25,7 +30,10 @@ class Survey2Fragment : Fragment() {
     private var _binding: FragmentSurvey2Binding? = null
     private val binding get() = _binding!!
 
-    private var selectedIndex = 0
+    // VM dùng chung với Survey1Fragment — xem SurveyViewModel.
+    private val viewModel: SurveyViewModel by navGraphViewModels(R.id.nav_graph) {
+        SurveyViewModel.factory(requireContext())
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -39,14 +47,30 @@ class Survey2Fragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.root.applySystemBarsInsetsPadding()
 
-        bindAnswers()
+        // Đánh dấu đã vào màn này: answer2 từ null thành mặc định 0, phân biệt với ca Skip ở Survey1.
+        viewModel.onSurvey2Shown()
+
+        val rows = bindAnswers()
 
         binding.btnSurveyFinish.setOnClickListener {
+            viewModel.submit()
             findNavController().navigate(R.id.action_survey2_to_permission)
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    val selected = state.answer2Index ?: DEFAULT_ANSWER_INDEX
+                    rows.forEachIndexed { index, row ->
+                        setRowSelected(row, index == selected)
+                    }
+                }
+            }
         }
     }
 
-    private fun bindAnswers() {
+    /** Đổ icon/tên + gắn click. Trạng thái chọn do collector ở trên vẽ, không set ở đây. */
+    private fun bindAnswers(): List<ItemSurveyAnswerBinding> {
         val rows = listOf(
             binding.itemSurveyAnswer1,
             binding.itemSurveyAnswer2,
@@ -58,15 +82,9 @@ class Survey2Fragment : Fragment() {
             val (iconRes, textRes) = ANSWERS[index]
             row.iconAnswerThumbnail.setImageResource(iconRes)
             row.textAnswerName.text = getString(textRes)
-            setRowSelected(row, index == selectedIndex)
-
-            row.root.setOnClickListener {
-                if (index == selectedIndex) return@setOnClickListener
-                setRowSelected(rows[selectedIndex], false)
-                selectedIndex = index
-                setRowSelected(row, true)
-            }
+            row.root.setOnClickListener { viewModel.selectAnswer2(index) }
         }
+        return rows
     }
 
     private fun setRowSelected(row: ItemSurveyAnswerBinding, selected: Boolean) {
