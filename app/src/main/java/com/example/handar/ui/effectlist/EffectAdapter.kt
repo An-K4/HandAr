@@ -27,6 +27,9 @@ class EffectAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
         val context = holder.binding.root.context
+        // Tạm thời tạo tại chỗ để build xanh sau khi FavouriteManager đổi thành class. Mốc 4.2 gỡ
+        // hẳn: trạng thái favourite chuyển vào EffectListUiState, Adapter chỉ nhận giá trị tính sẵn.
+        val favouriteManager = FavouriteManager(context)
 
         holder.binding.textName.text = item.displayName
         holder.binding.imgThumbnail.setImageResource(item.thumbnailRes)
@@ -38,9 +41,9 @@ class EffectAdapter(
             )
         }
 
-        renderFavourite(FavouriteManager.isFavourite(context, item.id))
+        renderFavourite(favouriteManager.isFavourite(item.id))
         holder.binding.imgFavourite.setOnClickListener {
-            renderFavourite(FavouriteManager.toggle(context, item.id))
+            renderFavourite(favouriteManager.toggle(item.id))
         }
     }
 

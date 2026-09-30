@@ -1,6 +1,6 @@
 # Kế hoạch chuyển sang MVVM — HandAr
 
-> **Cập nhật lần cuối tại commit `79c12c3`** (2026-09-30). **Note cho agent:** sau khi hoàn
+> **Cập nhật lần cuối tại commit `3e2e494`** (2026-09-30). **Note cho agent:** sau khi hoàn
 > thành bất kỳ Bước nào dưới đây, tick ô trạng thái ở Mục 2, cập nhật commit hash ở dòng này,
 > và nếu Bước đó đổi cấu trúc thư mục/quy ước, cập nhật `AGENTS.md` mục 4 + `Code_Walkthrough.md`
 > theo đúng Bước 7.
@@ -206,7 +206,7 @@ sau chưa bắt đầu nếu Bước trước chưa xong), revert không kéo th
 
 - [x] **Bước 1** — Hạ tầng + quy ước (commit `90bb322`, `b5c2d0f`)
 - [x] **Bước 2** — `VideoListFragment` (màn mẫu) (commit `3a34c66`, `79c12c3`)
-- [ ] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment`
+- [x] **Bước 3** — `VideoPlayerFragment`, `ShareFragment`, `RecordedPreviewFragment` (commit `08e2a7c`, `c4fbad0`, `091cb0c`, `3e2e494`)
 - [ ] **Bước 4** — `EffectListFragment`, `EffectPreviewFragment`, `EffectPickerFragment` + `FavouriteManager`
 - [ ] **Bước 5** — Tách `GestureStateMachine`, `RecordingSession` khỏi `CameraRecordFragment`
 - [ ] **Bước 6** — Splash, Survey×2, Language, Settings, Permission, Welcome, Onboarding×3
