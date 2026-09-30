@@ -96,6 +96,13 @@ jobs:
             gh release delete-asset latest "$asset" -y
           done
 
+      # Source zip/tar.gz of a release are generated from its tag, so move `latest`
+      # to the commit that was just built (action-gh-release never moves an existing tag).
+      - name: Move latest tag to current commit
+        run: |
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin latest
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
