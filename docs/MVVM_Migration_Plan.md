@@ -775,6 +775,25 @@ class EffectPreviewViewModel(val effect: EffectDefinition) : ViewModel() {
 Toàn bộ phần `AnimatedImageDrawable`/`onStart`/`onStop`/`onDestroyView` **giữ nguyên trong
 Fragment** — đây là tài nguyên gắn View, không thuộc VM (đúng quy tắc đã nhắc nhiều lần).
 
+**Đã làm (2026-09-30): VẪN LÀM**, không bỏ qua — cùng lý do người dùng đã chốt ở mốc 3.4 (thêm tính
+năng sau này đỡ phải refactor rời rạc một màn). Khác snippet trên ở 2 chỗ:
+
+- **Thêm `Event.GoBack`/`Event.CreateVideo`** và hai hàm `onBackClicked()`/`onCreateClicked()`, thay
+  vì để listener gọi thẳng `findNavController()`. Cùng khuôn với `ShareViewModel`.
+- **Bỏ `onCreate` + `lateinit var effect` ở Fragment**, `EffectRepository.findById(args.effectId)`
+  chuyển vào `initializer` của factory. Lưu ý hành vi: `findById` dùng `first { }` nên id sai vẫn
+  ném `NoSuchElementException` như trước, chỉ đổi thời điểm — trước là ở `onCreate`, giờ là lần đầu
+  đọc `viewModel`. Không sửa thành `findByIdOrNull` ở đây: đổi cách xử lý id sai là việc khác, ngoài
+  phạm vi mốc này.
+
+📌 **Điểm đã kiểm chứng để yên tâm với sự kiện qua `Channel`:** rủi ro "sự kiện cũ còn trong Channel
+bị phát lại khi quay lại màn" **không xảy ra** ở cả `EffectPreviewFragment` lẫn `ShareFragment`, vì
+mọi action rời hai màn này đều `popUpToInclusive="true"` chính nó (`action_effectPreview_to_cameraRecord`,
+`action_share_to_cameraRecord`, và `GoHome` thì `popBackStack(effectListFragment, false)`) — destination
+bị gỡ khỏi back stack nên VM bị clear cùng lúc, không còn Channel nào để phát lại. Đã đọc
+`nav_graph.xml` xác nhận, không suy diễn. Nếu sau này thêm action rời màn mà **không** `popUpTo` chính
+nó, phải soát lại chỗ này.
+
 ### 4.4 — `EffectPickerFragment`
 
 State: `selectedEffectId`. Nhỏ, tương tự 4.3 về mức độ cần thiết, nhưng có logic thật hơn một

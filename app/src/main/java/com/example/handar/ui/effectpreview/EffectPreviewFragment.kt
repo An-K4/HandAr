@@ -7,13 +7,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.example.handar.R
 import com.example.handar.databinding.FragmentEffectPreviewBinding
-import com.example.handar.effect.EffectRepository
-import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.utils.applySystemBarsInsetsMargin
+import kotlinx.coroutines.launch
 
 class EffectPreviewFragment : Fragment() {
 
@@ -28,16 +31,13 @@ class EffectPreviewFragment : Fragment() {
     private var _binding: FragmentEffectPreviewBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var effect: EffectDefinition
+    private val viewModel: EffectPreviewViewModel by viewModels {
+        EffectPreviewViewModel.factory(args.effectId)
+    }
 
     // giữ riêng để start/stop theo vòng đời (onStart/onStop). AnimatedImageDrawable giữ callback về ImageView
     // nên phải null hoá ở onDestroyView, nếu không sẽ giữ cả cây view.
     private var previewDrawable: AnimatedImageDrawable? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        effect = EffectRepository.findById(args.effectId)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,11 +53,33 @@ class EffectPreviewFragment : Fragment() {
         binding.layoutPreviewTopBar.root.applySystemBarsInsetsMargin(top = true)
         binding.btnCreate.applySystemBarsInsetsMargin(bottom = true)
 
-        binding.layoutPreviewTopBar.textEffectName.text = effect.displayName
-        binding.layoutPreviewTopBar.btnBack.setOnClickListener { goBack() }
-        binding.btnCreate.setOnClickListener { create() }
+        binding.layoutPreviewTopBar.textEffectName.text = viewModel.effect.displayName
+        binding.layoutPreviewTopBar.btnBack.setOnClickListener { viewModel.onBackClicked() }
+        binding.btnCreate.setOnClickListener { viewModel.onCreateClicked() }
 
         loadPreviewMedia()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.events.collect { event -> handleEvent(event) }
+            }
+        }
+    }
+
+    /**
+     * Chốt cửa currentDestination giữ nguyên ở Fragment, cùng lý do đã ghi cho goBack()/create() bản
+     * gốc: bấm đúp thì lần 2 có thể chạy khi màn này đã bị điều hướng đi — popBackStack() lần 2 sẽ
+     * pop luôn màn phía dưới, navigate() lần 2 sẽ ném IllegalArgumentException.
+     */
+    private fun handleEvent(event: EffectPreviewViewModel.Event) {
+        val nav = findNavController()
+        if (nav.currentDestination?.id != R.id.effectPreviewFragment) return
+        when (event) {
+            EffectPreviewViewModel.Event.GoBack -> nav.popBackStack()
+            EffectPreviewViewModel.Event.CreateVideo -> nav.navigate(
+                EffectPreviewFragmentDirections.actionEffectPreviewToCameraRecord(viewModel.effect.id)
+            )
+        }
     }
 
     override fun onStart() {
@@ -92,22 +114,5 @@ class EffectPreviewFragment : Fragment() {
         previewDrawable = (drawable as? AnimatedImageDrawable)?.apply {
             repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
         }
-    }
-
-    /**
-     * cả goBack() lẫn create() đều chốt cửa bằng currentDestination: bấm đúp thì lần 2 có thể chạy khi màn này
-     * đã bị điều hướng đi — popBackStack() lần 2 sẽ pop luôn màn phía dưới, navigate() lần 2 sẽ ném
-     * IllegalArgumentException.
-     */
-    private fun goBack() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.effectPreviewFragment) return
-        nav.popBackStack()
-    }
-
-    private fun create() {
-        val nav = findNavController()
-        if (nav.currentDestination?.id != R.id.effectPreviewFragment) return
-        nav.navigate(EffectPreviewFragmentDirections.actionEffectPreviewToCameraRecord(effect.id))
     }
 }
