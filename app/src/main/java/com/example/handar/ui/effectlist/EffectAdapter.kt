@@ -7,11 +7,16 @@ import com.example.handar.R
 import com.example.handar.databinding.ItemEffectBinding
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.ui.widget.clipRoundedCorners
-import com.example.handar.utils.FavouriteManager
 
+/**
+ * Adapter không còn tự đọc/ghi `SharedPreferences`: [favouriteIds] do [EffectListViewModel] tính
+ * sẵn và truyền vào, cú bấm tim chỉ báo lên [onToggleFavourite].
+ */
 class EffectAdapter(
     private var items: List<EffectDefinition>,
-    private val onClick: (EffectDefinition) -> Unit
+    private var favouriteIds: Set<String>,
+    private val onClick: (EffectDefinition) -> Unit,
+    private val onToggleFavourite: (String) -> Unit
 ) : RecyclerView.Adapter<EffectAdapter.VH>() {
 
     inner class VH(val binding: ItemEffectBinding) : RecyclerView.ViewHolder(binding.root)
@@ -26,31 +31,22 @@ class EffectAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
-        val context = holder.binding.root.context
-        // Tạm thời tạo tại chỗ để build xanh sau khi FavouriteManager đổi thành class. Mốc 4.2 gỡ
-        // hẳn: trạng thái favourite chuyển vào EffectListUiState, Adapter chỉ nhận giá trị tính sẵn.
-        val favouriteManager = FavouriteManager(context)
 
         holder.binding.textName.text = item.displayName
         holder.binding.imgThumbnail.setImageResource(item.thumbnailRes)
         holder.binding.root.setOnClickListener { onClick(item) }
 
-        fun renderFavourite(isFavourite: Boolean) {
-            holder.binding.imgFavourite.setImageResource(
-                if (isFavourite) R.drawable.ic_favourite_selected else R.drawable.ic_favourite
-            )
-        }
-
-        renderFavourite(favouriteManager.isFavourite(item.id))
-        holder.binding.imgFavourite.setOnClickListener {
-            renderFavourite(favouriteManager.toggle(item.id))
-        }
+        holder.binding.imgFavourite.setImageResource(
+            if (item.id in favouriteIds) R.drawable.ic_favourite_selected else R.drawable.ic_favourite
+        )
+        holder.binding.imgFavourite.setOnClickListener { onToggleFavourite(item.id) }
     }
 
     override fun getItemCount() = items.size
 
-    fun updateItems(newItems: List<EffectDefinition>) {
+    fun submit(newItems: List<EffectDefinition>, newFavouriteIds: Set<String>) {
         items = newItems
+        favouriteIds = newFavouriteIds
         notifyDataSetChanged()
     }
 }

@@ -715,6 +715,37 @@ trong phạm vi Bước 4**, chỉ ghi chú để người làm màn Bộ sưu t
 thay vì tự gọi `FavouriteManager` — đây là thay đổi API của Adapter, không phải chỉ đổi bên
 trong, nên `EffectListFragment` phải sửa chỗ khởi tạo Adapter cùng commit 4.2 (không tách được).
 
+**Đã làm (2026-09-30), 3 điểm cần biết:**
+
+- `updateItems(items)` đổi thành `submit(items, favouriteIds)` — một lời gọi duy nhất cho một lần
+  render, thay vì hai đường cập nhật rời (items từ Fragment, favourite từ Adapter tự đọc prefs).
+  Adapter khởi tạo với `emptyList()`/`emptySet()`, dữ liệu thật đến từ lần collect đầu.
+- ⚠️ **Phải khôi phục ô tìm kiếm từ VM ở `onViewCreated`.** VM sống qua `onDestroyView`: đi sang
+  `EffectPreview` rồi back lại thì `query` còn trong VM nhưng `EditText` mới inflate là rỗng → danh
+  sách đang lọc mà ô tìm kiếm trống. Sửa bằng `setText(viewModel.uiState.value.query)` **trước** khi
+  `addTextChangedListener` (set sau thì listener tự kích hoạt). Đây lại đúng dạng lỗi "VM sống dai
+  hơn View" của mục 4 — lần này soát trước. Bản gốc không gặp vì Adapter được tạo lại với
+  `EffectRepository.all` mỗi lần view được tạo.
+- `FavouriteManager` **không** đẩy sang `Dispatchers.IO`: đọc là `getStringSet` từ map trong bộ nhớ,
+  ghi là `edit { }` của androidx (mặc định `apply()`, đã bất đồng bộ). Giữ đồng bộ để `toggle()` trả
+  kết quả ngay, không phải thêm state "đang lưu".
+
+🐛 **Bug có sẵn phát hiện lúc đọc code, KHÔNG sửa trong commit 4.2** (đúng nguyên tắc 0.1 — bug có
+sẵn đi commit riêng): `EffectListFragment` **không có `onDestroyView()`**. `_binding` không bị null
+hoá, `recyclerEffect.adapter` không bị cắt — vi phạm thẳng `Fragment_Review_Checklist.md` mục 1 và
+mục 8, và đây là màn home nên nó nằm trong back stack gần như suốt phiên. Sửa ở commit riêng ngay
+sau 4.2:
+
+```kotlin
+override fun onDestroyView() {
+    super.onDestroyView()
+    binding.recyclerEffect.adapter = null
+    _binding = null
+}
+```
+
+(`EffectPreviewFragment`/`EffectPickerFragment` cũng soát lại cùng lúc khi làm 4.3/4.4.)
+
 ### 4.3 — `EffectPreviewFragment`
 
 State thật ở đây rất mỏng: `effect` đọc từ `args.effectId` qua `EffectRepository.findById`, và
