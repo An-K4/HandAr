@@ -347,8 +347,10 @@ class HandFrame {
     var handedness: List<HandSide> = emptyList()              // Left/Right/Unknown, ĐÃ đảo theo mirror
     var cx = 0f; var cy = 0f; var r = 0f                       // tâm & bán kính vẽ, TÍNH SẴN bởi OverlayView
     var elapsedMs = 0L                                         // dùng bởi ProceduralVisual, xem 3.4
+    var cameraFrame: Bitmap? = null                            // bitmap camera của CHÍNH frame đang vẽ (xem dưới), null nếu không có
     fun px(normX: Float): Float   // đổi toạ độ chuẩn hoá (0..1) sang pixel canvas thật, có xử lý mirror
     fun py(normY: Float): Float
+    fun cameraMatrix(out: Matrix)  // ma trận vẽ cameraFrame lên canvas đang vẽ, cùng phép chiếu với px()/py()
 }
 ```
 `OverlayView.drawFrame()` gọi `frame.setProjection(mirrorX, imgWidth, imgHeight, localScale,
@@ -357,6 +359,14 @@ tự tính toạ độ pixel, chỉ gọi `frame.px()`/`frame.py()`** để đ�
 pixel canvas đang vẽ (canvas live và canvas ghi hình có kích thước khác nhau, `HandFrame` che giấu
 sai khác này). Đây là lý do các `EffectVisual` (như `GojoVisual`, `StrokeVisual`) có thể dùng
 chung logic vẽ cho cả live lẫn recording mà không cần biết đang vẽ lên canvas nào. Có thêm overload `px(lm: NormalizedLandmark)` / `py(lm)` (gọi `lm.x()`/`lm.y()`), `LightningVisual` dùng để đổi thẳng landmark ra pixel.
+
+**`cameraFrame` + `cameraMatrix()`** (thêm cho hiệu ứng Finger Frame, xem `Finger_Frame_Filter_Plan.md` Mốc 1): `OverlayView.drawFrame()`
+gán `frame.cameraFrame` mỗi frame (live: bitmap do Fragment đẩy qua `OverlayView.setCameraFrame()`; ghi hình: đúng bitmap vừa vẽ làm nền,
+truyền qua tham số `cameraFrame` của `drawFrame()`); chỉ nhận khi `width/height` khớp `imgWidth/imgHeight` của kết quả MediaPipe, lệch thì để `null`.
+Visual **chỉ đọc**: không `recycle()`/sửa (bitmap còn được MediaPipe, vòng ghi hình, Fragment dùng chung), không lưu lại giữa các lần `draw()`.
+`cameraMatrix(out)` = mirror + center-crop (`setScale(-s, s)` rồi `postTranslate(imgWidth*s + offX, offY)`), trùng `bmpMatrix` của vòng ghi hình
+(mục 6.4) và trùng `px()/py()` nên nội dung vẽ từ bitmap khớp từng pixel với vị trí landmark. Phải gọi **trong `draw()`** (sau `setProjection()` — cạnh bẫy 13.5
+trong `Camera_X_Hand_Landmarker.md`). Hiện chưa effect nào dùng ngoài visual gỡ lỗi tạm `CameraFrameDebugVisual` (mục 3.9).
 
 ### 3.3 `EffectScope` — chia sẻ state giữa các `EffectState` trong CÙNG 1 effect
 
@@ -491,6 +501,16 @@ Tất cả implement `EffectVisual` trực tiếp (không kế thừa `Procedura
   `Gestures.twoHandsWristsTogetherOpen` + `AnchorSource.TwoWristMidpoint`, không tiếng. ⚠️ State này **phải khai
   trước** state `charge` (1 tay xòe) vì cả 2 nơi chọn state đều lấy state đầu tiên khớp.
 
+
+### 3.9 `visual/canvas/fingerframe/` — Finger Frame (đang làm dở, TẠM)
+
+Hiệu ứng "khung đảo màu" dựng khung bằng 4 đầu ngón (cái + trỏ của 2 tay) rồi biến đổi chính ảnh camera bên trong khung — kế hoạch đầy đủ ở
+`Finger_Frame_Filter_Plan.md`, lý thuyết ở `Finger_Frame_Filter_Theory.md`. **Mới xong Mốc 1** (đưa bitmap camera tới visual), nên hiện chỉ có:
+- `CameraFrameDebugVisual.kt` — **TẠM**: vẽ toàn bộ `frame.cameraFrame` (alpha 128) bằng `frame.cameraMatrix()` để kiểm chứng đường truyền; live sẽ thấy dư ảnh nhẹ
+  khi di chuyển vì bitmap luồng phân tích (480×640) đi chậm hơn `PreviewView` (rủi ro R1 trong plan); video không dư ảnh vì nền và lớp phủ cùng một bitmap. Xoá ở Mốc 2.
+- `effect/catalog/FingerFrameEffect.kt` — `fingerFrameEffect()` (id `finger_frame`, `requiredNumHands = 2`, `soundRes = null`, cử chỉ tạm `anyHandPresent`,
+  thumbnail **mượn** `black_hole_thumbnail`), đã thêm vào `EffectRepository.all` (hiệu ứng thứ 11; chuỗi `effect_name_finger_frame` en/vi).
+
 ---
 
 ## 4. Vẽ nền — `effect/background/`
@@ -541,6 +561,9 @@ phóng nền cũ trước khi dựng nền mới, tránh leak `AnimatedImageDraw
 
 ### 5.2 `setResult(handResult, imgWidth, imgHeight)` — gọi mỗi khi có kết quả MediaPipe mới
 
+> Ngay trước `setResult()`, `CameraRecordFragment` (trong `collect` của `setupMediaPipe()`) gọi `overlayView?.setCameraFrame(latestCameraBitmap)` — lưu vào field
+> `@Volatile liveCameraFrame` để `onDraw()` (live) truyền cho `drawFrame()`; nhánh ghi hình không dùng field này mà nhận bitmap qua tham số.
+
 Đây là **nơi DUY NHẤT** trong `OverlayView` chạy nhận diện cử chỉ (đọc comment trong code — cố tình
 làm vậy để cả live và recording không nhận diện lại 2 lần dư thừa, và tránh việc 2 thread cùng ghi
 `matchedIndex`):
@@ -570,7 +593,7 @@ return when (currentEffect.stateMode) {
 ```
 Xem lại mục 1.3 để hiểu ý nghĩa 2 chế độ.
 
-### 5.4 `drawFrame(canvas, handResult, mirrorX, forRecording)` — hàm vẽ dùng chung cho cả 2 chế độ
+### 5.4 `drawFrame(canvas, handResult, mirrorX, forRecording, cameraFrame = null)` — hàm vẽ dùng chung cho cả 2 chế độ
 
 Thứ tự trong hàm, theo đúng thứ tự code:
 1. **Chọn & vẽ nền**: ưu tiên `state.background` của state đang khớp, fallback về
@@ -579,7 +602,7 @@ Thứ tự trong hàm, theo đúng thứ tự code:
    để chỉ nền đang thật sự hiển thị mới chạy animation, các nền khác (cache nhưng không dùng lúc
    này) bị tạm dừng.
 2. Nếu không có tay hoặc `matchedIndex == -1` → **return sớm, chỉ có nền, không vẽ gì thêm**.
-3. **Tính phép chiếu toạ độ** (`localScale`, `localOffsetX/Y`) — dùng công thức "center crop":
+3. **Tính phép chiếu toạ độ** (`localScale`, `localOffsetX/Y`; sau `setProjection()` còn gán `frame.cameraFrame = cameraFrame` nếu kích thước khớp `imgWidth/imgHeight`, xem mục 3.2) — dùng công thức "center crop":
    `max(targetW/imgWidth, targetH/imgHeight)` để ảnh camera lấp đầy canvas (có thể crop 2 bên).
    `targetW/targetH` là kích thước canvas **đang vẽ** (khác nhau giữa live view và canvas ghi hình
    — đây chính là lý do phải tính lại mỗi frame thay vì cache).
@@ -592,13 +615,13 @@ Thứ tự trong hàm, theo đúng thứ tự code:
 
 `mirrorX` luôn được truyền `true` từ cả `onDraw()` (live) lẫn `CameraRecordFragment` (recording,
 tham số cứng trong lời gọi `overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording =
-true)`) — camera trước luôn cần mirror, hiện **không có đường nào truyền `false`**.
+true, cameraFrame = bitmap)`) — camera trước luôn cần mirror, hiện **không có đường nào truyền `false`**.
 
 ### 5.5 `onDraw(canvas)` — vòng lặp vẽ live
 
 ```kotlin
 override fun onDraw(canvas: Canvas) {
-    drawFrame(canvas, result, mirrorX = true, forRecording = false)
+    drawFrame(canvas, result, mirrorX = true, forRecording = false, cameraFrame = liveCameraFrame)
     postInvalidateOnAnimation()   // tự xin vẽ lại frame tiếp theo — vòng lặp vô hạn theo VSync
 }
 ```
@@ -897,7 +920,7 @@ while (videoRecorder?.isRecording == true) {
     val frameStartNs = System.nanoTime()
     videoRecorder?.pushFrame { canvas ->
         if (!effectHasBackground) { /* vẽ bitmap camera đã lật gương lên canvas trước */ }
-        overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording = true)   // → OverlayView 5.4
+        overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording = true, cameraFrame = bitmap)   // → OverlayView 5.4; cùng bitmap vừa vẽ làm nền
     }
     if (videoRecorder?.writeFailed == true) { /* dừng ghi, báo hết dung lượng */ }
     val sleepMs = (intervalMs - workNs/1_000_000).coerceAtLeast(0)

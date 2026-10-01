@@ -361,6 +361,7 @@ class CameraRecordFragment : Fragment() {
             HandLandmarkerProvider.results.collect { (result, inputImage) ->
                 latestHandResult = result
 
+                overlayView?.setCameraFrame(latestCameraBitmap)
                 overlayView?.setResult(result, inputImage.width, inputImage.height)
                 handleGesture(result)
             }
@@ -572,7 +573,7 @@ class CameraRecordFragment : Fragment() {
                             }
                             canvas.drawBitmap(bitmap, bmpMatrix, null)
                         }
-                        overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording = true)
+                        overlay.drawFrame(canvas, handResult, mirrorX = true, forRecording = true, cameraFrame = bitmap)
                     }
                 }
 

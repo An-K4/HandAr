@@ -166,9 +166,11 @@ app/src/main/java/com/example/handar/
 │   │       ├── magicshield/      ShieldHideVisual (thu nhỏ theo thời gian bằng code, dùng chung asset lúc hiện)
 │   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
 │   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
-│   │       └── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
+│   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
+│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, mới có CameraFrameDebugVisual TẠM;
+│   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
-│   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng
+│   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đang làm dở, thumbnail mượn)
 │                                (FireBallEffect, MagicShieldEffect, LightningEffect, DragonBallEffect,
 │                                 GojoEffect, MonsterEffect, RoomTeleportEffect, CanvasDrawEffect,
 │                                 EarthEffect, BlackHoleEffect)
@@ -411,6 +413,13 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   `detectAsync` gọi từ thread khác). Nếu gặp crash lạ ở màn camera: bắt `adb logcat -b crash` trước, rồi đọc
   `Camera_X_Hand_Landmarker.md` mục 14.4 — đừng sửa theo suy đoán.
 
+- **Working tree trên máy Windows có ~90 file hiện "modified" chỉ vì khác kiểu xuống dòng (CRLF) + `.idea/`** — index của repo là LF (`git ls-files --eol`).
+  Khi sửa file: giữ nguyên kiểu xuống dòng hiện có của file, **nhưng nếu index là LF thì để LF** (`HandFrame.kt` từng là CRLF → commit sẽ báo đổi cả file; đã chuyển về LF
+  01/10/2026). Khi commit: `git add` đúng từng file cần, đừng `git add .`/`-A`; sau `git add` chạy `git diff --cached --stat` — file nào đổi gần hết số dòng là nghi sai kiểu xuống dòng.
+- **Kiểm chứng hạ tầng bằng visual gỡ lỗi tạm trước khi làm hiệu ứng thật** (Finger Frame Mốc 1): vẽ ảnh camera nửa trong suốt đè lên preview để thấy ngay ma trận
+  chiếu có khớp không. Dư ảnh nhẹ ở live khi người cử động là bình thường (bitmap luồng phân tích trễ hơn `PreviewView`); dấu hiệu lỗi thật là lệch cố định khi đứng yên,
+  ngược chiều hoặc sai tỉ lệ. Video ghi ra không được dư ảnh (nền và lớp phủ cùng một bitmap).
+
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache
   `List<VideoItem>`, `VideoItem` giữ `File`, và `VideoListFragment` truyền `file.absolutePath` sang
@@ -487,6 +496,8 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
 | `CameraLoading_Fallback_Plan.md` | Trước khi đụng `HandLandmarkerProvider.createWithFallback()` hoặc loading overlay của camera — lý do từng ngưỡng, phương án đã cân nhắc và bỏ (preload) |
 | `DelegatePerf_Plan.md` | Khi cần đo lại CPU vs GPU bằng `DelegatePerfLogger` — cách gắn và cách đọc số liệu (kết quả đo đã nằm ở `Perf_Notes.md` mục 9) |
 | `Camera_X_Face_Landmarker.md` | Tài liệu lý thuyết cho tính năng nhận diện khuôn mặt (Face Landmarker) — **chưa có code Face nào trong app**, chỉ đọc khi định làm Face AR |
+| `Finger_Frame_Filter_Theory.md` | Lý thuyết cho kiểu hiệu ứng "filter trong khung 2 tay" (kiểu FingerLens): dựng tứ giác từ 4 đầu ngón, làm mượt (EMA/1€), vẽ trong vùng (`BitmapShader` thay `clipPath`), lý thuyết từng filter (ColorMatrix, colormap, Sobel, glitch…) và AGSL — **chưa có code**, kèm link tài liệu/video |
+| `Finger_Frame_Filter_Plan.md` | Kế hoạch triển khai hiệu ứng demo đầu tiên (khung đảo màu): hạ tầng đã có/cần thêm, các mốc, rào cản (preview vs bitmap analyzer, fade-out, đa luồng) — đọc trước khi code tính năng này |
 | `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**đã xong cả 7 bước**, 13 Fragment có `ViewModel`; Welcome/Onboarding cố ý không có) — quy ước `ViewModel`/Repository ở mục 0.2, các bẫy đã gặp ở mục 3–6; đọc trước khi thêm `ViewModel`/Repository mới cho một Fragment |
 | `Code_Walkthrough.md` | **Đọc trước khi sửa bất kỳ file .kt nào** — giải thích code từng file/từng hàm, sơ đồ quan hệ import giữa các file, và mục 12 liệt kê các liên kết chéo dễ nhầm khi debug (ví dụ 2 bộ nhận diện gesture độc lập nói ở mục 3 trên) |
 

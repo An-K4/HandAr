@@ -5,6 +5,7 @@ import com.example.handar.effect.catalog.blackHoleEffect
 import com.example.handar.effect.catalog.canvasDrawEffect
 import com.example.handar.effect.catalog.dragonBallEffect
 import com.example.handar.effect.catalog.earthEffect
+import com.example.handar.effect.catalog.fingerFrameEffect
 import com.example.handar.effect.catalog.fireBallEffect
 import com.example.handar.effect.catalog.gojoEffect
 import com.example.handar.effect.catalog.lightningEffect
@@ -24,7 +25,8 @@ object EffectRepository {
         monsterEffect(),
         roomTeleportEffect(),
         canvasDrawEffect(),
-        earthEffect()
+        earthEffect(),
+        fingerFrameEffect()
     )
 
     fun findById(id: String): EffectDefinition = all.first { it.id == id }

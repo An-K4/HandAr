@@ -52,6 +52,7 @@
     <string name="effect_name_canvas_draw">Canvas Draw</string>
     <string name="effect_name_dragon_ball">DB Energy Blast</string>
     <string name="effect_name_earth">Earth</string>
+    <string name="effect_name_finger_frame">Invert Frame</string>
     <string name="effect_name_fire_ball">Fireball</string>
     <string name="effect_name_gojo">Gojo</string>
     <string name="effect_name_lightning">Lightning</string>

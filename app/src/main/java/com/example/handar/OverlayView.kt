@@ -2,6 +2,7 @@ package com.example.handar
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.View
@@ -24,6 +25,10 @@ import kotlin.math.max
 
 class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs) {
     private var result: HandLandmarkerResult? = null
+
+    /** Bitmap camera dành cho nhánh live (onDraw); nhánh ghi hình nhận bitmap qua tham số `drawFrame(cameraFrame = ...)`. */
+    @Volatile
+    private var liveCameraFrame: Bitmap? = null
     private var imgWidth = 1
     private var imgHeight = 1
 
@@ -135,6 +140,11 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     @Volatile
     private var matchedIndex = -1
 
+    /** Gọi ngay trước [setResult] cùng nhịp MediaPipe để bitmap và landmark của live lệch nhau tối đa 1 frame. */
+    fun setCameraFrame(bitmap: Bitmap?) {
+        liveCameraFrame = bitmap
+    }
+
     fun setResult(handResult: HandLandmarkerResult, imgWidth: Int, imgHeight: Int) {
         result = handResult
         this.imgWidth = imgWidth
@@ -172,7 +182,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         canvas: Canvas,
         handResult: HandLandmarkerResult?,
         mirrorX: Boolean,
-        forRecording: Boolean
+        forRecording: Boolean,
+        cameraFrame: Bitmap? = null
     ) {
         val currentEffect = effect ?: return
         val hands = handResult?.landmarks() ?: emptyList()
@@ -211,6 +222,8 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             }
         } ?: emptyList()
         frame.setProjection(mirrorX, imgWidth, imgHeight, localScale, localOffsetX, localOffsetY)
+        // chỉ nhận bitmap đúng kích thước với ảnh MediaPipe đã xử lý — lệch thì coi như không có, tránh vẽ sai chỗ
+        frame.cameraFrame = cameraFrame?.takeIf { it.width == imgWidth && it.height == imgHeight }
 
         val anchorSource =
             currentEffect.states.getOrNull(matchedIndex)?.anchorSource ?: AnchorSource.PalmCenter
@@ -310,7 +323,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        drawFrame(canvas, result, mirrorX = true, forRecording = false)
+        drawFrame(canvas, result, mirrorX = true, forRecording = false, cameraFrame = liveCameraFrame)
         postInvalidateOnAnimation()
     }
 }
