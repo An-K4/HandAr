@@ -1,5 +1,6 @@
 package com.example.handar.effect
 
+import android.content.Context
 import com.example.handar.effect.catalog.blackHoleEffect
 import com.example.handar.effect.catalog.canvasDrawEffect
 import com.example.handar.effect.catalog.dragonBallEffect
@@ -30,6 +31,8 @@ object EffectRepository {
 
     fun findByIdOrNull(id: String): EffectDefinition? = all.firstOrNull { it.id == id }
 
-    fun findByName(query: String): List<EffectDefinition> =
-        if (query.isBlank()) all else all.filter { it.displayName.contains(query, ignoreCase = true) }
+    /** Lọc theo tên đã dịch theo ngôn ngữ của [context] (nên truyền context của Activity/Fragment). */
+    fun findByName(context: Context, query: String): List<EffectDefinition> =
+        if (query.isBlank()) all
+        else all.filter { context.getString(it.nameRes).contains(query, ignoreCase = true) }
 }

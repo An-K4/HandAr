@@ -64,7 +64,7 @@ class EffectListFragment : Fragment() {
         // Tìm kiếm theo tên. Việc lọc và việc "distinct" (trước đây là biến lastQuery ở đây) chuyển
         // vào EffectListViewModel.onQueryChanged.
         binding.searchBar.editSearchQuery.addTextChangedListener { editable ->
-            viewModel.onQueryChanged(editable?.toString().orEmpty())
+            viewModel.onQueryChanged(requireContext(), editable?.toString().orEmpty())
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

@@ -12,7 +12,7 @@ import com.example.handar.effect.visual.canvas.gojo.GojoVisual
 
 fun gojoEffect(): EffectDefinition = EffectDefinition(
     id = "gojo",
-    displayName = "Gojo",
+    nameRes = R.string.effect_name_gojo,
     thumbnailRes = R.drawable.gojo_thumbnail,
     requiredNumHands = 2,
     states = listOf(

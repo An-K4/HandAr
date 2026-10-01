@@ -46,6 +46,18 @@
     <string name="camera_loading_effect">Đang chuẩn bị hiệu ứng…</string>
     <string name="camera_loading_hint">Sắp xong…</string>
     <string name="effect_picker_title">Mẫu</string>
+
+    <!-- Tên hiệu ứng -->
+    <string name="effect_name_black_hole">Hố đen</string>
+    <string name="effect_name_canvas_draw">Vẽ canvas</string>
+    <string name="effect_name_dragon_ball">Chưởng năng lượng DB</string>
+    <string name="effect_name_earth">Trái đất</string>
+    <string name="effect_name_fire_ball">Cầu lửa</string>
+    <string name="effect_name_gojo">Gojo</string>
+    <string name="effect_name_lightning">Tia sét</string>
+    <string name="effect_name_magic_shield">Vòng khiên năng lượng</string>
+    <string name="effect_name_monster">Quái vật</string>
+    <string name="effect_name_room_teleport">Dịch chuyển giữa các phòng</string>
     <string name="create">Tạo</string>
     <string name="expand_video">Phóng to video</string>
     <string name="save_successfully">Lưu thành công</string>

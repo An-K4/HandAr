@@ -21,7 +21,7 @@ import com.example.handar.effect.visual.canvas.dragonball.KamehamehaVisual
  */
 fun dragonBallEffect(): EffectDefinition = EffectDefinition(
     id = "dragon_ball",
-    displayName = "Chưởng năng lượng Dragon Ball",
+    nameRes = R.string.effect_name_dragon_ball,
     thumbnailRes = R.drawable.dragon_ball_thumbnail,
     requiredNumHands = 2,
     states = listOf(

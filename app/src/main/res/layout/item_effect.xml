@@ -30,7 +30,7 @@
         android:shadowDy="1"
         android:shadowRadius="4"
         android:textColor="@color/white"
-        android:textSize="16sp"
+        android:textSize="11sp"
         android:textStyle="bold" />
 
     <ImageView

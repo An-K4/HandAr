@@ -11,7 +11,7 @@ import com.example.handar.effect.model.SizeSource
 
 fun blackHoleEffect(): EffectDefinition = EffectDefinition(
     id = "black_hole",
-    displayName = "Hố đen",
+    nameRes = R.string.effect_name_black_hole,
     thumbnailRes = R.drawable.black_hole_thumbnail,
     requiredNumHands = 2,
     states = listOf(

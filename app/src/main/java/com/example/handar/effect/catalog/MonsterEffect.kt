@@ -11,7 +11,7 @@ import com.example.handar.effect.visual.image.OneShotGifVisual
 
 fun monsterEffect(): EffectDefinition = EffectDefinition(
     id = "monster",
-    displayName = "Quái vật",
+    nameRes = R.string.effect_name_monster,
     thumbnailRes = R.drawable.monster_thumbnail,
     requiredNumHands = 1,
     states = listOf(

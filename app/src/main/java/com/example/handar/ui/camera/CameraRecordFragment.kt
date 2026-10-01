@@ -281,7 +281,7 @@ class CameraRecordFragment : Fragment() {
 
     private fun bindEffectInfo(effect: EffectDefinition?) {
         val context = requireContext()
-        binding.layoutCameraTopBar.textEffectName.text = effect?.displayName.orEmpty()
+        binding.layoutCameraTopBar.textEffectName.text = effect?.let { getString(it.nameRes) }.orEmpty()
 
         val thumbnail = effect?.thumbnailRes?.takeIf { it != 0 }?.let { res ->
             runCatching { ContextCompat.getDrawable(context, res) }.getOrNull()

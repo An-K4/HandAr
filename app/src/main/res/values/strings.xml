@@ -46,6 +46,18 @@
     <string name="camera_loading_effect">Preparing effect…</string>
     <string name="camera_loading_hint">Almost done…</string>
     <string name="effect_picker_title">Template</string>
+
+    <!-- Tên hiệu ứng -->
+    <string name="effect_name_black_hole">Black Hole</string>
+    <string name="effect_name_canvas_draw">Canvas Draw</string>
+    <string name="effect_name_dragon_ball">DB Energy Blast</string>
+    <string name="effect_name_earth">Earth</string>
+    <string name="effect_name_fire_ball">Fireball</string>
+    <string name="effect_name_gojo">Gojo</string>
+    <string name="effect_name_lightning">Lightning</string>
+    <string name="effect_name_magic_shield">Energy Shield</string>
+    <string name="effect_name_monster">Monster</string>
+    <string name="effect_name_room_teleport">Room Teleport</string>
     <string name="create">Create</string>
     <string name="expand_video">Expand video</string>
     <string name="save_successfully">Save Successfully</string>

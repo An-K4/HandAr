@@ -33,7 +33,7 @@ class EffectPickerAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
-        holder.binding.textName.text = item.displayName
+        holder.binding.textName.setText(item.nameRes)
         holder.binding.imgThumbnail.setImageResource(item.thumbnailRes)
         holder.binding.cardEffect.isSelected = item.id == selectedId
         holder.binding.root.setOnClickListener { onSelected(item) }

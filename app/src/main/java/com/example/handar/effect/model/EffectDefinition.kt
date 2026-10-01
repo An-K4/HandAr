@@ -1,8 +1,10 @@
 package com.example.handar.effect.model
 
+import androidx.annotation.StringRes
+
 data class EffectDefinition(
     val id: String,
-    val displayName: String,
+    @StringRes val nameRes: Int,
     val thumbnailRes: Int,
     val requiredNumHands: Int,
     val states: List<EffectState>,

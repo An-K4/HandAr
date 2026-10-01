@@ -53,7 +53,7 @@ class EffectPreviewFragment : Fragment() {
         binding.layoutPreviewTopBar.root.applySystemBarsInsetsMargin(top = true)
         binding.btnCreate.applySystemBarsInsetsMargin(bottom = true)
 
-        binding.layoutPreviewTopBar.textEffectName.text = viewModel.effect.displayName
+        binding.layoutPreviewTopBar.textEffectName.setText(viewModel.effect.nameRes)
         binding.layoutPreviewTopBar.btnBack.setOnClickListener { viewModel.onBackClicked() }
         binding.btnCreate.setOnClickListener { viewModel.onCreateClicked() }
 

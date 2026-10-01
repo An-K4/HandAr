@@ -12,7 +12,7 @@ private const val FIRE_BALL_BIG_SIZE_SCALE = 2.5f
 
 fun fireBallEffect(): EffectDefinition = EffectDefinition(
     id = "fire_ball",
-    displayName = "Cầu lửa",
+    nameRes = R.string.effect_name_fire_ball,
     thumbnailRes = R.drawable.fire_ball_thumbnail,
     requiredNumHands = 1,
     states = listOf(

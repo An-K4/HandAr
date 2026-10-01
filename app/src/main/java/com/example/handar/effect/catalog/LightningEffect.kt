@@ -9,7 +9,7 @@ import com.example.handar.effect.visual.canvas.lightning.LightningVisual
 
 fun lightningEffect(): EffectDefinition = EffectDefinition(
     id = "lightning",
-    displayName = "Tia sét",
+    nameRes = R.string.effect_name_lightning,
     thumbnailRes = R.drawable.lightning_thumbnail,
     // 2 tay: mỗi ngón duỗi của MỖI tay đều có tia sét riêng (xem LightningVisual.draw).
     requiredNumHands = 2,

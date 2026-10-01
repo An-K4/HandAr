@@ -18,7 +18,7 @@ private const val MAGIC_SHIELD_SIZE_SCALE = 3.2f
 
 fun magicShieldEffect(): EffectDefinition = EffectDefinition(
     id = "magic_shield",
-    displayName = "Vòng khiên năng lượng",
+    nameRes = R.string.effect_name_magic_shield,
     thumbnailRes = R.drawable.magic_shield_thumbnail,
     requiredNumHands = 1,
     states = listOf(

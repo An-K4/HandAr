@@ -13,7 +13,7 @@ import com.example.handar.effect.visual.canvas.drawcanvas.StrokeVisual
 
 fun canvasDrawEffect(): EffectDefinition = EffectDefinition(
     id = "canvas_draw",
-    displayName = "Vẽ canvas",
+    nameRes = R.string.effect_name_canvas_draw,
     thumbnailRes = R.drawable.canvas_draw_thumbnail,
     requiredNumHands = 1,
     states = listOf(

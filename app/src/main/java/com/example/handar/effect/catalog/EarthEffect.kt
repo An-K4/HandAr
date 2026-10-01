@@ -11,7 +11,7 @@ import com.example.handar.effect.model.SizeSource
 
 fun earthEffect(): EffectDefinition = EffectDefinition(
     id = "earth",
-    displayName = "Trái đất",
+    nameRes = R.string.effect_name_earth,
     thumbnailRes = R.drawable.earth_planet,
     requiredNumHands = 1,
     states = listOf(

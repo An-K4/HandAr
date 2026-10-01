@@ -10,7 +10,7 @@ import com.example.handar.effect.model.StateMode
 
 fun roomTeleportEffect(): EffectDefinition = EffectDefinition(
     id = "room_teleport",
-    displayName = "Dịch chuyển giữa các phòng",
+    nameRes = R.string.effect_name_room_teleport,
     thumbnailRes = R.drawable.room_teleport_thumbnail,
     requiredNumHands = 1,
     stateMode = StateMode.Latched,

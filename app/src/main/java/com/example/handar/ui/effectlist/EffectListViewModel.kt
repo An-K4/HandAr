@@ -37,11 +37,11 @@ class EffectListViewModel(private val favouriteManager: FavouriteManager) : View
     }
 
     /** `query == state.query` thay cho biến `lastQuery` mà Fragment dùng làm "distinct" trước đây. */
-    fun onQueryChanged(query: String) {
+    fun onQueryChanged(context: Context, query: String) {
         if (query == _uiState.value.query) return
         _uiState.value = _uiState.value.copy(
             query = query,
-            items = EffectRepository.findByName(query)
+            items = EffectRepository.findByName(context, query)
         )
     }
 
