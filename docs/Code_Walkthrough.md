@@ -1051,8 +1051,9 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
 >
 > - `VideoListFragment` → `VideoListViewModel.uiState` (`isLoading`/`items`/`isEmpty`) →
 >   `adapter.submit(...)`. Repository `VideoRepository` giờ là `class` nhận `Context`. Danh sách
->   **không** load lại mỗi lần vào màn; chỉ load lại khi `VideoPlayerFragment` đặt cờ
->   `VideoListFragment.KEY_VIDEO_LIST_STALE` (sau xoá **hoặc** đổi tên) và `onResume` đọc thấy.
+>   **load lại mỗi lần view được tạo** (`viewLifecycleOwner.lifecycleScope.launch { viewModel.load() }`
+>   ở `onViewCreated`) — bắt buộc vì VM sống dai hơn view và video mới quay không đi qua màn player.
+>   Cơ chế cờ `KEY_VIDEO_LIST_STALE` từng dùng ở đây đã bỏ hẳn, xem `MVVM_Migration_Plan.md` mục 4.
 > - `VideoPlayerFragment` → `VideoPlayerViewModel`: `playbackPosition` qua `SavedStateHandle` (thay
 >   `onSaveInstanceState` thủ công), `delete()`/`rename()` chạy trên `Dispatchers.IO` qua
 >   `VideoFileRepository`, kết quả về bằng 4 sự kiện (`Deleted`/`Renamed`/`RenameNameExists`/

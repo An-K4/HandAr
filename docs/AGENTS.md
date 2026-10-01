@@ -418,12 +418,14 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   rename vô hại. Trước khi kết luận "state cũ này không ảnh hưởng gì", phải soát cả những gì item
   truyền đi qua callback/`Directions`, không chỉ những gì nó vẽ. Dạng lỗi này **chỉ xuất hiện sau
   khi thêm ViewModel** — trước đó list load lại mỗi lần view được tạo nên dữ liệu luôn tươi.
-- **Làm mới danh sách sau khi sửa file: dùng cờ, đừng `load()` vô điều kiện ở `onResume`.**
-  `VideoPlayerFragment.markVideoListStale()` đặt `VideoListFragment.KEY_VIDEO_LIST_STALE` vào
-  `nav.previousBackStackEntry?.savedStateHandle` trước `popBackStack()` (cả đường xoá và đường đổi
-  tên), `VideoListFragment.onResume()` đọc cờ → `remove` → `viewModel.load()`. Gọi `load()` vô điều
-  kiện thì mất sạch lợi ích "vào xem rồi back ra không phải quét lại thư mục" của ViewModel. Thêm
-  thao tác sửa file mới ở màn player thì nhớ gọi `markVideoListStale()` trong nhánh thành công.
+- **Làm mới danh sách video: `viewModel.load()` ở `onViewCreated`, KHÔNG dùng cờ báo từ màn khác.**
+  `VideoListFragment` nằm trong back stack gần như suốt phiên (tab Bộ sưu tập) nên VM sống dai hơn
+  view rất nhiều; load theo vòng đời **view** là cách duy nhất phủ hết, vì mọi đường quay lại màn
+  (pop từ player, chuyển tab, back từ camera) đều tạo lại view. Cơ chế cờ
+  `KEY_VIDEO_LIST_STALE` cũ đã **bỏ hẳn** (01/10/2026): nó chỉ phủ đường `VideoPlayerFragment`, còn
+  video mới quay đi camera → recordedPreview → share → `popBackStack` về effectList, không chạm màn
+  này nên không ai đặt cờ → video vừa quay không hiện lên. Đánh đổi: quét lại thư mục mỗi lần vào
+  màn. Chi tiết 3 vòng quyết định: `MVVM_Migration_Plan.md` mục 4.
 
 - **Màn nào cần `ViewModel`, màn nào không.** Có state / timer / dữ liệu / sự kiện một lần → có
   `ViewModel` (`ui/<màn>/<Man>ViewModel.kt`, factory viết tay, **không** DI — xem

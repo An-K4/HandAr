@@ -57,22 +57,20 @@ class VideoListFragment : Fragment() {
                 }
             }
         }
-    }
 
-    override fun onResume() {
-        super.onResume()
-        // VideoPlayerFragment đặt cờ này trước khi popBackStack về đây, sau khi XOÁ hoặc ĐỔI TÊN
-        // video. Cả hai đều làm List<VideoItem> trong VideoListViewModel thành cũ: VideoItem giữ
-        // File, và onClick truyền file.absolutePath sang player — path cũ sau rename thì player
-        // không mở được file.
-        // Chỉ load lại khi thật sự có thay đổi, không load lại mỗi lần onResume — để giữ lợi ích
-        // "rời màn rồi quay lại không phải quét lại thư mục" của ViewModel.
-        // Bước 3 sẽ đổi cờ này sang sự kiện của VideoPlayerViewModel.
-        val handle = findNavController().currentBackStackEntry?.savedStateHandle ?: return
-        if (handle.get<Boolean>(KEY_VIDEO_LIST_STALE) == true) {
-            handle.remove<Boolean>(KEY_VIDEO_LIST_STALE)
-            viewModel.load()
-        }
+        // Load lại mỗi lần VIEW được tạo, không phải mỗi lần VM được tạo.
+        //
+        // Lý do: màn này nằm trong back stack gần như suốt phiên (tab Bộ sưu tập) nên VM sống dai hơn
+        // view rất nhiều. Mọi đường làm danh sách lệch khỏi thư mục đều phải được phủ, kể cả đường
+        // KHÔNG đi qua VideoPlayerFragment — video mới quay đi camera → recordedPreview → share →
+        // popBackStack về effectList, không chạm màn này một lần nào. Mọi cách quay lại đây (pop từ
+        // player, chuyển tab, back từ camera) đều tạo lại view, nên đây là chỗ duy nhất phủ hết.
+        //
+        // Đánh đổi đã chấp nhận: quét lại thư mục mỗi lần vào màn. Xem MVVM_Migration_Plan.md mục 4.
+        //
+        // Đây là nguồn gọi load() DUY NHẤT — VM không có `init { load() }` (có thì mỗi lần vào màn với
+        // VM mới sẽ quét thư mục hai lần). Xem comment trong VideoListViewModel.
+        viewLifecycleOwner.lifecycleScope.launch { viewModel.load() }
     }
 
     override fun onDestroyView() {
@@ -81,11 +79,4 @@ class VideoListFragment : Fragment() {
         _binding = null
     }
 
-    companion object {
-        /**
-         * Cờ `VideoPlayerFragment` đặt vào `savedStateHandle` của entry này khi danh sách video
-         * không còn khớp với thư mục nữa (xoá hoặc đổi tên).
-         */
-        const val KEY_VIDEO_LIST_STALE = "video_deleted"
-    }
 }

@@ -352,10 +352,62 @@ một state cũ "có ảnh hưởng thấy được hay không", phải soát **
 qua callback**, không chỉ soát những gì `onBindViewHolder` vẽ ra màn hình. Đây là dạng lỗi chỉ xuất
 hiện *sau khi* thêm ViewModel: trước đó list load lại mỗi lần view được tạo nên path luôn tươi.
 
-**Nợ kỹ thuật có chủ đích:** cờ `KEY_VIDEO_LIST_STALE` là giải pháp tạm không cần ViewModel ở phía
-player. Khi làm Bước 3.3 (`VideoPlayerViewModel` phát `Event.Deleted`/`Event.Renamed`), **bỏ cờ này
-đi**, cho `VideoPlayerFragment` phát sự kiện qua VM và `VideoListFragment` nhận qua đó — nhớ nối
-**cả** `Renamed`, không chỉ `Deleted`.
+🐛 **Sửa lại lần nữa (2026-10-01) — cơ chế cờ KHÔNG đủ, đã bỏ sót một đường vào.**
+
+Cờ `KEY_VIDEO_LIST_STALE` chỉ phủ các thao tác **từ `VideoPlayerFragment`**. Nhưng **video mới quay
+không hề đi qua màn đó**: luồng là camera → recordedPreview → share → `popBackStack(effectListFragment)`,
+không ai chạm `videoListFragment` nên không ai đặt cờ. Kết quả: màn Bộ sưu tập nằm trong back stack
+suốt phiên, VM sống dai hơn view, danh sách đứng im ở lần quét đầu tiên và **video vừa quay không bao
+giờ hiện lên**.
+
+Sửa: `VideoListFragment.onViewCreated` gọi `viewModel.load()` **mỗi lần view được tạo**:
+
+```kotlin
+viewLifecycleOwner.lifecycleScope.launch { viewModel.load() }
+```
+
+Đây là đường bảo đảm duy nhất, vì mọi cách quay lại màn này (pop về từ player, chuyển tab, back từ
+camera) đều tạo lại view.
+
+**Hệ quả phải thừa nhận: lợi ích "rời màn rồi quay lại không phải quét lại thư mục" mà mục này từng
+quảng cáo ở Bước 2 giờ KHÔNG còn.** Quét lại mỗi lần tạo view là giá phải trả cho việc dữ liệu luôn
+đúng, và đúng quan trọng hơn. Những gì VM còn mang lại cho màn này: state sống qua config change, và
+coroutine load không bị huỷ giữa đường khi view chết (`viewModelScope` thay vì
+`viewLifecycleOwner.lifecycleScope`).
+
+**Bài học:** khi quyết định "làm mới có điều kiện", phải liệt kê **mọi đường vào màn**, không chỉ đường
+mình đang sửa. Tôi đã soát đường player (xoá, đổi tên) mà bỏ qua đường camera — đường thường gặp nhất.
+
+✅ **Đã xoá cơ chế cờ (2026-10-01).** Với `load()` ở `onViewCreated`, cờ `KEY_VIDEO_LIST_STALE` dư thừa
+hoàn toàn: pop về từ player cũng tạo lại view nên đã load lại rồi. Giữ lại là có hai đường làm mới song
+song, đúng cái mục này từng tự cảnh báo. Đã bỏ:
+
+- `VideoListFragment`: hằng `KEY_VIDEO_LIST_STALE` và cả `onResume()`
+- `VideoPlayerFragment`: hàm `markVideoListStale()`, 2 lời gọi trong `exitAfterFileChanged()`, và 2
+  import thành mồ côi (`androidx.navigation.NavController`,
+  `com.example.handar.ui.videolist.VideoListFragment` — tức player **không còn phụ thuộc** vào
+  videolist, một lợi ích phụ đáng kể)
+
+Dọn kèm: **bỏ luôn `init { load() }` trong `VideoListViewModel`.** Nó dư thừa và gây quét đôi. Lý do
+đầy đủ: VM là `by viewModels()` nên lazy — nó chỉ được tạo khi Fragment chạm lần đầu, mà mọi chỗ chạm
+đều nằm trong `onViewCreated`, nơi đã có `launch { viewModel.load() }`. Thứ tự thật khi vào màn:
+collector chạy → chạm `viewModel.uiState` → **VM mới được tạo** → `init` phóng coroutine quét thư mục →
+rồi khối thứ hai phóng coroutine quét lại lần nữa. Hai lần quét, hai coroutine cùng ghi `_uiState`.
+
+Comment tôi từng viết để biện minh cho `init` ("phủ lần đầu tiên, trước khi collector kịp chạy") là vô
+nghĩa: VM chỉ tồn tại *vì* collector đã chạm vào nó. Giờ `load()` có đúng một người gọi, và state khởi
+tạo `isLoading = true` lo phần UI trong lúc chờ lần quét đầu.
+
+Lịch sử 3 vòng của đúng một quyết định, ghi lại vì nó là ví dụ tốt về việc đoán sai phạm vi:
+
+| Vòng | Quyết định | Sai ở đâu |
+|---|---|---|
+| 1 | Không làm mới gì cả | Xoá video rồi back ra thì item đã xoá còn nằm lại |
+| 2 | Cờ `KEY_VIDEO_LIST_STALE`, đặt từ player | Chỉ phủ đường player; video mới quay không đi qua đó |
+| 3 | `load()` ở `onViewCreated` | Đang dùng. Phủ mọi đường vì mọi đường đều tạo lại view |
+
+Mỗi vòng đều do người dùng test thật rồi báo lỗi, không vòng nào do đọc code mà ra — đáng ghi nhớ cho
+các quyết định "làm mới có điều kiện" sau này.
 
 ---
 
@@ -1706,8 +1758,8 @@ J/K/L/M trong tài liệu kế hoạch này để không phải sửa hai chỗ,
 | Ca | Nội dung | Kỳ vọng |
 |---|---|---|
 | J1 | Quay 3 video → vào danh sách | Đủ 3 item, thumbnail đúng, sắp theo mới nhất trước |
-| J2 | Vào danh sách → mở 1 video → Back ra | **Không** quét lại thư mục (lợi ích VM ở Bước 2) — dễ thấy nhất khi có nhiều video: không thấy vòng loading lần 2 |
-| J3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (cờ `KEY_VIDEO_LIST_STALE`) |
+| J2 | Vào danh sách → mở 1 video → Back ra | Quét lại thư mục và khớp đúng (đổi kỳ vọng 01/10/2026 — xem mục 4) |
+| J3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (`load()` ở `onViewCreated`) |
 | J4 | Mở video → đổi tên thành công → về danh sách → bấm vào video vừa đổi tên | **Phát được** (đây đúng bug đã sập ở Bước 2, xem mục 4) |
 | J5 | Đổi tên trùng tên file khác | Toast "đã tồn tại", **ở lại màn** player |
 | J6 | Đổi tên để trống | Im lặng, ở lại màn, không Toast |

@@ -21,20 +21,14 @@ class VideoListViewModel(private val repository: VideoRepository) : ViewModel() 
     private val _uiState = MutableStateFlow(VideoListUiState())
     val uiState: StateFlow<VideoListUiState> = _uiState.asStateFlow()
 
-    // Chạy đúng một lần theo vòng đời VM, không phải theo vòng đời view: rời màn rồi quay lại
-    // (view bị huỷ, VM còn sống) không quét lại thư mục nữa.
+    // KHÔNG có `init { load() }`.
     //
-    // Làm mới có điều kiện, không phải mỗi lần onResume: sau khi XOÁ hoặc ĐỔI TÊN video,
-    // VideoPlayerFragment đặt cờ VideoListFragment.KEY_VIDEO_LIST_STALE rồi popBackStack,
-    // VideoListFragment.onResume đọc cờ và gọi load(). Nhờ vậy vừa không giữ dữ liệu cũ, vừa giữ
-    // được lợi ích cache khi chỉ vào xem rồi back ra.
+    // VM này lazy (`by viewModels()`) nên nó chỉ được tạo khi Fragment chạm vào lần đầu — mà mọi chỗ
+    // chạm đều nằm trong onViewCreated, nơi đã có `launch { viewModel.load() }`. Thêm init thì mỗi
+    // lần vào màn với VM mới sẽ quét thư mục HAI lần bằng hai coroutine cùng ghi vào _uiState.
     //
-    // Rename BẮT BUỘC phải làm mới, dù item trong grid không hiện tên file: VideoItem giữ File, và
-    // VideoListFragment truyền file.absolutePath sang player khi bấm vào item. Path cũ sau rename
-    // thì player không mở được -> Toast can_not_play_video + popBackStack ngay.
-    // Bước 3 sẽ đổi cờ này sang sự kiện của VideoPlayerViewModel.
-    init { load() }
-
+    // Nguồn gọi load() duy nhất: VideoListFragment.onViewCreated. State khởi tạo có isLoading = true
+    // nên UI hiện vòng chờ ngay, không nhấp nháy khoảng trống trước khi lần quét đầu xong.
     fun load() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)

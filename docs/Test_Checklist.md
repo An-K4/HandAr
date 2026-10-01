@@ -394,8 +394,9 @@ git checkout main && git stash pop
 | Ca | Nội dung | Kỳ vọng |
 |---|---|---|
 | N1 | Quay 3 video → vào danh sách | Đủ 3 item, thumbnail đúng, sắp theo mới nhất trước |
-| N2 | Vào danh sách → mở 1 video → Back ra | **Không** quét lại thư mục: với nhiều video sẽ thấy rõ là không có vòng loading lần 2 (lợi ích `VideoListViewModel`) |
-| N3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (cờ `KEY_VIDEO_LIST_STALE`) |
+| N2 | Vào danh sách → mở 1 video → Back ra | Danh sách **quét lại** (có vòng loading) và khớp thư mục. Ca này từng kỳ vọng ngược lại ("không quét lại") — đã đổi 01/10/2026 vì cơ chế cờ không phủ hết, xem `MVVM_Migration_Plan.md` mục 4 |
+| N2b | Quay 1 video mới → sang màn chia sẻ → về Trang chủ → mở tab **Bộ sưu tập** (màn này ĐANG nằm trong back stack từ trước) | Video vừa quay **hiện lên ngay**. Đây là bug đã sập: VM sống dai hơn view, video mới quay không đi qua `VideoPlayerFragment` nên không có cờ nào được đặt |
+| N3 | Mở video → xoá → về danh sách | Item đã xoá **biến mất ngay** (`load()` ở `onViewCreated`; cơ chế cờ cũ đã xoá 01/10/2026) |
 | N4 | Mở video → đổi tên thành công → về danh sách → bấm vào video vừa đổi tên | **Phát được**. Đây là bug đã sập một lần: `VideoItem` giữ `File`, cache cũ mang path cũ (xem `MVVM_Migration_Plan.md` mục 4) |
 | N5 | Đổi tên trùng tên file khác | Toast "đã tồn tại", **ở lại** màn player |
 | N6 | Đổi tên để trống | Im lặng, ở lại màn, **không** Toast |
