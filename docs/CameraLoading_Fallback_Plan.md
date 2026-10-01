@@ -40,4 +40,4 @@
 
 - [x] Bước 1 — Fallback trong `HandLandmarkerProvider` (RAM check + timeout 5s + bắt lỗi + nhớ trạng thái phiên)
 - [x] Bước 2 — Loading overlay trong `CameraRecordFragment` (đã test pass: hiện ngay không nhấp nháy, che kín top bar/bottom bar, disable nút, back hệ thống vẫn thoát được)
-- [ ] Bước 3 — Test lại + cập nhật `Test_Checklist.md`
+- [x] Bước 3 — Test lại D7–D10 (đã test pass, 01/10/2026) + cập nhật `Test_Checklist.md`

@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `aba1e01`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `69a165b`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -36,7 +36,7 @@ Lệnh hay dùng:
 
 CI: `.github/workflows/release.yml` — mỗi lần push lên `main`, GitHub Actions (JDK 17 temurin)
 chạy `./gradlew bundleRelease packageReleaseUniversalApk`, ước tính dung lượng tải từ Play bằng `bundletool get-size`
-(ghi vào mô tả Release) rồi đẩy APK universal release lên GitHub Release tag `latest` (tên "Magic Hand Latest Build").
+(ghi vào mô tả Release) rồi đẩy APK universal release lên GitHub Release tag `latest` (tên "Magic Hand Latest Build"); sau đó `git tag -f latest $GITHUB_SHA` + push force để tag `latest` luôn trỏ đúng commit vừa build (source zip/tar.gz của Release sinh từ tag, `action-gh-release` không tự dời tag đã có).
 Bản release ký bằng keystore riêng của CI (secrets `CI_KEYSTORE_BASE64`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`,
 `CI_KEY_PASSWORD`) — không phải upload key của Play; build local không có biến môi trường thì ký bằng debug keystore. Không chạy lint/test trong CI, vẫn phải tự chạy `assembleDebug lintDebug` trước khi commit.
 
@@ -90,7 +90,7 @@ dùng `popUpTo` chính màn preview inclusive nên back ở camera vẫn về `e
 điều hướng sang `shareFragment`, `popUpTo` chính màn này inclusive; back/nút Thoát qua `ConfirmDialog`:
 nút Thoát trong dialog xoá file rồi pop, nút Save trong dialog thì chạy đúng hàm Save) →
 `shareFragment` (xem lại video dạng card thu gọn/toàn màn hình + icon chia sẻ MXH — 4 nút gọi `shareVideoToSocialApp()`,
-xem đoạn `ShareFragment` bên dưới; nút Trang chủ → `popBackStack(effectListFragment,
+xem đoạn `ShareFragment` bên dưới; tiêu đề top bar là "Lưu thành công" khi vào từ màn xem lại, "Chia sẻ" khi vào từ menu ⋮ của player — cùng cờ `fromRecordedPreview` với nút Thử lại; nút Trang chủ → `popBackStack(effectListFragment,
 inclusive=false)`; nút Thử lại → `actionShareToCameraRecord(effectId)` với `popUpTo` chính
 `shareFragment` inclusive — tạo camera **mới**, không quay lại camera cũ; back hệ thống: đang
 fullscreen thì thu nhỏ trước, đang ở card thì về thẳng Trang chủ); từ `cameraRecordFragment`, nút Effect mở
@@ -135,8 +135,9 @@ sách riêng tư) mới chỉ có UI, chưa gắn logic — xem docstring trong 
 
 Màn camera có nút Action (`btn_action`) mở `GestureGuideDialog` (dialog lưới 2 cột liệt kê từng cử chỉ
 + tên hiển thị của effect đang chọn, dùng `GestureAdapter`/`item_gesture.xml`); map cử chỉ → tên/icon nằm ở
-`effect/gesture/GestureDisplay.kt` (`gestureDisplayMap`). **Icon hiện dùng tạm `ic_action` cho mọi cử chỉ**
-(chưa có bộ icon riêng từng cử chỉ) — không phải bug.
+`effect/gesture/GestureDisplay.kt` (`gestureDisplayMap`). **Mỗi cử chỉ có icon riêng** (`res/drawable/ic_action_<tên>.xml`, vector 36dp,
+màu cố định không tint). Cử chỉ chưa có trong map rơi về `unknownGestureDisplay` (icon `ic_action_open`). Icon chưa dùng ở
+đâu: `ic_action_frame_2hands` (cử chỉ khung máy ảnh đã gỡ), `ic_action_index_touch_2hands` (chạm 2 ngón trỏ của Gojo, xem giới hạn ở mục 5).
 
 ## 4. Cấu trúc thư mục
 
@@ -147,7 +148,7 @@ app/src/main/java/com/example/handar/
 │                          đổi icon theo tab đang ở; release HandLandmarkerProvider ở onDestroy
 ├── effect/
 │   ├── EffectRepository.kt      danh sách phẳng List<EffectDefinition>, lắp hoàn toàn từ catalog/ (10 effect);
-│   │                            có findByName(query) lọc theo tên (contains, ignoreCase) cho search real-time;
+│   │                            có findByName(context, query) lọc theo tên ĐÃ DỊCH (getString(nameRes), contains, ignoreCase) cho search real-time;
 │   │                            findById (crash nếu sai id) và findByIdOrNull (dùng cho camera không effect)
 │   ├── HandLandmarkerProvider.kt  singleton cache HandLandmarker theo numHands, phát SharedFlow; tạo model bằng
 │   │                            `createWithFallback()` — thử GPU trước, tự rơi về CPU (RAM thấp / init > 5s / lỗi), xem mục 5
@@ -446,6 +447,28 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   `AppCompatDelegate.setApplicationLocales()` tạo lại Activity hoàn toàn → Fragment mới + VM mới. Sau
   khi tạo lại, `LanguageRepository.currentTag()` đọc lại từ hệ thống nên state khởi tạo vẫn đúng.
   Đừng "sửa" chỗ này bằng cách cố giữ state — cần UI không giật thì phải xử lý ở `android:configChanges`.
+- **`AppCompatDelegate.getApplicationLocales()` RỖNG khi app chưa từng `setApplicationLocales`** (app đang theo ngôn ngữ
+  hệ thống) — máy tiếng Việt cũng trả rỗng. `LanguageRepository.currentTag()` vì thế rơi về `Locale.getDefault().language`
+  khi danh sách rỗng, rồi quy về `"vi"`/`"en"`. Bản đầu chỉ đọc `getApplicationLocales()` nên màn Ngôn ngữ luôn tick English
+  trên máy tiếng Việt chưa từng đổi ngôn ngữ trong app (01/10/2026). Bài học: API "đọc cấu hình đã đặt" khác API "đọc giá trị
+  đang áp dụng" — khi cần hiển thị trạng thái hiện hành, phải xử lý nhánh "chưa đặt gì".
+- **Text `PermissionDeniedDialog` phải trung tính theo ngữ cảnh**: dialog dùng chung cho `PermissionFragment` (onboarding) và
+  `CameraRecordFragment`, nên `permission_denied` ("Cần cấp quyền"/"Permission required") và `denied_permission_message` chỉ nói
+  *vì sao app cần quyền* + *vào Cài đặt bật lại*, không viết kiểu "tính năng này không hoạt động…" hay "bị từ chối" gắn với 1 màn.
+  Phần khác nhau giữa 2 màn (nút Thoát/Đóng, nội dung Thông báo) truyền qua tham số của dialog, đừng nhân bản chuỗi.
+
+- **⚠️ Giới hạn đã biết của `GestureDisplay`: dialog hướng dẫn suy ra từ `EffectState.gesture`, nhưng không phải hiệu ứng nào cũng
+  "điều khiển bằng gesture".** `gestureDisplayMap` khoá theo INSTANCE `GestureRecognizer`, nên (1) hiệu ứng khớp mọi bàn tay rồi
+  tự tính cỡ/tâm (Trái đất: chụm ngón) phải dùng instance riêng — hiện là `Gestures.pinchTracking`, cùng logic `anyHandPresent`
+  (sửa 01/10/2026; trước đó dialog hiện nhầm "Giơ tay"); (2) tương tác nằm trong visual (Gojo: chạm 2 đầu ngón trỏ) không thuộc
+  state nào nên dialog không có dòng cho nó (icon `ic_action_index_touch_2hands` chưa dùng). Đây là cách chữa tạm — **cần nghiên cứu
+  cách khác** (ví dụ `EffectDefinition`/`EffectState` khai thẳng danh sách hướng dẫn tách khỏi `gesture`) trước khi thêm hiệu ứng
+  kiểu này nữa. Thêm hiệu ứng mới: luôn mở dialog Action kiểm tra có dòng hướng dẫn đúng.
+- **Tên hiệu ứng là string resource, không phải chuỗi cứng.** `EffectDefinition.nameRes` (`@StringRes`) trỏ tới
+  `effect_name_<id>` trong `values/` (en) và `values-vi/`. Hiển thị bằng `setText(nameRes)`/`getString(nameRes)`. Tìm kiếm ở
+  `EffectRepository.findByName(context, query)` lọc theo tên đã dịch nên **phải truyền context của Activity/Fragment**
+  (`requireContext()`), không dùng application context — trên Android đời cũ nó có thể chưa theo ngôn ngữ app đã chọn. Thêm
+  effect mới phải thêm đủ 2 string. `item_effect.xml` (màn danh sách) cỡ chữ tên là 10sp; `item_effect_picker.xml` vẫn 16sp.
 
 ## 6. Bản đồ `docs/` — đọc đúng file khi cần đào sâu
 
@@ -464,7 +487,7 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
 | `CameraLoading_Fallback_Plan.md` | Trước khi đụng `HandLandmarkerProvider.createWithFallback()` hoặc loading overlay của camera — lý do từng ngưỡng, phương án đã cân nhắc và bỏ (preload) |
 | `DelegatePerf_Plan.md` | Khi cần đo lại CPU vs GPU bằng `DelegatePerfLogger` — cách gắn và cách đọc số liệu (kết quả đo đã nằm ở `Perf_Notes.md` mục 9) |
 | `Camera_X_Face_Landmarker.md` | Tài liệu lý thuyết cho tính năng nhận diện khuôn mặt (Face Landmarker) — **chưa có code Face nào trong app**, chỉ đọc khi định làm Face AR |
-| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**chưa bước nào được làm**, chưa có `ViewModel` trong repo) — đọc trước khi thêm `ViewModel`/Repository mới cho một Fragment |
+| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**đã xong cả 7 bước**, 13 Fragment có `ViewModel`; Welcome/Onboarding cố ý không có) — quy ước `ViewModel`/Repository ở mục 0.2, các bẫy đã gặp ở mục 3–6; đọc trước khi thêm `ViewModel`/Repository mới cho một Fragment |
 | `Code_Walkthrough.md` | **Đọc trước khi sửa bất kỳ file .kt nào** — giải thích code từng file/từng hàm, sơ đồ quan hệ import giữa các file, và mục 12 liệt kê các liên kết chéo dễ nhầm khi debug (ví dụ 2 bộ nhận diện gesture độc lập nói ở mục 3 trên) |
 
 ## 7. Thêm một hiệu ứng mới (việc thường gặp nhất)
@@ -483,5 +506,5 @@ trước/sau, zoom, tap-to-focus, pause/resume, giới hạn thời lượng, xu
 ⚠️ **2 mục từng nằm trong danh sách hoãn ở trên đã được làm — đừng liệt kê lại vào danh sách hoãn
 nếu thấy nhắc tới trong `HandAr_Plan.md`/`Design_App_HandAr.md` cũ**: (1) xoá/chia sẻ/đổi tên ngay
 trong màn thư viện — nay là menu ⋮ của `VideoPlayerFragment` (mục 4); (2) hướng dẫn cử chỉ cho người
-dùng — nay là `GestureGuideDialog` mở từ `btn_action` ở màn camera (mục 3), icon vẫn tạm dùng chung
-`ic_action` cho mọi cử chỉ.
+dùng — nay là `GestureGuideDialog` mở từ `btn_action` ở màn camera (mục 3), mỗi cử chỉ đã có icon riêng
+(`ic_action_*`).

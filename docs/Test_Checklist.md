@@ -20,7 +20,7 @@
 | A1 | Gỡ cài đặt app cũ, cài lại bản mới, mở app → đi hết luồng splash (~5s) → chào mừng → onboarding 1–3 → khảo sát 1–2 tới **màn xin quyền** | Trước màn xin quyền **không** hiện popup quyền nào. Ở màn xin quyền, switch Camera đang tắt. Bật switch **Camera** → hiện đúng 1 popup Camera; Android 13+ bật switch Thông báo → hiện popup Thông báo riêng. **Không** có popup xin quyền Mic ở bất kỳ bước nào |
 | A1b | **Chạy trên máy Android < 13** (hoặc emulator API 32), vào màn xin quyền | Card "Allow notification" **không hiện** (bị ẩn cả dòng, không phải chỉ tắt switch). Card Camera nằm ngay trên nút bắt đầu, khoảng cách cân đối như khi có 2 card — không bị tụt sát nút hay hở một mảng trống |
 | A2 | Ở màn xin quyền: bật switch Camera rồi **từ chối** popup (1 lần) | Switch tự trả về tắt, **không** có dialog nào, không crash. Bấm lại switch → popup hiện lại bình thường |
-| A2b | Từ chối tiếp cho tới khi Android chuyển sang *permanently denied* (Android 11+: từ chối 2 lần, hoặc tick "Don't ask again") | Hiện `PermissionDeniedDialog`: tiêu đề "Quyền truy cập bị từ chối", 2 nút **Đóng** / **Cài đặt** (đúng bố cục `dialog_confirm.xml`, có font Noto Serif, không phải dialog trắng mặc định của hệ thống). Bấm ra ngoài dialog **không** đóng được |
+| A2b | Từ chối tiếp cho tới khi Android chuyển sang *permanently denied* (Android 11+: từ chối 2 lần, hoặc tick "Don't ask again") | Hiện `PermissionDeniedDialog`: tiêu đề "Cần cấp quyền" (nội dung trung tính, dùng chung cho màn xin quyền lẫn màn camera), 2 nút **Đóng** / **Cài đặt** (đúng bố cục `dialog_confirm.xml`, có font Noto Serif, không phải dialog trắng mặc định của hệ thống). Bấm ra ngoài dialog **không** đóng được |
 | A2c | Ở dialog A2b bấm **Đóng** | Dialog đóng, vẫn ở màn xin quyền, switch tắt, không điều hướng đi đâu |
 | A2d | Ở dialog A2b bấm **Cài đặt** | Mở đúng màn App info của Magic Hand (không phải màn Settings tổng). Bật quyền Camera rồi back về app → switch Camera **tự bật** mà không cần thao tác gì thêm |
 | A2e | Lặp A2b–A2d với quyền **Thông báo** trên Android 13+ | Dialog hiện đúng nội dung về Thông báo (không phải nội dung Máy ảnh); nút Cài đặt cũng mở App info; quay lại thì switch Thông báo tự cập nhật |
@@ -63,7 +63,7 @@
 | D6 | Camera trong video bị lật ngược (mất mirror) | So sánh video ghi được với live preview lúc quay (cùng 1 cử chỉ/góc tay) | Chiều camera trong video phải khớp với chiều đã thấy lúc live (mirror đúng) |
 | D7 | ANR khi mở camera / đổi effect — `HandLandmarker.createFromOptions()` (bên trong `HandLandmarkerProvider.getOrCreate()`) chạy đồng bộ trên main thread, GPU delegate build EGL context/shader mất tới vài giây → treo UI thread | Từ `effectListFragment`, bấm liên tiếp vào **nhiều effect khác nhau xen kẽ 1 tay/2 tay** (ví dụ `fire_ball` → `black_hole` → `earth` → `gojo`) thật nhanh, mỗi lần đều vào tới màn camera | Không bao giờ hiện dialog "App không phản hồi" (ANR), preview camera hiện gần như ngay lập tức mỗi lần; hiệu ứng AR có thể xuất hiện chậm hơn preview đúng 1 nhịp (do model đang build nền) nhưng không giật/đơ UI trong lúc đó |
 | D8 | Race khi thoát màn camera ngay lúc `HandLandmarker` đang được tạo nền | Mở 1 effect, bấm Back **thật nhanh** (trong lúc AR chưa kịp hiện lên) — lặp lại vài lần liên tiếp với các effect khác nhau | Không crash, không log lỗi liên quan `HandLandmarker`/coroutine; quay lại màn trước bình thường |
-| D9 | Loading overlay che khoảng chờ tạo `HandLandmarker` (`CameraLoading_Fallback_Plan.md` Bước 2) — **đã test pass 29/09/2026** | Mở camera bình thường vài lần liên tiếp, để ý ngay khung hình đầu tiên; trong lúc loading thử bấm vào vùng nút Effect/Record/Action/Back (in-app) | Overlay đen hiện **ngay lập tức, không nhấp nháy** kể cả khi setup xong gần như tức thời (giữ tối thiểu 500ms); che kín cả top bar lẫn bottom bar nên không bấm được gì trong lúc đó; Back **hệ thống** (nút/gesture) vẫn thoát bình thường vì xử lý ở `OnBackPressedCallback`, không phụ thuộc thứ tự vẽ view |
+| D9 | Loading overlay che khoảng chờ tạo `HandLandmarker` | Mở camera bình thường vài lần liên tiếp, để ý ngay khung hình đầu tiên; trong lúc loading thử bấm vào vùng nút Effect/Record/Action/Back (in-app) | Overlay đen hiện **ngay lập tức, không nhấp nháy** kể cả khi setup xong gần như tức thời (giữ tối thiểu 500ms); che kín cả top bar lẫn bottom bar nên không bấm được gì trong lúc đó; Back **hệ thống** (nút/gesture) vẫn thoát bình thường vì xử lý ở `OnBackPressedCallback`, không phụ thuộc thứ tự vẽ view |
 | D10 | Fallback `Delegate.GPU` → `Delegate.CPU` khi GPU init quá 5s hoặc máy RAM thấp (`HandLandmarkerProvider.createWithFallback`) | Không cần máy yếu: đã bắt được fallback thật trên máy test (log `HandLandmarkerProvider W GPU init qua 5s, chuyen ve CPU cho phan con lai cua phien`, 29/09/2026) — kiểm tra: sau dòng log này, đổi sang effect khác trong cùng phiên | Các lần tạo `HandLandmarker` sau đó phải dùng thẳng CPU (không có thêm log warning GPU timeout nào nữa, không bị chờ thêm 5s) — do cờ `forcedCpuForSession` nhớ cho cả phiên app. Nhãn hiển thị trong `DelegatePerfLogger` (nếu có gắn lại để đo) sẽ KHÔNG tự đổi theo delegate thực tế (xem `AGENTS.md` mục 5) |
 
 ## E. Số liệu & hiệu năng (dùng `VideoStatsLogger`/`logRecordingStats`, chỉ chạy bản Debug — **hiện không còn gắn sẵn trong code**, phải gắn lại lời gọi trong `stopRecordingAndGoToPreview()` trước khi test mục này, xem `AGENTS.md` mục 5)
@@ -335,6 +335,7 @@ git checkout main && git stash pop
 | # | Bước | Kỳ vọng |
 |---|---|---|
 | K1 | Effect "Trái đất": chụm ngón cái+trỏ lại gần rồi tách xa | Kích thước ảnh to/nhỏ theo đúng khoảng cách 2 đầu ngón, tâm ảnh luôn ở trung điểm 2 ngón, KHÔNG theo độ mở cả bàn tay như hiệu ứng khác |
+| K1b | Effect "Trái đất": bấm nút Action ở màn camera | Dialog có đúng 1 dòng "Chụm ngón cái và trỏ" (EN: "Pinch Thumb & Index") với icon chụm, không phải "Giơ tay" |
 | K2 | Effect "Hố đen": 2 tay, kéo ra xa/lại gần nhau | Kích thước hiệu ứng to/nhỏ theo khoảng cách 2 tay, tâm hiệu ứng luôn ở trung điểm 2 tay |
 | K3 | Effect "Hố đen": chỉ đưa 1 tay vào khung hình | Không crash (nhánh `else` phải có giá trị mặc định hợp lệ, không index-out-of-bounds khi truy `hands[1]`) |
 | K4 | Effect "Gojo": chỉ ngón trỏ mỗi tay, đưa cả 2 tay vào khung hình, KHÔNG bắt chéo tay | Tay bên trái người dùng nhìn thấy ra quả cầu 1 màu, tay phải ra màu còn lại — đúng màu như thiết kế, KHÔNG bị đảo màu |
@@ -415,6 +416,7 @@ git checkout main && git stash pop
 | O5 | Màn chia sẻ đang fullscreen → nhấn Home → mở lại app | Vẫn ở fullscreen (`ShareViewModel` giữ `isFullscreen`) |
 | O6 | Back hệ thống ở fullscreen / ở card | Fullscreen → thu nhỏ; card → về danh sách hiệu ứng |
 | O7 | Nút "Thử lại" (chỉ hiện khi vào từ màn xem lại) | Sang camera đúng effect |
+| O7b | Chia sẻ từ menu ⋮ của màn player (không qua màn xem lại) | Tiêu đề top bar là **"Chia sẻ"**, không phải "Lưu thành công"; nút Thử lại ẩn. Vào từ màn xem lại sau khi quay thì vẫn là "Lưu thành công" |
 | O8 | 4 nút MXH với app đích **chưa cài** | Không crash, có phản hồi hợp lý |
 
 ## P. Danh sách hiệu ứng, yêu thích, tìm kiếm, chọn effect
@@ -427,6 +429,8 @@ git checkout main && git stash pop
 | P4 | Màn chọn effect: chọn qua lại nhiều item liên tiếp | Viền cyan chuyển đúng, **không nháy cả lưới** (`PAYLOAD_SELECTION` vẫn còn sau khi Adapter đổi API) |
 | P5 | Vào camera **chưa có effect** → mở picker | Nút tick mờ, bấm không ăn |
 | P6 | Màn chọn: chọn lại đúng effect đang dùng → bấm tick | Chỉ đóng màn, **không** sang màn xem trước |
+| P7 | Đổi ngôn ngữ vi ↔ en ở Settings → xem danh sách hiệu ứng, màn chọn, màn xem trước, top bar camera | Tên 10 hiệu ứng đổi theo ngôn ngữ ở cả 4 nơi; chữ tên ở danh sách hiệu ứng cỡ 10sp, không bị cắt xấu |
+| P8 | Ngôn ngữ en: gõ "fire" / ngôn ngữ vi: gõ "lửa" ở ô tìm kiếm | Lọc đúng theo tên đang hiển thị (không khớp theo tên ngôn ngữ kia) |
 
 ## Q. Riêng cho MVVM — state sống qua cái gì
 

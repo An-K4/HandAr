@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `abfb32a`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `69a165b`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -40,7 +40,9 @@ ui/welcome/WelcomeFragment.kt   (màn THỨ HAI của cụm mở app 1 lần, ng
 ui/language/LanguageFragment.kt · ui/settings/SettingsFragment.kt   (KHÔNG nằm trong luồng mở app 1 lần —
 settings mở từ icon hamburger ở view_top_bar.xml, có sẵn mọi lúc; language chỉ mở từ settings)
     → SettingsFragment: 6 hàng, chỉ hàng Ngôn ngữ có logic (action_settings_to_language, không popUpTo)
-    → LanguageFragment: 2 hàng tick vi/en (KHÔNG dùng RecyclerView vì chỉ 2 lựa chọn cố định), back = navigateUp()
+    → LanguageFragment: 2 hàng tick vi/en (KHÔNG dùng RecyclerView vì chỉ 2 lựa chọn cố định), back = navigateUp().
+      Tick ban đầu lấy từ `LanguageRepository.currentTag()`: `getApplicationLocales()` rỗng (chưa từng đổi trong app) thì rơi về
+      `Locale.getDefault().language`, nếu không máy tiếng Việt sẽ luôn tick English
 
 ui/permission/PermissionFragment.kt   (màn cuối của cụm mở app 1 lần, giữa survey và effectList)
     → PermissionFragment: 2 SwitchMaterial (Camera = CAMERA, Thông báo = POST_NOTIFICATIONS — Android < 13 không có quyền này
@@ -54,12 +56,13 @@ ui/permission/PermissionFragment.kt   (màn cuối của cụm mở app 1 lần,
       Nút bắt đầu → action_permission_to_effectList (popUpTo inclusive), **không chặn** khi chưa
       cấp quyền — màn camera có nhánh xin lại (mục 6.2)
     → ui/widget/PermissionDeniedDialog.kt   (dialog 2 nút; ở màn này nút trái là **Đóng** chỉ dismiss,
-      vì onboarding không có màn nào để thoát về — khác màn camera, xem mục 6.2)
+      vì onboarding không có màn nào để thoát về — khác màn camera, xem mục 6.2). Tiêu đề/nội dung mặc định của dialog
+      cố ý trung tính ("Cần cấp quyền" + lý do cần quyền + dẫn vào Cài đặt) vì dùng chung 2 màn
     → utils/PermissionUtils.kt (openAppSettings)   (mở màn App info của app)
 
 ui/effectlist/EffectListFragment.kt
-    → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(query) cho
-      ô search real-time — filter theo displayName.contains(ignoreCase = true))
+    → effect/EffectRepository.kt (lấy List<EffectDefinition> để hiển thị; findByName(context, query) cho
+      ô search real-time — lọc theo tên đã dịch: context.getString(nameRes).contains(ignoreCase = true))
     → ui/effectlist/EffectAdapter.kt (RecyclerView, có updateItems() để nạp lại kết quả search)
     → ui/widget/GridSpacingItemDecoration.kt (ItemDecoration chỉ chèn gap GIỮA 2 cột, không
       thêm margin ở 2 mép ngoài — dùng chung với VideoListFragment, xem AGENTS.md mục 5)
@@ -135,7 +138,7 @@ Ba file có dấu ★ ở trên là nơi nên đọc kỹ nhất — phần lớ
 ```kotlin
 data class EffectDefinition(
     val id: String,                 // khoá để tra cứu — CameraRecordFragmentArgs.effectId truyền qua nav
-    val displayName: String,        // tên hiển thị ở EffectListFragment
+    @StringRes val nameRes: Int,    // string resource tên hiệu ứng (effect_name_<id>, có vi/en)
     val thumbnailRes: Int,          // ảnh thumbnail
     val requiredNumHands: Int,      // 1 hoặc 2 — quyết định HandLandmarkerProvider.getOrCreate(numHands)
     val states: List<EffectState>,  // danh sách trạng thái ứng với từng cử chỉ
@@ -236,8 +239,8 @@ Thứ tự trong list = thứ tự hiển thị ở màn danh sách. Cơ chế �
 
 Tra cứu: `findById(id)` dùng `.first` nên **crash nếu không thấy id** (an toàn vì id luôn đến từ chính
 `EffectRepository.all` qua Safe Args); `findByIdOrNull(id)` trả null — dùng bởi `CameraRecordFragment`
-vì nút camera bottom nav truyền `effectId=""` (camera không effect, mục 6.1); `findByName(query)` cho
-ô search real-time.
+vì nút camera bottom nav truyền `effectId=""` (camera không effect, mục 6.1); `findByName(context, query)` cho
+ô search real-time (lọc theo tên đã dịch nên cần context của Fragment/Activity).
 
 ---
 
@@ -286,6 +289,7 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
 | Tên | Ý nghĩa | Ghi chú |
 |---|---|---|
 | `anyHandPresent` | có tay bất kỳ | state mặc định/idle |
+| `pinchTracking` | có tay bất kỳ (logic Y HỆT `anyHandPresent`) | `earthEffect()` — instance riêng để `gestureDisplayMap` hiện "Chụm ngón cái và trỏ" + `ic_action_pinch` trong dialog hướng dẫn; cỡ/tâm do `PinchDistance`/`PinchMidpoint` quyết định |
 | `anyHandPointing` | bất kỳ tay nào đang chỉ (`isPointing`) | `gojoEffect()` dùng — không cần đúng 1 tay chỉ |
 | `singleHandPalmOpen` / `singleHandFist` | ✋ / ✊ tay đầu tiên trong `hands` | dùng `landmark[0]` (tay 0), không phải tay cụ thể trái/phải |
 | `singleHandPointing` | ☝️ chỉ trỏ, các ngón khác gập | |
@@ -669,9 +673,9 @@ giật do I/O:
     dim 0.6f) liệt kê bằng `GridLayoutManager(2 cột)` + `GestureAdapter` tất cả cử chỉ của `effect.states`,
     `.distinct()` để gộp các state dùng chung 1 gesture (khác `soundRes`) thành 1 dòng. Map gesture →
     tên/icon hiển thị nằm ở `effect/gesture/GestureDisplay.kt` (`gestureDisplayMap`, hàm mở rộng
-    `GestureRecognizer.toDisplay()`) — **mọi gesture đang dùng chung 1 icon tạm `ic_action`**, chưa có
-    bộ icon riêng từng cử chỉ, không phải bug. Thêm gesture mới vào `object Gestures` (mục 2) mà không
-    thêm vào `gestureDisplayMap` thì dialog sẽ rơi về `unknownGestureDisplay` (fallback).
+    `GestureRecognizer.toDisplay()`) — **mỗi gesture có icon riêng `ic_action_*`** (vector 36dp);
+    `ic_action_iloveyou` còn được dùng làm icon của chính nút Action (`btn_action`) ở `fragment_camera_record.xml`. Thêm gesture mới vào `object Gestures` (mục 2) mà không
+    thêm vào `gestureDisplayMap` thì dialog sẽ rơi về `unknownGestureDisplay` (fallback, icon `ic_action_open`).
 - Nếu `currentEffect.background != null`: ẩn `PreviewView` (`binding.preview.visibility =
   View.INVISIBLE`) — hiệu ứng có nền riêng (như `canvasDrawEffect`, `monsterEffect`, `roomTeleportEffect`, `blackHoleEffect`)
   thì không cần thấy hình camera thật phía sau, `OverlayView` tự vẽ nền đè lên.
@@ -687,7 +691,7 @@ giật do I/O:
 - Item cao theo tỉ lệ cột (`H,20:21`) thay vì 180dp cố định như `item_effect.xml`; viền là `foreground`
   `selector_effect_picker_border` (chỉ `state_selected` mới có viền, dùng lại `border_effect_decorative`).
   Tên effect (`text_name`) hiện 1 dòng, `ellipsize=end` (`maxLines=1`): tên dài bị cắt bằng “…”. Ở `item_effect.xml` (màn danh sách)
-  tên còn chừa `layout_marginEnd=52dp` (14dp lề + 26dp icon tim + 12dp cách) để “…” không nằm dưới icon tim — phải khai margin
+  tên cỡ 10sp (picker vẫn 16sp) và còn chừa `layout_marginEnd=52dp` (14dp lề + 26dp icon tim + 12dp cách) để “…” không nằm dưới icon tim — phải khai margin
   từng cạnh (`Start/Top/End/Bottom`), không dùng chung `layout_margin` vì `layout_margin` ghi đè các margin riêng lẻ.
 - Tick (`confirm()`): id == `currentEffectId` → `popBackStack()` (camera cũ còn ở dưới, không tạo lại); khác →
   `navigate(actionEffectPickerToEffectPreview(id))` với `popUpTo` camera inclusive (camera mới chỉ được tạo khi bấm Create ở màn xem trước). Back (nút/hệ thống) = huỷ.
@@ -1093,6 +1097,8 @@ trả `false` thay vì crash, được `VideoRecorder`/`AudioEncoderWrapper` chu
   `ExoPlayer`** nên video không giật/phát lại khi expand/collapse. Dùng chung **`VideoSeekBarController`**
   (tách từ `RecordedPreviewFragment` ra `ui/widget/`, xem đoạn `ui/share/ShareFragment.kt` ở mục 0)
   cho thanh seek ở cả 2 trạng thái.
+  **Tiêu đề top bar** (`text_share_title`) theo `args.fromRecordedPreview`: `true` → "Lưu thành công" (`save_successfully`), `false` (vào từ menu ⋮
+  của player, video đã lưu từ trước) → "Chia sẻ" (`share`); XML để mặc định `save_successfully`, `onViewCreated` ghi đè.
   Nút Trang chủ → `popBackStack(effectListFragment, inclusive=false)`; nút Thử lại →
   `actionShareToCameraRecord(effectId)` với `popUpTo` chính `shareFragment` inclusive — tạo
   **camera mới** (không quay lại camera cũ, giữ đúng bất biến "camera luôn nằm ngay trên
