@@ -73,6 +73,12 @@ class ShareFragment : Fragment() {
 
         binding.btnTryAgain.isVisible = args.fromRecordedPreview
 
+        // Vào từ màn xem lại sau khi quay (Save) thì báo "lưu thành công"; vào từ menu ⋮ của
+        // videoPlayer thì video đã lưu từ trước, tiêu đề chỉ là "Chia sẻ".
+        binding.textShareTitle.setText(
+            if (args.fromRecordedPreview) R.string.save_successfully else R.string.share
+        )
+
         binding.btnHome.setOnClickListener { viewModel.goHome() }
         binding.btnExpand.setOnClickListener { viewModel.showFullscreen() }
         binding.btnCollapse.setOnClickListener { viewModel.showCard() }
