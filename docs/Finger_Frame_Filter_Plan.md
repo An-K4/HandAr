@@ -216,8 +216,8 @@ Mỗi mốc: build xanh (`./gradlew :app:assembleDebug :app:lintDebug`) + kiểm
 - [x] Mốc 1 — Đưa bitmap camera tới visual (01/10/2026, đã test trên máy thật — xem Mục 9)
 - [x] Mốc 2 — Khung thô (cử chỉ, effect, tứ giác) (01/10/2026, đã test trên máy thật — xem Mục 9)
 - [x] Mốc 3 — Tương ứng, làm mượt, mở/khép, fade (01/10/2026, đã test trên máy thật — xem Mục 9; còn 2 việc tinh chỉnh dồn sang Mốc 5)
-- [ ] Mốc 4 — Đảo màu trong khung + đánh giá live (chốt Q4)
-- [ ] Mốc 4b — Phương án B cho live (chỉ khi cần)
+- [x] Mốc 4 — Đảo màu trong khung + đánh giá live (chốt Q4) (01/10/2026, đã test trên máy thật — xem Mục 9; chốt Q4 = phương án A)
+- [~] Mốc 4b — Phương án B cho live — **không làm** (Q4 chốt phương án A; mở lại nếu sau này thấy chênh trong/ngoài khung ở live)
 - [ ] Mốc 5 — Hoàn thiện, đo hiệu năng, regression
 - [ ] Mốc 6 — Cập nhật tài liệu
 
@@ -358,6 +358,40 @@ feat: Finger Frame step 3 - quad tracker with adaptive smoothing and fade
   freeze corners while closing, immutable @Volatile snapshot for the recording thread
   (TEMP debug log, tag FingerFrameDbg)
 - FingerFrameVisual: use tracker, alpha = presence, reset on deactivate
+- docs: Plan, Code_Walkthrough, AGENTS
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
+```
+
+Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
+
+### Mốc 4 — Đảo màu trong khung (01/10/2026)
+
+**Kết quả test trên máy thật (happy case):** ảnh trong khung **khớp đúng với ảnh gốc**, đảo màu **đúng** (tóc đen → trắng; thang `ColorMatrix` 0–255 đúng, không bị đen), không thấy lỗi. → **Chốt Q4 = phương án A** (giữ `PreviewView`, overlay chỉ vẽ ruột khung từ bitmap analyzer); **không cần Mốc 4b**. Nếu về sau thấy chênh độ nét/độ trễ giữa trong và ngoài khung ở live khi di chuyển nhanh thì mở lại 4b.
+
+**File thay đổi:** `FingerFrameVisual.kt` (+`BitmapShader` cache theo tham chiếu bitmap, `ColorMatrixColorFilter` đảo màu, `drawPath` ruột khung, viền nét đứt `DashPathEffect`, 4 chấm góc).
+
+**Doc đã cập nhật cùng commit:** `Code_Walkthrough.md` (mục 3.9), `AGENTS.md` (cây thư mục, bài học `BitmapShader`).
+
+**Cách commit:**
+
+```bash
+git add app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/FingerFrameVisual.kt \
+        docs/Finger_Frame_Filter_Plan.md docs/Code_Walkthrough.md docs/AGENTS.md
+git diff --cached --stat   # kiểm tra: đúng 4 file, không có file lạ
+git commit
+```
+
+Thông điệp commit:
+
+```text
+feat: Finger Frame step 4 - invert colors inside the finger quad
+
+- FingerFrameVisual: fill quad with BitmapShader(camera frame) + negative ColorMatrixColorFilter
+  (offset 255), matrix = HandFrame.cameraMatrix(); shader cached by bitmap reference
+- dashed outline + corner dots, sizes relative to canvas width; outline only when no camera frame
+- Q4 decided: keep PreviewView (option A), step 4b not needed
 - docs: Plan, Code_Walkthrough, AGENTS
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>

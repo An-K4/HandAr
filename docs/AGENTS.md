@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `2ce40ae`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `9de5147`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -167,7 +167,7 @@ app/src/main/java/com/example/handar/
 │   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
 │   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
 │   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
-│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2, Mốc 3 đã code (QuadMath, FingerFrameTracker, FingerFrameVisual);
+│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2–4 (khung 4 đầu ngón + đảo màu bằng BitmapShader), còn Mốc 5 tinh chỉnh + Mốc 6 docs;
 │   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đang làm dở, thumbnail mượn)
@@ -430,6 +430,11 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   không tăng trễ. Nhưng phần trễ còn lại là do đường ống (MediaPipe + analyzer ~25–30 fps, vị trí vẽ luôn là của frame đã xử lý xong), không
   phải do làm mượt — muốn giảm nữa phải dự đoán/ngoại suy theo vận tốc. Khi chỉnh ngưỡng (tỉ lệ cái–trỏ, diện tích) dùng log `FingerFrameDbg`
   thay vì đoán; ngưỡng tắt theo diện tích nên đặt thấp hơn ngưỡng bật (hysteresis) để khung nhỏ vẫn giữ được.
+
+- **Filter ảnh trong 1 vùng bất kỳ: `BitmapShader` + `drawPath`, không `clipPath`** (Finger Frame Mốc 4): `Paint` mang `BitmapShader(bitmap)` + `setLocalMatrix(HandFrame.cameraMatrix())`
+  + `ColorMatrixColorFilter` rồi `drawPath(quad)` cho mép khử răng cưa và ảnh khớp tuyệt đối với viền (cùng phép chiếu `px()/py()`); `clipPath` không khử
+  răng cưa trên canvas phần cứng. `ColorMatrix` thang 0–255 (cột offset đảo màu là 255). Shader gắn cứng 1 bitmap nên cache theo tham chiếu, chỉ tạo lại khi
+  bitmap camera đổi; `DashPathEffect` phụ thuộc bề rộng canvas nên chỉ tạo lại khi bề rộng đổi (live ≠ video).
 
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache
