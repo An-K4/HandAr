@@ -405,6 +405,10 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   nếu vẫn chờ, disable nút Effect/Record/Action trong lúc đó. Back **hệ thống** vẫn thoát bình thường (xử lý ở
   `OnBackPressedCallback`, không phụ thuộc thứ tự vẽ view). Thêm view mới vào layout camera thì đừng đặt *sau*
   `layout_camera_loading` — nó sẽ vẽ đè lên overlay. Test: `Test_Checklist.md` D9/D10.
+- **⚠️ Bug "ma" chưa tái hiện (30/09/2026):** 1 lần trong 20+ lần test, app tự thoát ~1–2s sau khi GPU init xong, crash native
+  `signal 7 (Bus error)`, không có `FATAL EXCEPTION`. Nguyên nhân **chưa xác nhận** (nghi GPU tạo trên thread phụ nhưng
+  `detectAsync` gọi từ thread khác). Nếu gặp crash lạ ở màn camera: bắt `adb logcat -b crash` trước, rồi đọc
+  `Camera_X_Hand_Landmarker.md` mục 14.4 — đừng sửa theo suy đoán.
 
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache

@@ -1600,3 +1600,21 @@ chưa sẵn sàng, im lặng, dễ gây hiểu lầm app bị lỗi. Cơ chế (
 Xem `CameraLoading_Fallback_Plan.md` cho lịch sử quyết định đầy đủ (đã cân nhắc và **bỏ** phương án
 "preload" HandLandmarker từ màn xem trước effect — có edge case khiến tổng thời gian chờ còn tệ hơn không
 preload, vì `createFromOptions()` không có API huỷ giữa chừng).
+
+### 14.4. Bug "ma" chưa tái hiện: app tự thoát sau khi GPU init xong (30/09/2026, **CHƯA xác nhận nguyên nhân**)
+
+- **Hiện tượng:** 1 lần trong 20+ lần test (1 máy), khoảng 1–2s sau khi setup GPU xong app tự thoát ra màn hình chính.
+  Không có `FATAL EXCEPTION`; log hệ thống chỉ có `Process ... exited due to signal 7 (Bus error)` (tag `Zygote`) —
+  tức crash **native**, không đi qua `AndroidRuntime`. Chưa có tombstone/backtrace, chưa tái hiện được.
+- **Nghi vấn (chưa chứng minh):** `createWithFallback()` build GPU trên `timeoutExecutor` (thread phụ, bị `shutdownNow()`
+  ngay sau đó) nhưng `detectAsync()` gọi từ `backgroundExecutor` → vi phạm quy tắc "cùng luồng" (mục 6, quy tắc 5).
+  SIGBUS còn có thể do nguyên nhân khác (vùng `mmap` của model, dùng `HandLandmarker` đã `close()`...) nên **không sửa
+  theo suy đoán**.
+- **Khi gặp lại, bắt ngay:** `adb logcat -b crash` (hoặc lọc pid app, tag `DEBUG`/`libc`) → lấy dòng `Fatal signal 7`,
+  `name:` của thread crash (có phải thread của `backgroundExecutor` không) và ~10 frame đầu backtrace (có
+  `libmediapipe`/`libEGL`/`libGLESv2_adreno` không). Ghi kèm máy + phiên bản Android, lần mở camera thứ mấy, và log tag
+  `HandLandmarkerProvider` (lần đó có fallback không).
+- **Nếu backtrace xác nhận**, 2 hướng sửa đã cân nhắc: (B) build GPU thẳng trên `backgroundExecutor`, bỏ timeout 5s (máy
+  GPU chậm sẽ phải chờ hết); (C) thread riêng do provider sở hữu cho cả tạo GPU lẫn `detectAsync` để giữ timeout — phức
+  tạp hơn. Hai lỗi phụ cùng đoạn code nên sửa kèm: model GPU bị bỏ rơi sau timeout không ai `close()`; lỗi khi build CPU
+  không được bắt nên overlay loading kẹt.
