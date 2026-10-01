@@ -5,12 +5,12 @@ import com.example.handar.effect.gesture.Gestures
 import com.example.handar.effect.model.EffectAsset
 import com.example.handar.effect.model.EffectDefinition
 import com.example.handar.effect.model.EffectState
-import com.example.handar.effect.visual.canvas.fingerframe.CameraFrameDebugVisual
+import com.example.handar.effect.visual.canvas.fingerframe.FingerFrameVisual
 
 /**
  * Khung đảo màu (Finger Frame Filter) — xem docs/Finger_Frame_Filter_Plan.md.
- * Mốc 1: TẠM dùng [CameraFrameDebugVisual] + cử chỉ [Gestures.anyHandPresent] chỉ để kiểm chứng đường truyền bitmap camera;
- * Mốc 2 đổi sang cử chỉ twoHandsFrame + FingerFrameVisual.
+ * Mốc 2: cử chỉ [Gestures.twoHandsFrame] (lỏng, chỉ cần 2 tay) + [FingerFrameVisual] bản thô (chỉ viền).
+ * Mốc 3 thêm tracker (làm mượt, mở/khép, fade), Mốc 4 thêm filter đảo màu trong khung.
  */
 fun fingerFrameEffect(): EffectDefinition = EffectDefinition(
     id = "finger_frame",
@@ -20,8 +20,8 @@ fun fingerFrameEffect(): EffectDefinition = EffectDefinition(
     states = listOf(
         EffectState(
             id = "finger_frame_negative",
-            gesture = Gestures.anyHandPresent,
-            asset = EffectAsset.Procedural("finger_frame_debug") { _, _ -> CameraFrameDebugVisual() },
+            gesture = Gestures.twoHandsFrame,
+            asset = EffectAsset.Procedural("finger_frame") { _, _ -> FingerFrameVisual() },
             soundRes = null
         )
     )

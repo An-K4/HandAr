@@ -154,6 +154,15 @@ object Gestures {
         pointDistance(handA[0], handB[0]) / scale < WRIST_TOGETHER_RATIO_THRESHOLD
     }
 
+    /**
+     * Khung 2 tay (Finger Frame): chỉ cần có ĐỦ 2 tay trong màn hình — cố ý lỏng, KHÔNG kiểm tra hình dạng bàn tay.
+     * Lý do: `OverlayView.drawFrame()` thoát sớm nếu không có cử chỉ khớp (visual không được gọi `draw()` nữa),
+     * nên cử chỉ chặt sẽ làm khung biến mất đột ngột thay vì mờ dần; việc "đang mở khung hay chưa" do
+     * `FingerFrameTracker` (hysteresis tỉ lệ ngón cái-trỏ) quyết định ở Mốc 3. Instance riêng để `gestureDisplayMap`
+     * hiện hướng dẫn "khung 2 tay".
+     */
+    val twoHandsFrame = GestureRecognizer { hands -> hands.size >= 2 }
+
     /** 🫶 ký hiệu trái tim 2 tay */
     val twoHandsHeart = GestureRecognizer { hands ->
         if (hands.size < 2) return@GestureRecognizer false

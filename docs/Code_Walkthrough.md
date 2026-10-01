@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `69a165b`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `a70960b`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -304,6 +304,7 @@ giữa, 12/16/20=đầu ngón giữa/áp út/út...).
 | `twoHandsHeart` | 🫶 trái tim 2 tay | dùng `fingerCurlRatio`, ngưỡng khoảng cách chuẩn hoá theo `palmLength` trung bình 2 tay |
 | `twoHandsCrossedFingers` | ❌ | dùng `segmentsCross`, thử lần lượt 4 cặp ngón (trỏ/giữa/áp út/út), chỉ cần 1 cặp chéo là đủ |
 | `anyFingerExtended` | ≥ 1 trong **5** ngón (kể cả ngón cái) của bất kỳ tay nào đang duỗi | `lightningEffect()` — mỗi ngón duỗi có 1 tia riêng nên không ép các ngón còn lại phải gập. Ngón cái dùng `isThumbExtendedStrict` (duỗi **và** thẳng), không phải `isThumbExtended` |
+| `twoHandsFrame` | có ĐỦ 2 tay (`hands.size >= 2`), cố ý lỏng | `fingerFrameEffect()` — `drawFrame()` thoát sớm khi không có cử chỉ khớp nên fade-out phải do visual lo; việc mở/khép khung do tracker (Mốc 3) quyết định |
 | `twoHandsWristsTogetherOpen` | cả 2 tay xòe + 2 cổ tay chụm (khoảng cách cổ tay / `palmLength` trung bình < 0.6) | state kamehameha của `dragonBallEffect()`; ngưỡng là `WRIST_TOGETHER_RATIO_THRESHOLD` |
 
 8 cử chỉ (`singleHandOkSign`, `singleHandThumbsUp`, `singleHandCall`, `singleHandRockOn`, `singleHandILoveYou`,
@@ -366,7 +367,7 @@ truyền qua tham số `cameraFrame` của `drawFrame()`); chỉ nhận khi `wid
 Visual **chỉ đọc**: không `recycle()`/sửa (bitmap còn được MediaPipe, vòng ghi hình, Fragment dùng chung), không lưu lại giữa các lần `draw()`.
 `cameraMatrix(out)` = mirror + center-crop (`setScale(-s, s)` rồi `postTranslate(imgWidth*s + offX, offY)`), trùng `bmpMatrix` của vòng ghi hình
 (mục 6.4) và trùng `px()/py()` nên nội dung vẽ từ bitmap khớp từng pixel với vị trí landmark. Phải gọi **trong `draw()`** (sau `setProjection()` — cạnh bẫy 13.5
-trong `Camera_X_Hand_Landmarker.md`). Hiện chưa effect nào dùng ngoài visual gỡ lỗi tạm `CameraFrameDebugVisual` (mục 3.9).
+trong `Camera_X_Hand_Landmarker.md`). Hiện chưa effect nào dùng; `FingerFrameVisual` (mục 3.9) sẽ dùng từ Mốc 4.
 
 ### 3.3 `EffectScope` — chia sẻ state giữa các `EffectState` trong CÙNG 1 effect
 
@@ -502,14 +503,14 @@ Tất cả implement `EffectVisual` trực tiếp (không kế thừa `Procedura
   trước** state `charge` (1 tay xòe) vì cả 2 nơi chọn state đều lấy state đầu tiên khớp.
 
 
-### 3.9 `visual/canvas/fingerframe/` — Finger Frame (đang làm dở, TẠM)
+### 3.9 `visual/canvas/fingerframe/` — Finger Frame (đang làm dở)
 
 Hiệu ứng "khung đảo màu" dựng khung bằng 4 đầu ngón (cái + trỏ của 2 tay) rồi biến đổi chính ảnh camera bên trong khung — kế hoạch đầy đủ ở
-`Finger_Frame_Filter_Plan.md`, lý thuyết ở `Finger_Frame_Filter_Theory.md`. **Mới xong Mốc 1** (đưa bitmap camera tới visual), nên hiện chỉ có:
-- `CameraFrameDebugVisual.kt` — **TẠM**: vẽ toàn bộ `frame.cameraFrame` (alpha 128) bằng `frame.cameraMatrix()` để kiểm chứng đường truyền; live sẽ thấy dư ảnh nhẹ
-  khi di chuyển vì bitmap luồng phân tích (480×640) đi chậm hơn `PreviewView` (rủi ro R1 trong plan); video không dư ảnh vì nền và lớp phủ cùng một bitmap. Xoá ở Mốc 2.
-- `effect/catalog/FingerFrameEffect.kt` — `fingerFrameEffect()` (id `finger_frame`, `requiredNumHands = 2`, `soundRes = null`, cử chỉ tạm `anyHandPresent`,
-  thumbnail **mượn** `black_hole_thumbnail`), đã thêm vào `EffectRepository.all` (hiệu ứng thứ 11; chuỗi `effect_name_finger_frame` en/vi).
+`Finger_Frame_Filter_Plan.md`, lý thuyết ở `Finger_Frame_Filter_Theory.md`. **Đã xong Mốc 1–2** (Mốc 1: đưa bitmap camera tới visual; Mốc 2: khung thô), hiện có:
+- `QuadMath.kt` — `object` thuần toán: `sortByAngle(pts)` sắp 4 điểm (`FloatArray(8)`) theo `atan2` quanh trọng tâm tại chỗ (nên nối ra tứ giác không bao giờ thành "cái nơ"), `shoelaceArea(pts)` diện tích dây giày.
+- `FingerFrameVisual.kt` — bản **thô**: mỗi `draw()` lấy landmark 4 và 8 của `hands[0]`, `hands[1]` (thô, chưa làm mượt), chiếu `px()/py()`, `sortByAngle`, vẽ **chỉ viền** trắng (nét dày = `canvas.width * 0.006`). Chưa fade, chưa filter; sẽ thêm tracker ở Mốc 3 và đảo màu ở Mốc 4.
+- `effect/catalog/FingerFrameEffect.kt` — `fingerFrameEffect()` (id `finger_frame`, `requiredNumHands = 2`, `soundRes = null`, cử chỉ `Gestures.twoHandsFrame`, thumbnail **mượn** `black_hole_thumbnail`), đã thêm vào `EffectRepository.all` (hiệu ứng thứ 11; chuỗi `effect_name_finger_frame` en/vi). Hướng dẫn cử chỉ: `gesture_two_hands_frame` + `ic_action_frame_2hands` (icon có sẵn từ cử chỉ khung máy ảnh cũ).
+- (File gỡ lỗi tạm `CameraFrameDebugVisual.kt` của Mốc 1 đã bị thay thế; nếu còn thấy file này trong thư mục thì xoá đi, không còn nơi nào tham chiếu.)
 
 ---
 

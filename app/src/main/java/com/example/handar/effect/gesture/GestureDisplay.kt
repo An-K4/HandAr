@@ -26,7 +26,8 @@ val gestureDisplayMap: Map<GestureRecognizer, GestureDisplay> = mapOf(
     Gestures.bothHandsFist to GestureDisplay(R.string.gesture_both_hands_fist, R.drawable.ic_action_fist_2hands),
     Gestures.twoHandsHeart to GestureDisplay(R.string.gesture_two_hands_heart, R.drawable.ic_action_heart_2hands),
     Gestures.twoHandsCrossedFingers to GestureDisplay(R.string.gesture_crossed_fingers, R.drawable.ic_action_cross_2hands),
-    Gestures.twoHandsWristsTogetherOpen to GestureDisplay(R.string.gesture_wrists_together, R.drawable.ic_action_wrist_touch_2hands)
+    Gestures.twoHandsWristsTogetherOpen to GestureDisplay(R.string.gesture_wrists_together, R.drawable.ic_action_wrist_touch_2hands),
+    Gestures.twoHandsFrame to GestureDisplay(R.string.gesture_two_hands_frame, R.drawable.ic_action_frame_2hands)
 )
 
 // fallback khi không thấy cử chỉ khớp trong map

@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `69a165b`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `a70960b`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -167,7 +167,7 @@ app/src/main/java/com/example/handar/
 │   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
 │   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
 │   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
-│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, mới có CameraFrameDebugVisual TẠM;
+│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2 (QuadMath + FingerFrameVisual vẽ viền thô);
 │   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đang làm dở, thumbnail mượn)
@@ -419,6 +419,11 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
 - **Kiểm chứng hạ tầng bằng visual gỡ lỗi tạm trước khi làm hiệu ứng thật** (Finger Frame Mốc 1): vẽ ảnh camera nửa trong suốt đè lên preview để thấy ngay ma trận
   chiếu có khớp không. Dư ảnh nhẹ ở live khi người cử động là bình thường (bitmap luồng phân tích trễ hơn `PreviewView`); dấu hiệu lỗi thật là lệch cố định khi đứng yên,
   ngược chiều hoặc sai tỉ lệ. Video ghi ra không được dư ảnh (nền và lớp phủ cùng một bitmap).
+
+- **Cử chỉ của hiệu ứng "có fade/làm mượt" phải lỏng** (Finger Frame Mốc 2): `OverlayView.drawFrame()` thoát sớm khi không có cử chỉ khớp
+  (visual không còn được gọi `draw()`), nên cử chỉ chặt làm hình biến mất đột ngột. Dùng cử chỉ lỏng (`Gestures.twoHandsFrame` = đủ 2 tay) và để
+  visual/tracker tự quyết định mở-khép + mờ dần. Viền vẽ từ landmark thô sẽ rung và trễ khi tay di chuyển nhanh — đó là lý do cần tracker
+  (làm mượt + dự đoán) ở Mốc 3, không phải lỗi của phép chiếu.
 
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache

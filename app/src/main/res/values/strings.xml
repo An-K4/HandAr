@@ -132,6 +132,7 @@
     <string name="gesture_pointing">Point With Any Hand</string>
     <string name="gesture_finger_extended">Extend Any Finger</string>
     <string name="gesture_wrists_together">Wrists Together</string>
+    <string name="gesture_two_hands_frame">Make a Frame With Both Hands</string>
     <string name="gesture_pinch">Pinch</string>
     <string name="gesture_unknown">Gesture</string>
     <string name="finish">Finish</string>

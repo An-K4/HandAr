@@ -132,6 +132,7 @@
     <string name="gesture_pointing">Chỉ ngón trỏ</string>
     <string name="gesture_finger_extended">Duỗi ngón bất kỳ</string>
     <string name="gesture_wrists_together">Bắn chưởng</string>
+    <string name="gesture_two_hands_frame">Tạo khung bằng 2 tay</string>
     <string name="gesture_pinch">Chụm ngón</string>
     <string name="gesture_unknown">Cử chỉ</string>
     <string name="finish">Hoàn thành</string>
