@@ -1,6 +1,6 @@
 # Code Walkthrough — "dòng này làm gì?" & "file này liên quan gì tới file kia?"
 
-> **Cập nhật lần cuối tại commit `a70960b`**. **Note cho agent:** file này bám theo TỪNG
+> **Cập nhật lần cuối tại commit `2ce40ae`**. **Note cho agent:** file này bám theo TỪNG
 > DÒNG code hiện tại nên lỗi thời nhanh hơn các doc lý thuyết khác — sau khi có commit mới đổi
 > cấu trúc file, chữ ký hàm, hay logic ở `OverlayView`/`CameraRecordFragment`/`recording/`/`effect/`,
 > hãy đọc lại code liên quan và sửa lại đoạn tương ứng trong file này (và dòng commit hash ở trên)
@@ -506,11 +506,12 @@ Tất cả implement `EffectVisual` trực tiếp (không kế thừa `Procedura
 ### 3.9 `visual/canvas/fingerframe/` — Finger Frame (đang làm dở)
 
 Hiệu ứng "khung đảo màu" dựng khung bằng 4 đầu ngón (cái + trỏ của 2 tay) rồi biến đổi chính ảnh camera bên trong khung — kế hoạch đầy đủ ở
-`Finger_Frame_Filter_Plan.md`, lý thuyết ở `Finger_Frame_Filter_Theory.md`. **Đã xong Mốc 1–2** (Mốc 1: đưa bitmap camera tới visual; Mốc 2: khung thô), hiện có:
-- `QuadMath.kt` — `object` thuần toán: `sortByAngle(pts)` sắp 4 điểm (`FloatArray(8)`) theo `atan2` quanh trọng tâm tại chỗ (nên nối ra tứ giác không bao giờ thành "cái nơ"), `shoelaceArea(pts)` diện tích dây giày.
-- `FingerFrameVisual.kt` — bản **thô**: mỗi `draw()` lấy landmark 4 và 8 của `hands[0]`, `hands[1]` (thô, chưa làm mượt), chiếu `px()/py()`, `sortByAngle`, vẽ **chỉ viền** trắng (nét dày = `canvas.width * 0.006`). Chưa fade, chưa filter; sẽ thêm tracker ở Mốc 3 và đảo màu ở Mốc 4.
-- `effect/catalog/FingerFrameEffect.kt` — `fingerFrameEffect()` (id `finger_frame`, `requiredNumHands = 2`, `soundRes = null`, cử chỉ `Gestures.twoHandsFrame`, thumbnail **mượn** `black_hole_thumbnail`), đã thêm vào `EffectRepository.all` (hiệu ứng thứ 11; chuỗi `effect_name_finger_frame` en/vi). Hướng dẫn cử chỉ: `gesture_two_hands_frame` + `ic_action_frame_2hands` (icon có sẵn từ cử chỉ khung máy ảnh cũ).
-- (File gỡ lỗi tạm `CameraFrameDebugVisual.kt` của Mốc 1 đã bị thay thế; nếu còn thấy file này trong thư mục thì xoá đi, không còn nơi nào tham chiếu.)
+`Finger_Frame_Filter_Plan.md`, lý thuyết ở `Finger_Frame_Filter_Theory.md`. **Đã xong Mốc 1–3** (Mốc 1: đưa bitmap camera tới visual; Mốc 2: khung thô; Mốc 3: khung "sống" — đã test, còn tinh chỉnh ngưỡng diện tích + độ trễ ở Mốc 5), hiện có:
+- `QuadMath.kt` — `object` thuần toán trên `FloatArray(8)`: `sortByAngle` (sắp 4 điểm theo `atan2` quanh trọng tâm → không bao giờ "cái nơ"), `shoelaceArea` (dây giày), `bestRotation(cur, prev)` (chọn phép quay vòng 0..3 khớp frame trước → không xoắn), `adaptiveAlpha(dist, speedRef, alphaMin)` (hệ số làm mượt theo tốc độ).
+- `FingerFrameTracker.kt` — trạng thái giữa các frame, **mỗi visual 1 instance** (live và recording riêng, nhận cùng dãy `onHandFrame`). `update(hands, nowMs)` chạy ở main thread: lấy landmark 4, 8 của 2 tay (toạ độ **chuẩn hoá**) → `sortByAngle` → tính `thumbIndexPinchRatio` từng tay + diện tích/`palmLength²` → **hysteresis** mở/khép (bật khi cả 2 tỉ lệ > `RATIO_ON` và đủ diện tích; tắt khi 1 tay < `RATIO_OFF` hoặc diện tích nhỏ) → nếu đang mở: `bestRotation` + làm mượt **thích nghi** (đứng yên alpha = `ALPHA_MIN` để hết rung, di chuyển nhanh alpha → 1 để không trễ; tốc độ chuẩn theo cỡ khung) → presence `p` (hiện 150 ms, mờ 250 ms). Khi khép thì **đóng băng** 4 góc để khung mờ dần tại chỗ (khép ngón làm 4 điểm co lại). Công bố `@Volatile snapshot: FloatArray(9)` (8 toạ độ + `p`) — mảng mới và **bất biến** mỗi lần, nên `draw()` ở thread ghi hình luôn đọc nhất quán. `reset()` khi mất cử chỉ. Có log TẠM tag `FingerFrameDbg` (gỡ ở Mốc 5).
+- `FingerFrameVisual.kt` — implement thẳng `EffectVisual` (không dùng `ProceduralVisual` vì `setActive()` của nó là `final` còn ở đây cần `reset()` tracker): `onHandFrame` → `tracker.update`; `draw` đọc `snapshot` 1 lần, `p < 0.01` thì bỏ qua, chiếu `px()/py()`, vẽ viền với `alpha = p`. Chưa filter (Mốc 4).
+- `effect/catalog/FingerFrameEffect.kt` — `fingerFrameEffect()` (id `finger_frame`, `requiredNumHands = 2`, `soundRes = null`, cử chỉ `Gestures.twoHandsFrame`, thumbnail **mượn** `black_hole_thumbnail`), đã thêm vào `EffectRepository.all` (hiệu ứng thứ 11; chuỗi `effect_name_finger_frame` en/vi). Hướng dẫn cử chỉ: `gesture_two_hands_frame` + `ic_action_frame_2hands`.
+- (Nếu còn thấy file `CameraFrameDebugVisual.kt` của Mốc 1 trong thư mục thì xoá đi, không còn nơi nào tham chiếu.)
 
 ---
 

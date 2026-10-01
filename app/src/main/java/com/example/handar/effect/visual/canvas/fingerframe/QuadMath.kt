@@ -36,6 +36,41 @@ object QuadMath {
         }
     }
 
+    /**
+     * Tìm phép quay vòng `r` (0..3) sao cho góc `cur[(i + r) % 4]` khớp góc `prev[i]` nhất (tổng bình phương
+     * khoảng cách nhỏ nhất). Cả hai đã được [sortByAngle], nên chỉ cần thử 4 phép quay vòng — nhờ vậy khung
+     * không "xoắn" khi điểm xuất phát của thứ tự góc nhảy sang điểm khác (Theory §4.2). Không cấp phát.
+     */
+    fun bestRotation(cur: FloatArray, prev: FloatArray): Int {
+        var best = 0
+        var bestCost = Float.MAX_VALUE
+        for (r in 0 until 4) {
+            var cost = 0f
+            for (i in 0 until 4) {
+                val j = (i + r) % 4
+                val dx = cur[j * 2] - prev[i * 2]
+                val dy = cur[j * 2 + 1] - prev[i * 2 + 1]
+                cost += dx * dx + dy * dy
+            }
+            if (cost < bestCost) {
+                bestCost = cost
+                best = r
+            }
+        }
+        return best
+    }
+
+    /**
+     * Hệ số làm mượt thích nghi theo tốc độ (ý tưởng của 1€ Filter, Theory §5.3): điểm gần như đứng yên → `alphaMin`
+     * (mượt, hết rung); điểm di chuyển nhanh (`dist >= speedRef`) → 1 (bám tức thì, không bị trễ).
+     * EMA cố định (alpha nhỏ) sẽ khử rung nhưng làm khung trễ khi tay vung nhanh — đúng điều cần tránh.
+     */
+    fun adaptiveAlpha(dist: Float, speedRef: Float, alphaMin: Float): Float {
+        if (speedRef <= 0f) return 1f
+        val t = (dist / speedRef).coerceIn(0f, 1f)
+        return alphaMin + (1f - alphaMin) * t
+    }
+
     /** Diện tích tứ giác theo công thức dây giày (shoelace), luôn dương. Điểm phải đã được [sortByAngle]. */
     fun shoelaceArea(pts: FloatArray): Float {
         var sum = 0f

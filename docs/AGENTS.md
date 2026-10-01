@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `a70960b`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `2ce40ae`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -167,7 +167,7 @@ app/src/main/java/com/example/handar/
 │   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
 │   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
 │   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
-│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2 (QuadMath + FingerFrameVisual vẽ viền thô);
+│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2, Mốc 3 đã code (QuadMath, FingerFrameTracker, FingerFrameVisual);
 │   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đang làm dở, thumbnail mượn)
@@ -424,6 +424,12 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   (visual không còn được gọi `draw()`), nên cử chỉ chặt làm hình biến mất đột ngột. Dùng cử chỉ lỏng (`Gestures.twoHandsFrame` = đủ 2 tay) và để
   visual/tracker tự quyết định mở-khép + mờ dần. Viền vẽ từ landmark thô sẽ rung và trễ khi tay di chuyển nhanh — đó là lý do cần tracker
   (làm mượt + dự đoán) ở Mốc 3, không phải lỗi của phép chiếu.
+
+- **Làm mượt landmark: khử rung và độ trễ đánh đổi nhau, và có trần trễ không làm mượt nào gỡ được** (Finger Frame Mốc 3): EMA alpha cố định
+  làm khung trễ rõ khi tay nhanh; dùng alpha thích nghi theo tốc độ (đứng yên mượt, di chuyển nhanh alpha → 1, như 1€ Filter) hết rung mà
+  không tăng trễ. Nhưng phần trễ còn lại là do đường ống (MediaPipe + analyzer ~25–30 fps, vị trí vẽ luôn là của frame đã xử lý xong), không
+  phải do làm mượt — muốn giảm nữa phải dự đoán/ngoại suy theo vận tốc. Khi chỉnh ngưỡng (tỉ lệ cái–trỏ, diện tích) dùng log `FingerFrameDbg`
+  thay vì đoán; ngưỡng tắt theo diện tích nên đặt thấp hơn ngưỡng bật (hysteresis) để khung nhỏ vẫn giữ được.
 
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache

@@ -215,7 +215,7 @@ Mỗi mốc: build xanh (`./gradlew :app:assembleDebug :app:lintDebug`) + kiểm
 - [x] Duyệt kế hoạch + chốt Q1–Q5 (01/10/2026: đúng như đề xuất; Q5 thumbnail mượn `black_hole_thumbnail`)
 - [x] Mốc 1 — Đưa bitmap camera tới visual (01/10/2026, đã test trên máy thật — xem Mục 9)
 - [x] Mốc 2 — Khung thô (cử chỉ, effect, tứ giác) (01/10/2026, đã test trên máy thật — xem Mục 9)
-- [ ] Mốc 3 — Tương ứng, làm mượt, mở/khép, fade
+- [x] Mốc 3 — Tương ứng, làm mượt, mở/khép, fade (01/10/2026, đã test trên máy thật — xem Mục 9; còn 2 việc tinh chỉnh dồn sang Mốc 5)
 - [ ] Mốc 4 — Đảo màu trong khung + đánh giá live (chốt Q4)
 - [ ] Mốc 4b — Phương án B cho live (chỉ khi cần)
 - [ ] Mốc 5 — Hoàn thiện, đo hiệu năng, regression
@@ -310,6 +310,55 @@ feat: Finger Frame step 2 - two-hands frame gesture and rough quad outline
 - FingerFrameVisual: draw raw 4-fingertip quad outline only (no smoothing yet)
 - fingerFrameEffect now uses twoHandsFrame + FingerFrameVisual; remove temp CameraFrameDebugVisual
 - docs: Theory/Plan, Code_Walkthrough, AGENTS (commit hash a70960b, lessons)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
+```
+
+Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
+
+### Mốc 3 — Khung "sống" (01/10/2026)
+
+**Thay đổi so với kế hoạch gốc:** làm mượt dùng **EMA thích nghi theo tốc độ** (kiểu 1€ Filter, Theory §5.3) thay vì EMA alpha cố định, vì Mốc 2 đã ghi nhận viền trễ khi tay nhanh — EMA cố định khử rung nhưng làm trễ nặng hơn.
+
+**File:** `QuadMath.kt` (+`bestRotation`, +`adaptiveAlpha`), mới `FingerFrameTracker.kt`, `FingerFrameVisual.kt` (viết lại: dùng tracker, `setActive`→`reset`, `alpha = p`).
+
+**Hằng số khởi điểm** (`FingerFrameTracker.companion`, chỉnh theo log tag `FingerFrameDbg`): `RATIO_ON 0.70`, `RATIO_OFF 0.45`, `MIN_AREA_RATIO 0.60` (tắt khi < 70% mức này), `ALPHA_MIN 0.35`, `SPEED_REF 0.08`, `FADE_IN 150ms`, `FADE_OUT 250ms`.
+
+**Kết quả test trên máy thật:**
+- Viền **mượt, hết rung** khi tay đứng yên. ✔
+- **Hiện/mờ dần đúng** theo khép/mở ngón (hysteresis không nhấp nháy). ✔
+- Tay **gần/xa camera** đều ổn định. ✔
+- **Video ghi ra khớp live.** ✔
+- ⚠️ **Vẫn còn trễ khi tay di chuyển nhanh.** Làm mượt thích nghi đã không còn là nguyên nhân chính — phần trễ còn lại đến từ **giới hạn tốc độ của đường ống** (MediaPipe + luồng analyzer ~25–30 fps, mỗi frame mới chỉ có 1 vị trí; vị trí vẽ luôn là vị trí của frame đã xử lý xong). Hướng xử lý để ở Mốc 5: dự đoán/ngoại suy 1 frame theo vận tốc (khi `dist` lớn), và đo thử `ALPHA_MIN`/`SPEED_REF`.
+- ⚠️ **Ngưỡng ngừng vẽ theo diện tích còn hơi lớn** (khung nhỏ hơn mong muốn vẫn bị ẩn sớm) → hạ `MIN_AREA_RATIO` (hiện 0.60; tắt ở 0.60×0.70) theo log `FingerFrameDbg`, làm ở Mốc 5.
+
+**File thay đổi:** `QuadMath.kt` (+`bestRotation`, +`adaptiveAlpha`), mới `FingerFrameTracker.kt`, `FingerFrameVisual.kt` (viết lại).
+
+**Doc đã cập nhật cùng commit:** `Code_Walkthrough.md` (mục 3.9), `AGENTS.md` (cây thư mục, bài học về độ trễ làm mượt).
+
+**Cách commit:**
+
+```bash
+git add app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/QuadMath.kt \
+        app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/FingerFrameTracker.kt \
+        app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/FingerFrameVisual.kt \
+        docs/Finger_Frame_Filter_Plan.md docs/Code_Walkthrough.md docs/AGENTS.md
+git diff --cached --stat   # kiểm tra: đúng 6 file, không có file lạ
+git commit
+```
+
+Thông điệp commit:
+
+```text
+feat: Finger Frame step 3 - quad tracker with adaptive smoothing and fade
+
+- QuadMath: bestRotation (cyclic corner matching) + adaptiveAlpha (speed-based smoothing)
+- FingerFrameTracker: thumb-index ratio hysteresis, area gate, presence fade in/out,
+  freeze corners while closing, immutable @Volatile snapshot for the recording thread
+  (TEMP debug log, tag FingerFrameDbg)
+- FingerFrameVisual: use tracker, alpha = presence, reset on deactivate
+- docs: Plan, Code_Walkthrough, AGENTS
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
