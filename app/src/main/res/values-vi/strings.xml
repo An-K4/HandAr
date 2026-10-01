@@ -8,12 +8,12 @@
     <string name="close">Đóng</string>
     <string name="preview">Xem trước</string>
     <string name="exit_without_save_message">Bạn có chắc muốn thoát?\nVideo sẽ không được lưu</string>
-    <string name="permission_denied">Quyền truy cập bị từ chối</string>
-    <string name="denied_permission_message">Tính năng này không thể hoạt động khi chưa được cấp quyền Máy ảnh.
-        Mở Cài đặt và cho phép quyền Máy ảnh để tiếp tục sử dụng.
+    <string name="permission_denied">Cần cấp quyền</string>
+    <string name="denied_permission_message">Magic Hand cần quyền Máy ảnh để nhận diện bàn tay và quay video.
+        Hãy mở Cài đặt và bật quyền Máy ảnh.
     </string>
     <string name="denied_notification_permission_message">Thông báo của Magic Hand đang bị tắt.
-        Mở Cài đặt và cho phép Thông báo để không bỏ lỡ cập nhật.
+        Hãy mở Cài đặt và bật Thông báo để không bỏ lỡ cập nhật.
     </string>
     <string name="ok">OK</string>
     <string name="can_not_play_video">Không phát được video</string>
