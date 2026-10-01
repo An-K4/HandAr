@@ -17,7 +17,7 @@ fun earthEffect(): EffectDefinition = EffectDefinition(
     states = listOf(
         EffectState(
             id = "earth",
-            gesture = Gestures.anyHandPresent,
+            gesture = Gestures.pinchTracking,
             asset = EffectAsset.StaticImage(R.drawable.earth_planet),
             soundRes = null,
             sizeSource = SizeSource.PinchDistance,

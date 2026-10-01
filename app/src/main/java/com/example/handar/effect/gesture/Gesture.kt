@@ -6,6 +6,14 @@ object Gestures {
      *  một trạng thái mặc định (ví dụ vẽ khung xương liên tục trong hiệu ứng vẽ canvas) */
     val anyHandPresent = GestureRecognizer { hands -> hands.isNotEmpty() }
 
+    /**
+     * Logic Y HỆT [anyHandPresent] (có tay là khớp) nhưng là INSTANCE RIÊNG, chỉ để `gestureDisplayMap`
+     * (khoá theo instance) hiện đúng hướng dẫn "chụm ngón cái + trỏ" cho hiệu ứng Trái đất thay vì
+     * "Giơ tay". Cỡ/tâm do `SizeSource.PinchDistance`/`AnchorSource.PinchMidpoint` quyết định, không phải
+     * gesture. Đừng gộp lại với [anyHandPresent] — sẽ mất icon/tên đúng.
+     */
+    val pinchTracking = GestureRecognizer { hands -> hands.isNotEmpty() }
+
     /** ✋ xòe tay */
     val singleHandPalmOpen = GestureRecognizer { hands ->
         val landmark = hands.firstOrNull() ?: return@GestureRecognizer false

@@ -101,24 +101,25 @@
     <string name="language_name_vietnamese">Tiếng Việt</string>
 
     <string name="got_it">Đã hiểu</string>
-    <string name="gesture_any_hand">Đưa tay vào khung hình</string>
+    <string name="gesture_any_hand">Giơ tay</string>
     <string name="gesture_open_palm">Xòe tay</string>
     <string name="gesture_fist">Nắm tay</string>
-    <string name="gesture_one_finger">Một ngón tay</string>
-    <string name="gesture_two_finger">Hai ngón tay</string>
-    <string name="gesture_three_fingers">Ba ngón tay</string>
-    <string name="gesture_thumbs_up">Ngón cái</string>
+    <string name="gesture_one_finger">Một ngón</string>
+    <string name="gesture_two_finger">Hai ngón</string>
+    <string name="gesture_three_fingers">Ba ngón</string>
+    <string name="gesture_thumbs_up">Dấu like</string>
     <string name="gesture_rock_on">Rock On</string>
     <string name="gesture_call">Gọi điện</string>
-    <string name="gesture_ok_sign">Ký hiệu OK</string>
+    <string name="gesture_ok_sign">OK</string>
     <string name="gesture_i_love_you">I Love You</string>
-    <string name="gesture_both_hands_open">Xòe hai tay</string>
-    <string name="gesture_both_hands_fist">Nắm hai tay</string>
+    <string name="gesture_both_hands_open">Xòe 2 tay</string>
+    <string name="gesture_both_hands_fist">Nắm 2 tay</string>
     <string name="gesture_two_hands_heart">Trái tim</string>
-    <string name="gesture_crossed_fingers">Bắt chéo ngón tay</string>
-    <string name="gesture_pointing">Chỉ ngón trỏ (tay bất kỳ)</string>
+    <string name="gesture_crossed_fingers">Dấu X</string>
+    <string name="gesture_pointing">Chỉ ngón trỏ</string>
     <string name="gesture_finger_extended">Duỗi ngón bất kỳ</string>
-    <string name="gesture_wrists_together">Chụm cổ tay, xòe bàn tay</string>
+    <string name="gesture_wrists_together">Bắn chưởng</string>
+    <string name="gesture_pinch">Chụm ngón</string>
     <string name="gesture_unknown">Cử chỉ</string>
     <string name="finish">Hoàn thành</string>
 </resources>
