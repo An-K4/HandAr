@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `898989c`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `c584e8b`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -167,7 +167,7 @@ app/src/main/java/com/example/handar/
 │   │       ├── lightning/        LightningVisual (buffer-render 1 lần, vẽ nhiều bản xoay theo từng ngón đang duỗi —
 │   │       │                      cả 5 ngón của cả 2 tay, bán kính tính riêng mỗi tay)
 │   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
-│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2–4 (khung 4 đầu ngón + đảo màu bằng BitmapShader), còn Mốc 5 tinh chỉnh + Mốc 6 docs;
+│   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — đã xong Mốc 1–5 (khung 4 đầu ngón + đảo màu bằng BitmapShader + tracker làm mượt/ngoại suy + tô ruột, đã đo hiệu năng); trạng thái Mốc 6 (docs) xem Finger_Frame_Filter_Plan.md;
 │   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
 │   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đã xong Mốc 1–5, thumbnail mượn `black_hole_thumbnail`)
@@ -242,7 +242,6 @@ app/src/main/res/navigation/nav_graph.xml
 app/src/main/assets/hand_landmarker.task   (~7.5 MB, model MediaPipe)
 app/src/main/assets/licenses/OFL-NotoSerif.txt   giấy phép font (SIL OFL 1.1)
 docs/                        tài liệu thiết kế & vận hành — xem mục 6
-.github/workflows/release.yml   CI: push main → bundleRelease + ước tính dung lượng Play → APK release lên GitHub Release tag `latest`
 ```
 
 **11 hiệu ứng** hiện có trong `EffectRepository.all` (10 hiệu ứng khớp HOÀN TOÀN `Design_App_HandAr.md` mục 4 + `finger_frame` thêm sau, xem `Finger_Frame_Filter_Plan.md`)

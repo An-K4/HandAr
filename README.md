@@ -48,7 +48,7 @@
 - **Màn Cài đặt** (mở từ icon hamburger ở top bar, có sẵn mọi lúc): mục Ngôn ngữ điều hướng thật sang màn chọn vi/en
   (2 dòng dạng radio); các mục Đánh giá/Chia sẻ app/Góp ý/Giới thiệu/Chính sách riêng tư mới chỉ có UI.
 - **Hướng dẫn cử chỉ**: nút Action ở màn quay mở dialog liệt kê từng cử chỉ của effect đang chọn (tên +
-  icon, hiện icon dùng tạm chung 1 hình cho mọi cử chỉ).
+  icon, mỗi cử chỉ có icon riêng `ic_action_*`).
 - **Loading overlay khi mở camera**: tạo `HandLandmarker` chạy ở luồng nền (không treo UI/ANR); trong lúc chờ,
   một lớp phủ đen che kín top bar + bottom bar, disable nút Effect/Record/Action, giữ tối thiểu 500ms cho khỏi nhấp
   nháy, hiện dòng phụ "Sắp xong…" nếu chờ quá ~3,5s.
@@ -285,7 +285,7 @@ app/src/main/java/com/example/handar/
 │   ├── effectpicker/ EffectPickerFragment, EffectPickerAdapter   (lưới chọn effect, mở từ nút Effect ở màn quay)
 │   ├── camera/       CameraRecordFragment          (camera + AI + ghi hình + loading overlay `layout_camera_loading`); GestureGuideDialog +
 │   │                 GestureAdapter (dialog lưới 2 cột hướng dẫn cử chỉ, mở từ nút Action — map tên/icon
-│   │                 ở `effect/gesture/GestureDisplay.kt`, icon đang dùng tạm chung `ic_action`)
+│   │                 ở `effect/gesture/GestureDisplay.kt`, mỗi cử chỉ có icon riêng `ic_action_<tên>`)
 │   ├── recordedpreview/ RecordedPreviewFragment  (xem lại ngay sau khi quay; Save điều hướng sang share/, back/Thoát qua ConfirmDialog xoá file)
 │   ├── videolist/    VideoListFragment, VideoAdapter, VideoRepository (lưới 2 cột, giống effectlist)
 │   ├── widget/       GridSpacingItemDecoration (gap giữa 2 cột, dùng chung effectlist/videolist),
@@ -431,7 +431,7 @@ Khuyến nghị bật LeakCanary ở bản debug cho nhóm H.
 | `CameraLoading_Fallback_Plan.md` | Loading overlay khi mở camera + cơ chế fallback GPU→CPU (`createWithFallback`): lý do từng ngưỡng, phương án đã cân nhắc và bỏ |
 | `DelegatePerf_Plan.md` | Kế hoạch và cách gắn `DelegatePerfLogger` để đo lại CPU vs GPU (kết quả đo nằm ở `Perf_Notes.md` mục 9) |
 | `Camera_X_Face_Landmarker.md` | Tài liệu lý thuyết cho Face Landmarker — **chưa có code Face nào trong app**, chỉ đọc khi định làm Face AR |
-| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**chưa bước nào được làm**, chưa có `ViewModel` trong repo) |
+| `MVVM_Migration_Plan.md` | Kế hoạch 7 bước chuyển sang MVVM (**đã xong cả 7 bước**, 13 Fragment có `ViewModel`; Welcome/Onboarding cố ý không có) — quy ước `ViewModel`/Repository ở mục 0.2, các bẫy đã gặp ở mục 3–6 |
 | `AGENTS.md` | Ngữ cảnh nhanh cho AI agent (~2 phút đọc): stack, kiến trúc cốt lõi, bẫy đã biết, bản đồ docs |
 | `Test_Checklist.md` | Kịch bản test thủ công A–M |
 | `Code_Walkthrough.md` | Giải thích code chi tiết từng file/hàm + sơ đồ quan hệ giữa các file trong package `effect/`, `recording/`, `ui/camera/` — đọc khi cần hiểu đoạn code cụ thể làm gì thay vì chỉ biết kiến trúc tổng quát |

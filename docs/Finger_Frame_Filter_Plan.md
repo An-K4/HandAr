@@ -349,6 +349,8 @@ Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
 
 Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
 
+**Đã commit:** `c584e8b` (02/10/2026). Hash trong `Code_Walkthrough.md` và `AGENTS.md` đã cập nhật.
+
 ### Mốc 3 — Khung "sống" (01/10/2026)
 
 **Thay đổi so với kế hoạch gốc:** làm mượt dùng **EMA thích nghi theo tốc độ** (kiểu 1€ Filter, Theory §5.3) thay vì EMA alpha cố định, vì Mốc 2 đã ghi nhận viền trễ khi tay nhanh — EMA cố định khử rung nhưng làm trễ nặng hơn.
@@ -398,6 +400,8 @@ Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
 
 Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
 
+**Đã commit:** `c584e8b` (02/10/2026). Hash trong `Code_Walkthrough.md` và `AGENTS.md` đã cập nhật.
+
 ### Mốc 4 — Đảo màu trong khung (01/10/2026)
 
 **Kết quả test trên máy thật (happy case):** ảnh trong khung **khớp đúng với ảnh gốc**, đảo màu **đúng** (tóc đen → trắng; thang `ColorMatrix` 0–255 đúng, không bị đen), không thấy lỗi. → **Chốt Q4 = phương án A** (giữ `PreviewView`, overlay chỉ vẽ ruột khung từ bitmap analyzer); **không cần Mốc 4b**. Nếu về sau thấy chênh độ nét/độ trễ giữa trong và ngoài khung ở live khi di chuyển nhanh thì mở lại 4b.
@@ -431,6 +435,8 @@ Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
 ```
 
 Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
+
+**Đã commit:** `c584e8b` (02/10/2026). Hash trong `Code_Walkthrough.md` và `AGENTS.md` đã cập nhật.
 
 ### Mốc 5e — Đo hiệu năng bản cuối (02/10/2026)
 
@@ -491,3 +497,5 @@ Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
 ```
 
 Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
+
+**Đã commit:** `c584e8b` (02/10/2026). Hash trong `Code_Walkthrough.md` và `AGENTS.md` đã cập nhật.
