@@ -222,6 +222,7 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
             }
         } ?: emptyList()
         frame.setProjection(mirrorX, imgWidth, imgHeight, localScale, localOffsetX, localOffsetY)
+        frame.forRecording = forRecording
         // chỉ nhận bitmap đúng kích thước với ảnh MediaPipe đã xử lý — lệch thì coi như không có, tránh vẽ sai chỗ
         frame.cameraFrame = cameraFrame?.takeIf { it.width == imgWidth && it.height == imgHeight }
 

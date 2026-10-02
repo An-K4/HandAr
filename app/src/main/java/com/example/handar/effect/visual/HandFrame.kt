@@ -22,6 +22,13 @@ class HandFrame {
      */
     var cameraFrame: Bitmap? = null
 
+    /**
+     * true nếu frame này đang vẽ cho VIDEO ghi hình (do `OverlayView.drawFrame()` gán), false = vẽ live.
+     * Live và recording có 2 object HandFrame riêng. Dùng khi visual cần cư xử khác nhau (vd. Finger Frame chỉ
+     * ngoại suy vị trí ở live, vì video đã dùng đúng bitmap của frame đó).
+     */
+    var forRecording = false
+
     private var mirrorX = true
     private var imgWidth = 1
     private var imgHeight = 1

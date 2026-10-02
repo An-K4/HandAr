@@ -243,7 +243,7 @@ app/src/main/java/com/example/handar/
 │                              nổi lên nav_host, chuyển tab Home↔Collection, nút camera giữa mở camera không effect); release
 │                              HandLandmarkerProvider ở onDestroy
 ├── effect/
-│   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp hoàn toàn từ catalog/ (10 effect)
+│   ├── EffectRepository.kt      List<EffectDefinition> phẳng, lắp hoàn toàn từ catalog/ (11 effect)
 │   ├── HandLandmarkerProvider.kt   singleton cache + SharedFlow; `createWithFallback()` GPU → CPU
 │   ├── model/                   EffectDefinition / EffectState / EffectAsset / EffectBackground /
 │   │                            EffectBgm / AnchorSource / SizeSource / StateMode
@@ -257,10 +257,11 @@ app/src/main/java/com/example/handar/
 │   │       ├── fireball/         FireBallBurstVisual (burst oneShot rồi tự chuyển sang big loop)
 │   │       ├── magicshield/      ShieldHideVisual (thu nhỏ theo thời gian bằng code)
 │   │       ├── lightning/        LightningVisual (buffer-render, vẽ nhiều bản xoay theo từng ngón đang duỗi, cả 2 tay)
-│   │       └── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
+│   │       ├── dragonball/       KamehamehaVisual (buffer-render, to hơn + xoáy nhanh hơn state 1 tay)
+│   │       └── fingerframe/      FingerFrameVisual/FingerFrameTracker/QuadMath (khung 4 đầu ngón, đảo màu ảnh camera trong khung)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
-│   └── catalog/                 factory cho đủ 10/10 hiệu ứng (FireBall, MagicShield, Lightning,
-│                                DragonBall, Gojo, Monster, RoomTeleport, CanvasDraw, Earth, BlackHole)
+│   └── catalog/                 factory cho đủ 11/11 hiệu ứng (FireBall, MagicShield, Lightning,
+│                                DragonBall, Gojo, Monster, RoomTeleport, CanvasDraw, Earth, BlackHole, FingerFrame)
 ├── recording/                    toàn bộ pipeline ghi hình, không đụng vào nếu không bắt buộc (xem cuối file)
 │   ├── VideoRecorder.kt         điều phối ghi hình (nhạc trưởng)
 │   ├── MuxerCoordinator.kt      chờ đủ 2 track mới muxer.start()
@@ -318,8 +319,8 @@ docs/                                      tài liệu thiết kế & vận hàn
 ## Danh sách hiệu ứng
 
 Khai báo trong `effect/EffectRepository.kt`, lắp hoàn toàn từ `effect/catalog/` (không còn hiệu ứng nào
-khai trực tiếp trong `EffectRepository.kt`) — hiện có **10 hiệu ứng**, khớp hoàn toàn
-`docs/Design_App_HandAr.md` mục 4:
+khai trực tiếp trong `EffectRepository.kt`) — hiện có **11 hiệu ứng** (10 hiệu ứng đầu khớp hoàn toàn
+`docs/Design_App_HandAr.md` mục 4; `finger_frame` thêm sau, xem `docs/Finger_Frame_Filter_Plan.md`):
 
 | id | Tên hiển thị | Số tay | Các trạng thái (cử chỉ → asset) |
 |---|---|---|---|
@@ -333,6 +334,7 @@ khai trực tiếp trong `EffectRepository.kt`) — hiện có **10 hiệu ứng
 | `canvas_draw` | Vẽ canvas | 1 | chỉ ngón trỏ → vẽ nét theo đầu ngón trỏ · nắm tay → xoá nét + tiếng xé giấy · khác → chỉ hiện khung xương tay (nền đen, dùng `EffectAsset.Procedural` + `EffectScope`) |
 | `earth` | Trái đất | 1 | có tay → ảnh trái đất to/nhỏ theo khoảng nhón ngón cái-trỏ (`AnchorSource.PinchMidpoint`/`SizeSource.PinchDistance`), kèm **nhạc nền** |
 | `black_hole` | Hố đen | 2 | 2 tay cùng xòe → cổng xoáy to/nhỏ theo khoảng cách 2 tay (`AnchorSource.TwoHandMidpoint`/`SizeSource.TwoHandDistance`), tiếng lặp giữa 2 tay, kèm **nền ảnh riêng** |
+| `finger_frame` | Khung đảo màu | 2 | 2 tay (cái + trỏ mỗi tay → 4 đầu ngón tạo tứ giác) → ảnh camera **bên trong khung đảo màu**, bên ngoài giữ nguyên; khép ngón cái–trỏ thì khung mờ dần, mở lại thì hiện lại; viền nét đứt chạy + 4 chấm góc; không có tiếng. **Cần delegate GPU** của MediaPipe để mượt (trên CPU chỉ ~2,7 fps) |
 
 > 8 cử chỉ từng gắn với 4 hiệu ứng test cũ (đã gỡ) vẫn còn trong `object Gestures` nhưng chưa `EffectState`
 > nào dùng — xem docstring đầu `EffectRepository.kt` và `docs/Test_Checklist.md` mục I.10.

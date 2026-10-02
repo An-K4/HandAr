@@ -1,6 +1,6 @@
 # AGENTS.md — Ngữ cảnh nhanh cho AI agent
 
-> **Cập nhật lần cuối tại commit `9de5147`**. **Note cho agent:** sau khi repo có thêm
+> **Cập nhật lần cuối tại commit `898989c`**. **Note cho agent:** sau khi repo có thêm
 > commit mới liên quan tới cấu trúc code, hiệu ứng, hoặc luồng ghi hình/âm thanh — hãy cập nhật lại
 > nội dung file này (và dòng commit hash phía trên) cho khớp, đừng để nó lỗi thời âm thầm.
 
@@ -147,7 +147,7 @@ app/src/main/java/com/example/handar/
 │                          chuyển tab Home↔Collection (popUpTo+saveState, xem mục 5), nút camera giữa bottom nav mở camera không effect (effectId=""),
 │                          đổi icon theo tab đang ở; release HandLandmarkerProvider ở onDestroy
 ├── effect/
-│   ├── EffectRepository.kt      danh sách phẳng List<EffectDefinition>, lắp hoàn toàn từ catalog/ (10 effect);
+│   ├── EffectRepository.kt      danh sách phẳng List<EffectDefinition>, lắp hoàn toàn từ catalog/ (11 effect);
 │   │                            có findByName(context, query) lọc theo tên ĐÃ DỊCH (getString(nameRes), contains, ignoreCase) cho search real-time;
 │   │                            findById (crash nếu sai id) và findByIdOrNull (dùng cho camera không effect)
 │   ├── HandLandmarkerProvider.kt  singleton cache HandLandmarker theo numHands, phát SharedFlow; tạo model bằng
@@ -170,7 +170,7 @@ app/src/main/java/com/example/handar/
 │   │       └── fingerframe/      Finger Frame (khung 4 đầu ngón, filter ảnh camera trong khung) — ĐANG LÀM DỞ, xong Mốc 2–4 (khung 4 đầu ngón + đảo màu bằng BitmapShader), còn Mốc 5 tinh chỉnh + Mốc 6 docs;
 │   │                             xem Finger_Frame_Filter_Plan.md. Visual đọc ảnh camera qua HandFrame.cameraFrame/cameraMatrix() (chỉ đọc, không recycle)
 │   ├── background/              BackgroundRenderer + Solid/Image/AnimatedBackgroundRenderer
-│   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đang làm dở, thumbnail mượn)
+│   └── catalog/                 mỗi file 1 hàm factory trả EffectDefinition, đủ 10/10 hiệu ứng + FingerFrameEffect (hiệu ứng thứ 11, đã xong Mốc 1–5, thumbnail mượn `black_hole_thumbnail`)
 │                                (FireBallEffect, MagicShieldEffect, LightningEffect, DragonBallEffect,
 │                                 GojoEffect, MonsterEffect, RoomTeleportEffect, CanvasDrawEffect,
 │                                 EarthEffect, BlackHoleEffect)
@@ -245,7 +245,7 @@ docs/                        tài liệu thiết kế & vận hành — xem mụ
 .github/workflows/release.yml   CI: push main → bundleRelease + ước tính dung lượng Play → APK release lên GitHub Release tag `latest`
 ```
 
-**10 hiệu ứng** hiện có trong `EffectRepository.all`, khớp HOÀN TOÀN `Design_App_HandAr.md` mục 4
+**11 hiệu ứng** hiện có trong `EffectRepository.all` (10 hiệu ứng khớp HOÀN TOÀN `Design_App_HandAr.md` mục 4 + `finger_frame` thêm sau, xem `Finger_Frame_Filter_Plan.md`)
 (10/10 — xem mục 5 tài liệu đó để biết asset/ghi chú code từng hiệu ứng), tất cả nằm trong `effect/catalog/`
 (không còn hiệu ứng nào khai trực tiếp trong `EffectRepository.kt`). 4 hiệu ứng thuần test cũ
 (`rock_on_ily`, `camera_shutter`, `absolute_cinema_two_hand`, `heart_or_cross`) đã bị gỡ hẳn, thay
@@ -435,6 +435,9 @@ hiệu ứng", giải thích cách hoạt động từng loại: xem `Code_Walkt
   + `ColorMatrixColorFilter` rồi `drawPath(quad)` cho mép khử răng cưa và ảnh khớp tuyệt đối với viền (cùng phép chiếu `px()/py()`); `clipPath` không khử
   răng cưa trên canvas phần cứng. `ColorMatrix` thang 0–255 (cột offset đảo màu là 255). Shader gắn cứng 1 bitmap nên cache theo tham chiếu, chỉ tạo lại khi
   bitmap camera đổi; `DashPathEffect` phụ thuộc bề rộng canvas nên chỉ tạo lại khi bề rộng đổi (live ≠ video).
+- **Hiệu ứng 2 tay đòi hỏi delegate GPU của MediaPipe** (Finger Frame Mốc 5b, đo 02/10/2026): trên máy test, `HandLandmarkerProvider` từng chuyển sang CPU vì GPU init quá 5 giây (pin ~7%, tiết kiệm điện) → MediaPipe chỉ ~2,5 fps, trễ ~450 ms (cả `finger_frame` lẫn `black_hole`), khung giật và lên rất chậm. Nâng timeout lên 30 giây → GPU bật, ~12 fps, trễ ~110 ms. Khi thấy hiệu ứng 2 tay giật, **việc đầu tiên là xem log `HandLandmarkerProvider` có dòng `GPU init qua ...` / `GPU init loi` không** trước khi nghi ngờ code vẽ. Việc tô ruột bằng `BitmapShader` chỉ tốn ~0,6 fps (đã đo A/B chỉ-viền vs tô-ruột). Đo 5e: 3/3 lần chạy với timeout 5 giây đều rơi sang CPU (GPU init chậm trên máy test, chưa đo thời gian init); `finger_frame` và `black_hole` trên CPU đều ~2,7 fps → giật do MediaPipe, không do code vẽ. Quyết định timeout/cải thiện kịch bản CPU để phiên khác xử lý.
+- **Ngoại suy (`lead`) cần khoảng trễ tham chiếu theo nhịp kết quả thật**: ngưỡng reset vận tốc phải rộng hơn jitter của MediaPipe. Kết quả ~12 fps cách nhau trung vị 83 ms nhưng 17% > 100 ms, nên `MAX_DT_MS=100` (của làm mượt) làm `lead` tụt về 0 từng nhịp; tách riêng `MAX_VEL_DT_MS=250` đưa tỉ lệ lần cập nhật có lead lên ~76%. Đừng suy nhịp kết quả từ fps camera — đo bằng log.
+- **Cách đo/ghi log hiệu năng đã dùng** (đã gỡ phần nối dây TẠM, các lớp `DelegatePerfLogger`/`RecordingPerfLogger`/`logRecordingStats` trong `utils/` vẫn còn): xuất log từ Android Studio chỉ giữ phần đuôi bộ đệm (bị Camera HAL làm đầy) → dùng `adb -s <serial> logcat -s DelegatePerf RecPerf VideoStats HandLandmarkerProvider > file.txt` (cú pháp `-s` trước các tag; PowerShell ghi UTF-16 — đọc bằng `iconv -f UTF-16`). Chạy `adb logcat -c` trước khi test.
 
 - **ViewModel làm dữ liệu cũ sống dai hơn trước — soát cả dữ liệu item MANG THEO, không chỉ dữ liệu
   item VẼ RA.** Bẫy thật đã sập ở Bước 2 của `MVVM_Migration_Plan.md`: `VideoListViewModel` cache

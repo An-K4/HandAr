@@ -146,13 +146,39 @@ Mỗi mốc: build xanh (`./gradlew :app:assembleDebug :app:lintDebug`) + kiểm
 
 ⚠️ Cẩn thận: nhánh `effectHasBackground` của vòng lặp ghi **không** được tính cờ mới này là "có background", nếu không vòng ghi sẽ bỏ vẽ nền camera.
 
-### Mốc 5 — Hoàn thiện & đo
+### Mốc 5 — Hoàn thiện & đo (tách thành 6 phần nhỏ, làm lần lượt 5a → 5f)
 
-**Làm:** chỉnh màu/độ dày viền, tốc độ chạy nét đứt (`phase` theo một đồng hồ riêng của visual — `frame.elapsedMs` chỉ được `ProceduralVisual` ghi, mà `FingerFrameVisual` implement thẳng `EffectVisual` vì cần tự xử lý `setActive()` để `reset()` tracker, trong khi `ProceduralVisual.setActive()` là `final`), chốt các hằng số theo log, **gỡ toàn bộ log TẠM**.
+Mỗi phần: code (nếu có) → báo cáo → anh/chị test và xác nhận → tick → sang phần tiếp theo. Thứ tự sắp theo "sửa hành vi trước, dọn dẹp và đo sau" để số đo ở 5e phản ánh đúng bản cuối.
 
-**Đo:** gắn lại tạm `RecordingPerfLogger`/`VideoStatsLogger` theo `Perf_Notes.md` mục 9 — so `work`/fps giữa effect mới và 1 effect cũ 2 tay (`black_hole`) trên máy **nguội** (bài học throttling nhiệt). Thử cả khi bị fallback CPU (hạ tạm ngưỡng RAM như `CameraLoading_Fallback_Plan.md` gợi ý) để xem làm mượt có còn ổn ở ~22 fps.
+#### 5a — Hạ ngưỡng diện tích (chỉ đổi hằng số, rủi ro thấp)
 
-**Regression:** `Test_Checklist.md` B, C, D (đặc biệt D7 đổi qua lại effect 1 tay/2 tay), J, K, L.
+**Vấn đề (từ test Mốc 3):** khung nhỏ đã bị ẩn sớm. **Làm:** hạ `MIN_AREA_RATIO` trong `FingerFrameTracker.companion` từ `0.60` xuống khoảng `0.35` (ngưỡng tắt = `× 0.70` ≈ 0.25), dựa vào log `FingerFrameDbg` (cột `area/palm2`). Nếu anh/chị gửi vài dòng log lúc khung còn nhỏ nhưng bị ẩn thì chọn số theo log, không đoán.
+**Kiểm chứng:** khung nhỏ hơn trước vẫn hiện; hai tay chụm sát (khung dẹt) vẫn **không** vẽ (R8).
+
+#### 5b — Giảm độ trễ khi tay di chuyển nhanh (đụng thuật toán, rủi ro trung bình)
+
+**Vấn đề:** làm mượt thích nghi đã không còn là nguyên nhân chính; phần trễ còn lại là do đường ống (MediaPipe + analyzer ~25–30 fps, vị trí vẽ luôn là của frame đã xử lý xong). **Làm:** tracker ước lượng vận tốc mỗi góc từ 2 frame liền kề (theo `dt`) và công bố trong `snapshot` vị trí **ngoại suy** `pos + vel × PREDICT_MS` (hằng số khởi điểm ~1 frame ≈ 35–50 ms), có chặn trên (`MAX_PREDICT_DIST` theo cỡ khung) và **chỉ bật khi đang di chuyển nhanh** (đứng yên không ngoại suy để khỏi rung lại).
+**Rủi ro:** ngoại suy làm khung "vọt quá" khi tay đổi hướng đột ngột; ảnh trong khung (bitmap của frame cũ) lệch viền ngoại suy một chút. **Kiểm chứng:** vung tay nhanh — viền bám tay hơn 5a; đứng yên — không rung; đổi hướng đột ngột — không vọt quá lố; video vẫn khớp live. Nếu kết quả không đáng kể hoặc gây lệch ruột/viền thì **hoàn tác 5b** và ghi lại giới hạn vào `AGENTS.md`.
+
+#### 5c — Hoàn thiện hình ảnh (chỉ đổi phần vẽ)
+
+**Làm:** nét đứt **chạy** (`phase` của `DashPathEffect` theo đồng hồ riêng của visual — `SystemClock.uptimeMillis()`, vì `frame.elapsedMs` chỉ do `ProceduralVisual` ghi mà `FingerFrameVisual` implement thẳng `EffectVisual`); chốt màu/độ dày viền và bán kính chấm góc. Lưu ý `DashPathEffect` chỉ tạo lại khi đổi bề rộng canvas — đổi `phase` mỗi frame bằng `stroke.pathEffect` mới sẽ cấp phát, nên dùng 1 `DashPathEffect` + `Paint.setPathEffect` có `phase` hoặc vẽ lệch phase bằng cách khác (chốt khi code, chọn cách không cấp phát trong `draw()`).
+**Kiểm chứng:** live và video đều thấy nét đứt chạy mượt, độ dày tương đương nhau giữa live và video.
+
+#### 5d — Chốt hằng số + gỡ log TẠM
+
+**Làm:** chốt giá trị cuối của `RATIO_ON/OFF`, `MIN_AREA_RATIO`, `ALPHA_MIN`, `SPEED_REF`, `FADE_*`, `PREDICT_*` theo kết quả 5a–5c; **xoá** log `FingerFrameDbg` và `import android.util.Log`; rà soát bình luận `TẠM` còn sót trong `fingerframe/` và `FingerFrameEffect.kt` (thumbnail mượn vẫn giữ nguyên cho tới khi có asset — ghi rõ ở Mục 6/ghi chú).
+**Kiểm chứng:** build sạch, `adb logcat -s FingerFrameDbg` không còn dòng nào, hành vi y như 5c.
+
+#### 5e — Đo hiệu năng (chỉ đo, không đổi code sản phẩm)
+
+**Làm:** gắn lại **tạm** `RecordingPerfLogger`/`VideoStatsLogger` theo `Perf_Notes.md` mục 9; so `work`/fps giữa `finger_frame` và 1 effect cũ 2 tay (`black_hole`) trên máy **nguội** (bài học throttling nhiệt). Thử cả khi bị fallback CPU (hạ tạm ngưỡng RAM như `CameraLoading_Fallback_Plan.md` gợi ý) để xem làm mượt/ngoại suy còn ổn ở ~22 fps. Gỡ logger sau khi đo.
+**Kết quả:** bảng số liệu ghi vào Mục 9; nếu `finger_frame` nặng hơn rõ rệt thì lập việc tối ưu riêng (không làm lẫn vào phần này).
+
+#### 5f — Regression
+
+**Làm:** chạy `Test_Checklist.md` mục B, C, D (đặc biệt D7 đổi qua lại effect 1 tay/2 tay), J, K, L; rồi các kịch bản R1–R10 ở Mục 7.
+**Kiểm chứng:** không hồi quy ở 10 hiệu ứng cũ; ghi kết quả vào Mục 9.
 
 ### Mốc 6 — Cập nhật tài liệu (theo quy định dự án)
 
@@ -218,8 +244,14 @@ Mỗi mốc: build xanh (`./gradlew :app:assembleDebug :app:lintDebug`) + kiểm
 - [x] Mốc 3 — Tương ứng, làm mượt, mở/khép, fade (01/10/2026, đã test trên máy thật — xem Mục 9; còn 2 việc tinh chỉnh dồn sang Mốc 5)
 - [x] Mốc 4 — Đảo màu trong khung + đánh giá live (chốt Q4) (01/10/2026, đã test trên máy thật — xem Mục 9; chốt Q4 = phương án A)
 - [~] Mốc 4b — Phương án B cho live — **không làm** (Q4 chốt phương án A; mở lại nếu sau này thấy chênh trong/ngoài khung ở live)
-- [ ] Mốc 5 — Hoàn thiện, đo hiệu năng, regression
-- [ ] Mốc 6 — Cập nhật tài liệu
+- [x] Mốc 5 — Hoàn thiện, đo hiệu năng, regression (tách 6 phần nhỏ, xem Mục 4)
+  - [x] 5a — Hạ ngưỡng diện tích (02/10/2026: anh/chị tự chỉnh theo hướng "luôn có khung khi nhận ra tứ giác": `RATIO_ON 0.30`, `RATIO_OFF 0.15`, `MIN_AREA_RATIO 0.05`, `AREA_OFF_FACTOR 0.10` → bật khi diện tích ≥ 0.05, tắt khi < 0.005; giữ nguyên, rà lại ở 5d; rủi ro cần để ý: hình suy biến khi 2 tay chụm/bắt chéo và bật nhầm khi giơ 2 tay ở tư thế nghỉ)
+  - [x] 5b — Giảm độ trễ khi tay nhanh (ngoại suy theo vận tốc)  _(02/10/2026: test lần 1 `lead` luôn = 0 do MediaPipe chỉ ~2,5 fps vì chạy CPU (GPU init quá 5 giây). Nâng timeout GPU lên 30 giây tạm thời → GPU bật ~12 fps, trễ ~110 ms. Tách `MAX_VEL_DT_MS = 250` khỏi `MAX_DT_MS = 100` → lead có giá trị ở ~76% lần cập nhật, max 0,081. Người dùng xác nhận "tốt hơn từ khi chuyển sang GPU". Hiệu ứng này cần delegate GPU để có trải nghiệm tốt)_
+  - [x] 5c — Nét đứt chạy + chốt màu/độ dày viền  _(02/10/2026: 24 `DashPathEffect` dựng sẵn lệch phase đều, chọn theo `SystemClock.uptimeMillis()` → không cấp phát trong `draw()`; người dùng tự chỉnh `DASH_PERIOD_MS = 500`, giữ `DASH_FORWARD = true`, `DASH_STEPS = 24`, viền trắng dày 0,5% bề rộng, chấm góc 1,1%)_
+  - [x] 5d — Chốt hằng số + gỡ log TẠM  _(02/10/2026: gỡ log `FingerFrameDbg`, OverlayPerf, nối dây `DelegatePerf/RecPerf/VideoStats` ở `CameraRecordFragment`, `DEBUG_OUTLINE_ONLY`; trả `GPU_INIT_TIMEOUT_SEC` về 5. Hằng số chốt theo file hiện tại: `RATIO_ON 0.30`, `RATIO_OFF 0.15`, `MIN_AREA_RATIO 0.05`, `AREA_OFF_FACTOR 0.10`, `ALPHA_MIN 0.35`, `SPEED_REF 0.08`, `FADE_IN/OUT_MS 150/250`, `MAX_DT_MS 100`, `PREDICT_MS 40`, `PREDICT_START/FULL 0.03/0.10`, `MAX_LEAD_SIZE 0.30`, `VEL_ALPHA 0.5`, `MAX_VEL_DT_MS 250`; build sạch vì người dùng đã chạy test 5c)_
+  - [x] 5e — Đo hiệu năng  _(02/10/2026: đo bản cuối (có nét đứt chạy) GPU và CPU, số liệu ở Mục 9 "Mốc 5e"; không cần tối ưu `finger_frame`; giật trên CPU do MediaPipe, ghi nhận để xử lý ở phiên khác)_
+  - [x] 5f — Regression  _(02/10/2026: người dùng chạy lượt B/C/D/J/K/L và R1–R10 trên bản cuối, kết quả "test ổn", không có hồi quy ở các hiệu ứng cũ)_
+- [x] Mốc 6 — Cập nhật tài liệu  _(02/10/2026: `Camera_X_Hand_Landmarker.md` mục 15, `Code_Walkthrough.md` mục 3.9, `AGENTS.md` (cây thư mục, số hiệu ứng 11, bài học), `Test_Checklist.md` mục R, `README.md`, `Design_App_HandAr.md`; hash commit chờ cập nhật sau khi commit)_
 
 ---
 
@@ -393,6 +425,66 @@ feat: Finger Frame step 4 - invert colors inside the finger quad
 - dashed outline + corner dots, sizes relative to canvas width; outline only when no camera frame
 - Q4 decided: keep PreviewView (option A), step 4b not needed
 - docs: Plan, Code_Walkthrough, AGENTS
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ
+```
+
+Sau commit: gửi hash để cập nhật dòng "Cập nhật lần cuối tại commit" trong `Code_Walkthrough.md` và `AGENTS.md`.
+
+### Mốc 5e — Đo hiệu năng bản cuối (02/10/2026)
+
+**Điều kiện:** máy thật BGB00153427, 2 tay, nhiệt `0-BINH_THUONG` ở mọi lượt đo, mỗi lượt live ~30 giây rồi quay ~20 giây. Log lấy bằng `adb logcat -s DelegatePerf RecPerf VideoStats HandLandmarkerProvider`. GPU: `GPU_INIT_TIMEOUT_SEC` nâng tạm 30 giây để chắc chắn GPU bật. CPU: ép bằng công tắc tạm `FORCE_CPU_FOR_TEST`. Mọi mã đo tạm đã gỡ, timeout trả về 5 giây.
+
+| Lượt đo | fps MediaPipe TB | Latency TB | Frame nhận/gửi | Khi quay: `work` | `qua_han` | `cam` | fps video |
+|---|---|---|---|---|---|---|---|
+| `finger_frame` GPU | 12,0 (11,5–13,1) | 105–123 ms | 643/1519 (42%) | 17→24 ms | 1–8% | 27,6–28,5 | 24,35 |
+| `black_hole` GPU | 11,0 (9,9–12,7) | 106–129 ms | 581/1547 (38%) | 15→19 ms | 0–3% | 28,9–29,1 | 24,33 |
+| `finger_frame` CPU | 2,7 (2,5–3,0) | 366–439 ms | 145/1450 (10%) | 18→24 ms | 3–5% | 27,1–27,6 | 24,29 |
+| `black_hole` CPU | 2,6 (2,5–2,8) | 395–446 ms | 133/1403 (9,5%) | 18→23 ms | 4–5% | 26,6–27,5 | 24,13 |
+
+Số đo bản trước nét đứt chạy (10:15–10:25) cho `finger_frame` GPU: 11,3–12,2 fps, trễ 105–150 ms, video 24,30–24,43 — nét đứt chạy không làm đổi hiệu năng.
+
+**Nhận xét:**
+- **GPU:** `finger_frame` nhanh hơn `black_hole` ~1 fps (12,0 so với 11,0), `work`/`qua_han` tương đương → hiệu ứng mới không nặng hơn hiệu ứng 2 tay có sẵn, không cần tối ưu riêng. Video luôn ~24,3 fps (trần 25 fps của vòng ghi), không rớt.
+- **CPU:** `finger_frame` và `black_hole` gần như giống hệt nhau (2,6–2,7 fps, trễ ~400 ms, bỏ ~90% frame). Nghĩa là **mức giật do MediaPipe (suy luận bằng CPU), không do code vẽ của Finger Frame**: `onDraw` chỉ ~0,2 ms, `work` khi quay và fps video không khác lượt GPU.
+- **Nguyên nhân giật chi tiết (CPU):** (1) ~2,7 kết quả/giây nên viền chỉ cập nhật mỗi ~370 ms, `lead` (ngoại suy 40 ms) không còn ý nghĩa; (2) độ trễ ~400 ms khiến viền luôn chậm hơn tay; (3) tay di chuyển quá xa giữa 2 frame được xử lý nên tracker của MediaPipe dễ mất dấu và phải chạy lại bộ dò bàn tay → tay vào lại lâu (người dùng thấy ~10 giây live / ~20 giây khi quay trong phiên pin 7%).
+- **GPU init chậm trên máy này:** log `perf1.txt` ghi 3/3 lần chạy với timeout 5 giây (10:38, 10:41, 10:42) đều `GPU init qua 5s` → tự rơi sang CPU cả phiên; khi nâng timeout lên 30 giây thì GPU bật ổn (lượt đo GPU không có cảnh báo). Chưa đo thời gian init thật.
+- **Hiệu ứng này cần delegate GPU để có trải nghiệm tốt.** Việc cải thiện kịch bản CPU/GPU-init (ví dụ nới timeout, khởi tạo GPU nền sớm, cảnh báo khi chạy CPU, giảm tải suy luận) **được ghi nhận để xử lý ở phiên khác**, không làm trong Mốc 5.
+
+### Mốc 5–6 — Hoàn thiện, đo hiệu năng, regression, tài liệu (02/10/2026)
+
+**Đã làm:** 5a hạ ngưỡng diện tích (`RATIO_ON 0.30`/`RATIO_OFF 0.15`, `MIN_AREA_RATIO 0.05`, `AREA_OFF_FACTOR 0.10`); 5b dẫn trước (`lead`) ở live và tách `MAX_VEL_DT_MS = 250` khỏi `MAX_DT_MS = 100`; 5c nét đứt chạy (24 `DashPathEffect` dựng sẵn, `DASH_PERIOD_MS = 500`); 5d gỡ toàn bộ log/mã đo tạm, trả `GPU_INIT_TIMEOUT_SEC` về 5; 5e đo GPU/CPU (xem "Mốc 5e" phía trên); 5f regression ổn; Mốc 6 cập nhật doc.
+
+**Nguyên nhân lớn nhất làm 5b "không có tác dụng" lúc đầu:** MediaPipe chạy CPU (GPU init quá 5 giây) nên chỉ ~2,5 fps; không phải lỗi thuật toán dẫn trước. Hiệu ứng cần delegate GPU; cải thiện kịch bản CPU/GPU-init để xử lý ở phiên khác.
+
+**File thay đổi (so với commit `898989c`):** `FingerFrameTracker.kt`, `FingerFrameVisual.kt`, `HandFrame.kt` (+`forRecording`), `OverlayView.kt` (gán `frame.forRecording`); doc: `Finger_Frame_Filter_Plan.md`, `Camera_X_Hand_Landmarker.md`, `Code_Walkthrough.md`, `AGENTS.md`, `Test_Checklist.md`, `README.md`, `Design_App_HandAr.md`.
+
+**Cách commit:**
+
+```bash
+git add app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/FingerFrameTracker.kt \
+        app/src/main/java/com/example/handar/effect/visual/canvas/fingerframe/FingerFrameVisual.kt \
+        app/src/main/java/com/example/handar/effect/visual/HandFrame.kt \
+        app/src/main/java/com/example/handar/OverlayView.kt \
+        README.md docs/Finger_Frame_Filter_Plan.md docs/Camera_X_Hand_Landmarker.md \
+        docs/Code_Walkthrough.md docs/AGENTS.md docs/Test_Checklist.md docs/Design_App_HandAr.md
+git diff --cached --stat   # kiểm tra: đúng 11 file, không có perf*.txt, không có file lạ
+git commit
+```
+
+Thông điệp commit:
+
+```text
+feat: Finger Frame step 5-6 - lead, running dashes, constants and docs
+
+- FingerFrameTracker: velocity-based lead (live only), separate MAX_VEL_DT_MS = 250,
+  lower area threshold (RATIO_ON 0.30 / RATIO_OFF 0.15, MIN_AREA_RATIO 0.05)
+- FingerFrameVisual: running dashed outline (24 precomputed DashPathEffect phases, no allocation in draw())
+- HandFrame.forRecording + OverlayView sets it, so recording does not apply lead
+- measured on device: GPU ~12 fps vs CPU ~2.7 fps for MediaPipe, finger_frame not heavier than black_hole;
+  CPU/GPU-init improvements left for another session
+- docs: Camera_X_Hand_Landmarker section 15, Code_Walkthrough, AGENTS, Test_Checklist section R, README, Design_App, Plan
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01V118ZASe3XQucTozhvQGEQ

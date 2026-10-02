@@ -66,9 +66,11 @@ class FingerFrameVisual : EffectVisual {
     private var lastBitmap: Bitmap? = null
     private var shader: BitmapShader? = null
 
-    // nét đứt phụ thuộc bề rộng canvas (live ≠ video) → chỉ tạo lại khi bề rộng đổi
+    // nét đứt phụ thuộc bề rộng canvas (live ≠ video) → chỉ tạo lại khi bề rộng đổi.
+    // `DashPathEffect` bất biến theo `phase`, mà tạo mới mỗi frame thì cấp phát/GC → dựng sẵn DASH_STEPS hiệu ứng lệch phase
+    // đều nhau trong 1 chu kỳ (gạch + khoảng trống), mỗi frame chỉ chọn 1 cái theo đồng hồ.
     private var dashWidth = -1
-    private var dashEffect: DashPathEffect? = null
+    private val dashEffects = arrayOfNulls<DashPathEffect>(DASH_STEPS)
 
     override fun setActive(active: Boolean) {
         // mất cử chỉ / đổi state → xoá trạng thái làm mượt, lần sau hiện lại từ đầu
@@ -86,10 +88,15 @@ class FingerFrameVisual : EffectVisual {
         if (p < MIN_VISIBLE_P) return
         val alpha = (p * 255f).toInt().coerceIn(0, 255)
 
-        // snap là toạ độ chuẩn hoá; chiếu sang canvas (đã mirror + center-crop) ngay tại đây
+        // snap là toạ độ chuẩn hoá; chiếu sang canvas (đã mirror + center-crop) ngay tại đây.
+        // 5b: ở live cộng thêm `lead` (dẫn trước) để bù trễ đường ống; ở video mặc định KHÔNG cộng vì video vẽ đúng bitmap
+        // của frame đó (nền và khung cùng nguồn) — dẫn trước sẽ làm viền chạy lố so với ngón tay trong video.
+        val useLead = !frame.forRecording || PREDICT_IN_RECORDING
         for (i in 0 until 4) {
-            pts[i * 2] = frame.px(snap[i * 2])
-            pts[i * 2 + 1] = frame.py(snap[i * 2 + 1])
+            val nx = snap[i * 2] + if (useLead) snap[9 + i * 2] else 0f
+            val ny = snap[i * 2 + 1] + if (useLead) snap[9 + i * 2 + 1] else 0f
+            pts[i * 2] = frame.px(nx)
+            pts[i * 2 + 1] = frame.py(ny)
         }
         path.rewind()
         path.moveTo(pts[0], pts[1])
@@ -119,10 +126,19 @@ class FingerFrameVisual : EffectVisual {
         val w = canvas.width
         if (w != dashWidth) {
             dashWidth = w
-            dashEffect = DashPathEffect(floatArrayOf(w * 0.025f, w * 0.015f), 0f)
+            val dash = w * 0.025f
+            val gap = w * 0.015f
+            val period = dash + gap
+            for (k in 0 until DASH_STEPS) {
+                // phase tăng → gạch lùi về đầu path; lấy dấu âm để gạch tiến theo chiều path (đổi DASH_FORWARD nếu muốn ngược lại)
+                val phase = if (DASH_FORWARD) -period * k / DASH_STEPS else period * k / DASH_STEPS
+                dashEffects[k] = DashPathEffect(floatArrayOf(dash, gap), phase)
+            }
         }
         stroke.strokeWidth = w * 0.005f
-        stroke.pathEffect = dashEffect
+        // 1 vòng chu kỳ mỗi DASH_PERIOD_MS, đồng hồ riêng (frame.elapsedMs không do visual này ghi); live và video chạy cùng nhịp
+        val step = ((SystemClock.uptimeMillis() % DASH_PERIOD_MS) * DASH_STEPS / DASH_PERIOD_MS).toInt()
+        stroke.pathEffect = dashEffects[step]
         stroke.alpha = alpha
         canvas.drawPath(path, stroke)
 
@@ -133,5 +149,17 @@ class FingerFrameVisual : EffectVisual {
 
     private companion object {
         const val MIN_VISIBLE_P = 0.01f
+
+        /** số phase dựng sẵn cho nét đứt chạy; càng nhiều càng mượt nhưng tốn bộ nhớ lúc tạo lại khi đổi bề rộng canvas */
+        const val DASH_STEPS = 24
+
+        /** thời gian để nét đứt trượt hết 1 chu kỳ (gạch + khoảng trống); nhỏ hơn = chạy nhanh hơn */
+        const val DASH_PERIOD_MS = 500L
+
+        /** true = gạch chạy theo chiều đường path (thứ tự góc đã sắp theo góc); false = ngược lại. Chỉnh khi test 5c */
+        const val DASH_FORWARD = true
+
+        /** bật = video cũng dẫn trước (mặc định tắt, xem chú thích trong draw()); chỉnh khi test 5b */
+        const val PREDICT_IN_RECORDING = false
     }
 }

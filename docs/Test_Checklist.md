@@ -7,6 +7,8 @@
 > **Mục G-H**: thêm từ Phase B — điều hướng giữa màn hình và vòng đời/leak của Fragment. Đây là lớp bug mới xuất hiện kể từ khi app có nhiều màn; chúng **không** biểu hiện ở lần chạy đầu tiên mà chỉ lộ ra sau nhiều lần vào/ra màn, nên phải test riêng.
 > **Mục I**: thêm từ đợt mở rộng `Gestures` (1 tay + 2 tay) — xem chi tiết công thức/lý do tại `Camera_X_Hand_Landmarker.md` Mục 11. Chạy mục này sau bất kỳ lần nào sửa `GestureRecognizer.kt`/`GestureUtils.kt`/`EffectRepository.kt`.
 > **Mục J-L**: thêm từ Phase M (hiệu ứng procedural/canvas, `SizeSource`/`AnchorSource`/`handedness`, và race condition `AnimatedGifVisual` khi ghi hình). Chạy sau bất kỳ lần nào sửa `HandFrame.kt`, `EffectScope.kt`, `ProceduralVisual.kt`, `OverlayView.kt` (phần `setResult`/`drawFrame`), hoặc thêm effect procedural/anchor-size mới.
+> **Mục R**: Finger Frame (khung 4 đầu ngón, đảo màu ảnh camera trong khung) — thêm 02/10/2026; hiệu ứng này cần delegate GPU của MediaPipe, xem lưu ý đầu mục.
+>
 > **Mục M**: Tia sét & Dragon Ball — 2 chỗ rủi ro suy luận (góc xoay tia, ngưỡng cổ tay chụm) chưa từng chạy trên máy thật.
 >
 > Chạy đầy đủ A-H sau mỗi phase từ Phase B trở đi. Chạy Mục I sau mỗi lần thêm/sửa cử chỉ. Chạy Mục J-L sau mỗi lần đụng tới hạ tầng Phase M nói trên.
@@ -463,3 +465,24 @@ O1, 3.4 cho O4/O5, 4.2 cho P2, 4.4 cho P4, 5.4 cho Q6, 6.1 cho Q7, 6.2 cho Q8-Q1
 6.5 cho Q11, 6.4 cho Q12).
 
 Riêng mục **I**, khi Fail hãy đối chiếu với `Camera_X_Hand_Landmarker.md` Mục 11 (nhất là Mục 11.9 — Quy trình chẩn đoán cử chỉ 2 tay) trước khi sửa — phần lớn các lỗi đã gặp khi làm cử chỉ mới đều phù hợp với 1 trong 7 bước chuẩn đoán đã đúc kết ở đó.
+
+## R. Finger Frame — khung 4 đầu ngón, đảo màu ảnh camera trong khung (02/10/2026)
+
+> Chạy sau bất kỳ lần nào sửa `fingerframe/*`, `HandFrame.kt` (`cameraFrame`/`cameraMatrix`/`forRecording`), `OverlayView.drawFrame()`, hoặc `HandLandmarkerProvider.kt`. **Hiệu ứng này cần delegate GPU** của MediaPipe: trước khi test, xem log `HandLandmarkerProvider` — nếu có `GPU init qua ...` thì đang chạy CPU (~2,7 fps, viền chậm và tay vào lại lâu), kết quả giật khi đó **không** phải hồi quy của Finger Frame. Chi tiết: `Camera_X_Hand_Landmarker.md` mục 15, kế hoạch: `Finger_Frame_Filter_Plan.md`.
+
+| # | Bước | Kỳ vọng |
+|---|---|---|
+| R1 | Dựng khung giữa màn hình bằng 2 tay (cái + trỏ mỗi tay), đứng yên 5 giây | Khung bám đúng 4 đầu ngón, viền không rung, trong khung ảnh đảo màu (tóc đen thành trắng) |
+| R2 | Di khung ra 4 góc màn hình | Không lệch, không ngược chiều (mirror đúng) |
+| R3 | Xoay khung 360° chậm rồi nhanh | Không có nhịp "xoắn" / đổi góc đột ngột |
+| R4 | Khép ngón cái–trỏ từ từ rồi mở lại; giữ đúng ngưỡng | Mờ dần / hiện dần; không nhấp nháy ở ngưỡng (hysteresis `RATIO_ON` 0,30 / `RATIO_OFF` 0,15) |
+| R5 | Chỉ 1 tay; rút hẳn 1 tay ra khỏi hình | Không vẽ gì; khung tắt |
+| R6 | Bắt chéo 2 tay, đổi chỗ 2 tay | Vẫn là tứ giác hợp lệ, không "cái nơ" |
+| R7 | Tay sát camera / xa camera | Kích hoạt được ở cả hai |
+| R8 | 2 tay chụm sát (khung rất dẹt) | Không vẽ |
+| R9 | Quay video 20 giây với các thao tác trên | Video khớp live; trong khung liền mạch với ngoài khung; nét đứt chạy cả trong video |
+| R10 | Đổi qua lại `finger_frame` ↔ effect 1 tay nhiều lần | Không ANR, loading overlay đúng (D7/D9) |
+| R11 | Vung tay nhanh (GPU) | Viền bám đầu ngón rõ hơn lúc chưa có dẫn trước (`lead`); dừng đột ngột không vọt quá lố; đứng yên không rung lại |
+| R12 | Nét đứt chạy: nhìn ở live và trong video | Trượt mượt, không khựng, độ dày tương đương giữa live và video (`DASH_PERIOD_MS`, `DASH_FORWARD` chỉnh trong `FingerFrameVisual`) |
+| R13 | Nhìn kỹ mép tứ giác (ruột đảo màu so với ngoài khung) | Mép trơn, **không lởm chởm** (dùng `BitmapShader` + `drawPath`, không `clipPath`) |
+| R14 | Mở màn hướng dẫn cử chỉ (nút Action) khi chọn `finger_frame` | Hiện đúng dòng "Tạo khung bằng 2 tay" (EN: "Make a Frame With Both Hands") với icon `ic_action_frame_2hands` |

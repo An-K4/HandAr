@@ -109,6 +109,15 @@
     - 14.1. ANR gốc và cách fix
     - 14.2. Fallback GPU→CPU tự động (`HandLandmarkerProvider.createWithFallback`)
     - 14.3. Loading overlay che khoảng chờ tạo model (`CameraRecordFragment`)
+15. [Hiệu ứng Finger Frame — khung 4 đầu ngón, filter ảnh camera trong khung (02/10/2026)](#15-hiệu-ứng-finger-frame--khung-4-đầu-ngón-filter-ảnh-camera-trong-khung-02102026)
+    - 15.1. Ý tưởng và công thức
+    - 15.2. Đưa bitmap camera tới visual: `cameraFrame` + `cameraMatrix()`
+    - 15.3. Cử chỉ lỏng, visual tự quyết định hiện/ẩn
+    - 15.4. `FingerFrameTracker`: sắp góc, tương ứng, làm mượt, hysteresis, fade, dẫn trước
+    - 15.5. Vẽ ruột bằng `BitmapShader` + `drawPath`, không dùng `clipPath`
+    - 15.6. Các ngưỡng đã chốt và cách đo
+    - 15.7. Hiệu năng: GPU hay CPU quyết định trải nghiệm
+    - 15.8. Debug Checklist
 
 ---
 
@@ -1618,3 +1627,79 @@ preload, vì `createFromOptions()` không có API huỷ giữa chừng).
   GPU chậm sẽ phải chờ hết); (C) thread riêng do provider sở hữu cho cả tạo GPU lẫn `detectAsync` để giữ timeout — phức
   tạp hơn. Hai lỗi phụ cùng đoạn code nên sửa kèm: model GPU bị bỏ rơi sau timeout không ai `close()`; lỗi khi build CPU
   không được bắt nên overlay loading kẹt.
+
+---
+
+## 15. HIỆU ỨNG FINGER FRAME — KHUNG 4 ĐẦU NGÓN, FILTER ẢNH CAMERA TRONG KHUNG (02/10/2026)
+
+Hiệu ứng đầu tiên mà phần "biến đổi" tác động lên **chính ảnh camera** (không chỉ vẽ thêm lên trên). Bốn đầu ngón (landmark 4 và 8 của 2 tay) tạo thành một tứ giác; bên trong tứ giác ảnh camera được đảo màu, bên ngoài giữ nguyên. Kế hoạch đầy đủ: `Finger_Frame_Filter_Plan.md`; lý thuyết: `Finger_Frame_Filter_Theory.md`.
+
+### 15.1. Ý tưởng và công thức
+
+`out = F(ảnh) × mask + ảnh × (1 − mask)`, với `F` = đảo màu, `mask` = hình tứ giác (có alpha `p` để hiện/mờ dần). "Ảnh bên ngoài" chính là nền camera có sẵn bên dưới (`PreviewView` ở live, bitmap camera ở video), nên chỉ cần vẽ **phần trong khung**. Phương án live giữ `PreviewView` (Q4 chốt A); phương án ẩn preview (4b) không cần làm.
+
+### 15.2. Đưa bitmap camera tới visual: `cameraFrame` + `cameraMatrix()`
+
+- `HandFrame.cameraFrame: Bitmap?` là bitmap camera **của chính frame đang vẽ**, `HandFrame.cameraMatrix(out)` trả ma trận vẽ bitmap đó lên canvas **cùng phép chiếu** với `px()/py()` — nhờ vậy ruột khớp tuyệt đối với viền.
+- Live: Fragment gọi `OverlayView.setCameraFrame(bitmap)` ngay trước `setResult()`; ghi hình: truyền qua tham số `cameraFrame` của `drawFrame()`. Chỉ nhận bitmap khi `width/height` khớp `imgWidth/imgHeight`.
+- `HandFrame.forRecording` cho visual biết đang vẽ cho video hay live (xem 15.4, "dẫn trước").
+- Visual tự lo trường hợp `cameraFrame == null` (chỉ vẽ viền, không crash).
+
+### 15.3. Cử chỉ lỏng, visual tự quyết định hiện/ẩn
+
+`Gestures.twoHandsFrame` chỉ yêu cầu `hands.size >= 2`. Lý do: `OverlayView.drawFrame()` **return sớm** khi không có state khớp (`matchedIndex == -1`), nên nếu cử chỉ khắt khe thì mỗi lần ngón khép nhẹ `draw()` sẽ không được gọi và không thể fade-out mượt. Vì vậy ngưỡng khép/mở nằm trong tracker (hysteresis), không nằm ở cử chỉ. Quy tắc chung cho mọi hiệu ứng có fade: cử chỉ lỏng, ngưỡng nằm trong visual. `GestureDisplay` ánh xạ `Gestures.twoHandsFrame` → chuỗi "Make a Frame With Both Hands" / "Tạo khung bằng 2 tay" + icon `ic_action_frame_2hands`.
+
+### 15.4. `FingerFrameTracker`
+
+Mỗi visual (live, recording) giữ **1 tracker riêng**, cùng nhận dãy `onHandFrame`. `update(hands, nowMs)` chạy ở main thread:
+
+1. **Sắp 4 điểm theo góc** (`QuadMath.sortByAngle`: `atan2` quanh trọng tâm) → không bao giờ ra hình "cái nơ" kể cả khi bắt chéo 2 tay. Diện tích bằng công thức dây giày (`shoelaceArea`).
+2. **Tương ứng với frame trước**: `bestRotation` chọn phép quay vòng 0..3 để 4 góc không bị xoắn khi xoay khung.
+3. **Làm mượt thích nghi** (kiểu 1€): đứng yên alpha = `ALPHA_MIN` để hết rung, di chuyển nhanh alpha → 1 để khỏi trễ; tốc độ chuẩn hóa theo cỡ khung (`SPEED_REF`) nên tay xa/gần camera cho cùng cảm giác.
+4. **Hysteresis mở/khép** theo `thumbIndexPinchRatio` của từng tay và diện tích/`palmLength²`: bật khi cả 2 tỉ lệ > `RATIO_ON` và `area ≥ MIN_AREA_RATIO`; tắt khi 1 tỉ lệ < `RATIO_OFF` hoặc `area < MIN_AREA_RATIO × AREA_OFF_FACTOR`. Khi khép, **đóng băng** 4 góc (khép ngón làm 4 điểm co lại) để khung mờ dần tại chỗ.
+5. **Presence `p`**: hiện 150 ms (`FADE_IN_MS`), mờ 250 ms (`FADE_OUT_MS`); `p < APPEAR_SNAP_P` thì đặt thẳng vị trí, không "bay" từ chỗ cũ.
+6. **Dẫn trước (`lead`)**: ước lượng vận tốc từng góc từ các vị trí **đo** (EMA `VEL_ALPHA`), `lead = vận tốc × PREDICT_MS × gain`; `gain` chỉ > 0 khi tốc độ vượt `PREDICT_START` (đứng yên không khuếch đại nhiễu), chặn ở `MAX_LEAD_SIZE × cỡ khung`. Chỉ áp dụng ở **live**; video vẽ đúng bitmap của frame đó nên cộng `lead` sẽ vọt quá (`PREDICT_IN_RECORDING = false`). Ngưỡng reset vận tốc **riêng** `MAX_VEL_DT_MS = 250` (không dùng chung `MAX_DT_MS = 100` của làm mượt): kết quả MediaPipe ~12 fps cách nhau trung vị ~83 ms nhưng ~17% > 100 ms, dùng chung ngưỡng sẽ làm `lead` tụt về 0 từng nhịp.
+
+Công bố `@Volatile snapshot: FloatArray(17)` — **mảng mới, bất biến** mỗi lần: [0..7] 4 góc chuẩn hóa, [8] `p`, [9..16] độ dời `lead`. `draw()` ở thread ghi hình đọc 1 lần nên luôn nhất quán. `reset()` khi mất cử chỉ (gọi từ `setActive(false)`).
+
+### 15.5. Vẽ ruột bằng `BitmapShader` + `drawPath`, không dùng `clipPath`
+
+`clipPath` **không khử răng cưa** trên canvas phần cứng → mép tứ giác lởm chởm. Thay bằng: `Paint` mang `BitmapShader(frame.cameraFrame, CLAMP, CLAMP)` + `ColorMatrixColorFilter` đảo màu rồi `drawPath(quad)` (mép được khử răng cưa), `alpha = p`, `shader.setLocalMatrix(frame.cameraMatrix())`. Các điểm dễ sai: ma trận đảo màu dùng thang **0–255** (cột offset = 255, không phải 1); `BitmapShader` gắn cứng 1 bitmap mà bitmap camera đổi mỗi frame, nên cache theo **tham chiếu** và chỉ tạo lại khi bitmap đổi; `Path/Matrix/Paint` là field tái dùng (không cấp phát trong `draw()`). Viền: nét đứt + 4 chấm góc, kích thước theo `canvas.width` (live ≠ video). **Nét đứt chạy** (5c): `DashPathEffect` bất biến theo `phase` nên dựng sẵn `DASH_STEPS = 24` hiệu ứng lệch phase đều, mỗi frame chọn 1 cái theo `SystemClock.uptimeMillis() % DASH_PERIOD_MS` (hiện 500 ms) — chỉ dựng lại khi đổi bề rộng canvas.
+
+### 15.6. Các ngưỡng đã chốt và cách đo
+
+| Hằng số | Giá trị | Ý nghĩa |
+|---|---|---|
+| `RATIO_ON / RATIO_OFF` | 0,30 / 0,15 | ngưỡng bật/tắt theo tỉ lệ khép ngón cái–trỏ (hysteresis, khoảng cách 0,15 chống nhấp nháy) |
+| `MIN_AREA_RATIO / AREA_OFF_FACTOR` | 0,05 / 0,10 | diện tích/palm² tối thiểu để hiện; tắt khi < 0,005 |
+| `ALPHA_MIN`, `SPEED_REF` | 0,35, 0,08 | làm mượt thích nghi |
+| `FADE_IN_MS / FADE_OUT_MS` | 150 / 250 | tốc độ hiện/mờ |
+| `PREDICT_MS`, `PREDICT_START/FULL`, `MAX_LEAD_SIZE`, `VEL_ALPHA` | 40, 0,03/0,10, 0,30, 0,5 | dẫn trước |
+| `MAX_DT_MS`, `MAX_VEL_DT_MS` | 100, 250 | trần `dt` của làm mượt / ngưỡng reset vận tốc |
+| `DASH_PERIOD_MS`, `DASH_STEPS`, `DASH_FORWARD` | 500, 24, true | nét đứt chạy |
+
+Số đo đã dùng các lớp có sẵn: `DelegatePerfLogger` (tag `DelegatePerf`: fps/độ trễ MediaPipe), `RecordingPerfLogger` (`RecPerf`), `logRecordingStats` (`VideoStats`). Nối dây tạm trong `CameraRecordFragment`, gỡ sau khi đo. Xuất log bằng `adb -s <serial> logcat -s DelegatePerf RecPerf VideoStats HandLandmarkerProvider > file.txt` (không xuất từ Android Studio vì bộ đệm bị Camera HAL làm đầy; PowerShell ghi UTF-16).
+
+### 15.7. Hiệu năng: GPU hay CPU quyết định trải nghiệm
+
+Số đo bản cuối (2 tay, máy nguội, mỗi lượt live ~30 s + quay ~20 s):
+
+| Lượt đo | fps MediaPipe | Latency | Video |
+|---|---|---|---|
+| `finger_frame` GPU | 12,0 | 105–123 ms | 24,35 fps |
+| `black_hole` GPU | 11,0 | 106–129 ms | 24,33 fps |
+| `finger_frame` CPU | 2,7 | 366–439 ms | 24,29 fps |
+| `black_hole` CPU | 2,6 | 395–446 ms | 24,13 fps |
+
+Kết luận: `finger_frame` không nặng hơn hiệu ứng 2 tay có sẵn; giật trên CPU là do **MediaPipe suy luận bằng CPU** (~370 ms/frame, bỏ ~90% frame, `lead` vô nghĩa, tay di xa giữa 2 frame được xử lý nên dễ mất dấu và dò lại lâu), không phải do code vẽ (`onDraw` ~0,2 ms, tô ruột chỉ tốn ~0,6 fps). Hiệu ứng này **cần delegate GPU**. Trên máy test, với `GPU_INIT_TIMEOUT_SEC = 5` đã 3/3 lần rơi sang CPU (xem 14.2), nâng lên 30 s thì GPU bật ổn. Việc cải thiện kịch bản này (nới timeout, khởi tạo GPU nền sớm, cảnh báo khi chạy CPU...) **để xử lý ở phiên khác**.
+
+### 15.8. Debug Checklist
+
+1. **Không thấy khung**: `hands.size >= 2` chưa? `thumbIndexPinchRatio` cả 2 tay có > `RATIO_ON` không (đặt log tạm trong `update`)? diện tích/palm² có ≥ `MIN_AREA_RATIO`?
+2. **Khung nhấp nháy ở ngưỡng**: kiểm tra khoảng cách giữa `RATIO_ON` và `RATIO_OFF`; hysteresis còn đủ rộng không.
+3. **Khung "xoắn" khi xoay**: `bestRotation` có chạy trước làm mượt không; có sort góc chưa.
+4. **Ruột lệch viền**: `cameraMatrix()` có được tính sau `setProjection()` không; `cameraFrame` có đúng bitmap của frame này không (kích thước khớp `imgWidth/imgHeight`).
+5. **Ruột hiện cả vùng ngoài khung hoặc mép lởm chởm**: có đang dùng `clipPath` thay vì `drawPath` + shader không.
+6. **Màu sai (không đảo)**: cột offset của `ColorMatrix` phải là 255, không phải 1.
+7. **Viền giật lúc tay nhanh, video không giật**: xem `lead` (chỉ live), `MAX_VEL_DT_MS`, và nhất là **MediaPipe đang chạy CPU hay GPU** (log `HandLandmarkerProvider`, `DelegatePerf`).
+8. **Video lệch live**: `PREDICT_IN_RECORDING` phải là `false`; `forRecording` phải được gán sau `setProjection()`.
